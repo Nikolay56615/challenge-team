@@ -1,0 +1,39 @@
+# Зависимости и сборка
+node_modules/
+frontend/dist/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Кеши проверок и результаты шагов CI: Hypothesis, линтеры, покрытие, мутационное тестирование, аудит и SBOM,
+# Lighthouse, копия бэкенда mutmut
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+/mutation/
+/supply-chain/
+/.lighthouseci/
+backend/mutants/
+
+# Локальные снимки проверок и настройки
+frontend/.screenshots/
+/evaluation/e2e/.results/
+/evaluation/e2e/node_modules/
+.env
+.env.*
+
+# Копия выгрузки и любые базы SQLite со служебными файлами не попадают в репозиторий
+*.sqlite3
+*.sqlite3-*
+*.backup
+*.safetensors
+*.onnx
+*.onnx_data
+
+# Local project data and private folders
+/Personal/
+/data/local/
+/data/restricted/

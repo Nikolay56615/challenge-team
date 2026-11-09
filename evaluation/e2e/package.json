@@ -1,0 +1,19 @@
+{
+  "name": "track1-browser-checks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "install:browser": "playwright-core install chromium --only-shell",
+    "check:feed": "node check_feed.mjs",
+    "check:ui": "node check_ui.mjs",
+    "check:a11y": "node check_a11y.mjs",
+    "check:wcag": "node check_wcag.mjs",
+    "check:contrast": "node check_contrast.mjs",
+    "check:cvd": "node check_cvd.mjs",
+    "check:display": "node check_display.mjs"
+  },
+  "devDependencies": {
+    "axe-core": "4.14.0",
+    "playwright-core": "1.65.0"
+  }
+}

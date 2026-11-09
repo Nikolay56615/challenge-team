@@ -1,0 +1,24 @@
+// Базовые компоненты UI-кита (docs/ui-kit.md, раздел 3)
+export { Badge, type BadgeProps, type BadgeTone } from './Badge';
+export { Banner, type BannerProps } from './Banner';
+export { Button, buttonClass, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
+export { ButtonLink, safeHttpUrl, type ButtonLinkProps } from './ButtonLink';
+export { Card, type CardProps } from './Card';
+export { Checkbox, type CheckboxProps } from './Checkbox';
+export { ChipGroup, type ChipGroupProps, type ChipOption } from './ChipGroup';
+export { cx } from './cx';
+export { Disclosure, type DisclosureProps } from './Disclosure';
+export { KeyValue, type KeyValueProps } from './KeyValue';
+export { MatchChips, type MatchChipsProps } from './MatchChips';
+export { Panel, type PanelProps } from './Panel';
+export { RankMarker, type RankMarkerProps } from './RankMarker';
+export { Layout, Screen, type LayoutProps, type ScreenProps } from './Screen';
+export { SelectField, type SelectFieldProps, type SelectOption } from './SelectField';
+export { Skeleton, SKELETON_DELAY_MS, useDelayedFlag, type SkeletonProps } from './Skeleton';
+export { Stale, type StaleProps } from './Stale';
+export { StatusLine, type StatusLineProps } from './StatusLine';
+export { TabPanel, Tabs, type TabItem, type TabPanelProps, type TabsProps } from './Tabs';
+export { Tag, type TagProps } from './Tag';
+export { TextAreaField, type TextAreaFieldProps } from './TextAreaField';
+export { TextField, type TextFieldProps } from './TextField';
+export { TopBar, type TopBarProps } from './TopBar';

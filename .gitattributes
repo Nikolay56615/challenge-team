@@ -1,0 +1,7 @@
+# В рабочей копии генерируемые файлы контракта API всегда с LF, в том числе в Windows при core.autocrlf=true.
+# npm --prefix frontend run gen:api -- --check сравнивает текст schema.gen.ts с выводом генератора, а генератор
+# пишет LF: с CRLF сверка падала бы без изменений схемы. Копию схемы openapi.json команда обновления
+# python -m tests.test_openapi_snapshot тоже пишет с LF, и файл в рабочей копии совпадает с её выводом.
+# Остальные файлы git обрабатывает по умолчанию.
+frontend/src/api/schema.gen.ts text eol=lf
+frontend/src/api/openapi.json text eol=lf
