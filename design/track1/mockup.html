@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макет · Подбор учебных материалов (трек 1)</title>
+<style>
+  :root {
+    --ink: #1c2430;
+    --muted: #5b6673;
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --line: #dde3ea;
+    --accent: #2f5fd0;
+    --accent-soft: #eaf1fb;
+    --accent-ink: #1f3f85;
+    --ok-bg: #e8f4ec;
+    --ok-ink: #1f6b3a;
+    --paid-bg: #fff4df;
+    --paid-ink: #8a5a00;
+    --flag-bg: #f1e9ff;
+    --flag-ink: #5b3a9e;
+    --err-bg: #fdecec;
+    --err-ink: #9c2a2a;
+    --radius: 12px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9ecf0; color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.45; }
+  .board { max-width: 1240px; margin: 0 auto; padding: 24px 24px 64px; }
+  .board-head h1 { font-size: 26px; margin: 0 0 8px; }
+  .board-head p { margin: 4px 0; color: var(--muted); }
+  .board-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 32px; }
+  .board-nav a { font-size: 14px; color: var(--accent-ink); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; text-decoration: none; }
+  section.state { margin-bottom: 48px; }
+  section.state h2 { font-size: 20px; margin: 0 0 8px; }
+  .note { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; margin: 0 0 16px; font-size: 14px; }
+  .note ul { margin: 6px 0 0 18px; padding: 0; }
+  .note li { margin: 2px 0; }
+  .frames { display: grid; gap: 24px; }
+  figure.frame { margin: 0; }
+  figcaption { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  .device { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px rgba(20, 30, 50, .06); }
+  .frame.mobile .device { width: 390px; }
+  .frame.desktop .device { width: 1120px; max-width: 100%; }
+  .screen { container: screen / inline-size; background: var(--bg); min-height: 620px; }
+  .legend-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+  .legend-table th, .legend-table td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+  .swatch i { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.08); display: inline-block; }
+
+  /* ---------- экран приложения ---------- */
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .logo { width: 24px; height: 24px; border-radius: 6px; background: var(--accent); display: inline-block; }
+  .muted { color: var(--muted); font-weight: 400; }
+  .tag { font-size: 12px; color: var(--muted); border: 1px dashed var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  .main { padding: 16px; display: grid; gap: 16px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 14px; }
+  .panel h1 { font-size: 22px; line-height: 1.2; margin: 0; }
+  .panel h2 { font-size: 17px; margin: 0; }
+  .lead { margin: 0; color: var(--muted); }
+  .field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+  .field label, .field legend { font-weight: 600; padding: 0; }
+  .opt { font-weight: 400; color: var(--muted); font-size: 13px; }
+  textarea { width: 100%; font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; resize: vertical; background: #fff; }
+  textarea:disabled { background: #f7f8fa; color: var(--muted); }
+  .hint { font-size: 13px; color: var(--muted); }
+  details.refine { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 12px; }
+  details.refine summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  details.refine summary::after { content: "▾"; color: var(--muted); }
+  details.refine:not([open]) summary::after { content: "▸"; }
+  .chipgroup { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; background: #fff; font-size: 14px; cursor: pointer; }
+  .chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+  .chip.focus-demo { outline: 3px solid #8fb0ff; outline-offset: 2px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn { font: inherit; font-weight: 600; border-radius: 10px; padding: 11px 16px; border: 1px solid transparent; cursor: pointer; background: #fff; color: var(--ink); }
+  .btn.primary { background: var(--accent); color: #fff; flex: 1 1 auto; }
+  .btn.primary:disabled { opacity: .6; cursor: default; }
+  .btn.secondary { border-color: var(--line); }
+  .btn.outline { border-color: var(--accent); color: var(--accent-ink); }
+  .btn.link { background: transparent; color: var(--accent-ink); font-weight: 500; padding-left: 4px; padding-right: 4px; }
+  .btn.small { padding: 8px 12px; font-size: 14px; }
+  .demo { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: #fafbfc; display: grid; gap: 8px; font-size: 14px; }
+  .demo-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .select { border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; background: #fff; display: inline-flex; gap: 8px; align-items: center; }
+  .select.wide { display: flex; justify-content: space-between; padding: 9px 12px; border-radius: 10px; font-size: 14px; }
+  .check { justify-content: flex-start; }
+  .box { width: 18px; height: 18px; border: 1px solid var(--muted); border-radius: 4px; display: inline-block; background: #fff; }
+  .box.on { background: var(--accent); border-color: var(--accent); position: relative; }
+  .box.on::after { content: "✓"; color: #fff; position: absolute; inset: 0; font-size: 13px; line-height: 18px; text-align: center; }
+  .status { margin: 0; font-size: 14px; color: var(--muted); }
+  .results { display: grid; gap: 12px; align-content: start; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; }
+  .card-head { display: flex; gap: 10px; align-items: flex-start; }
+  .rank { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+  .title { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #eef1f5; color: #3b4652; white-space: nowrap; }
+  .badge.free { background: var(--ok-bg); color: var(--ok-ink); }
+  .badge.paid { background: var(--paid-bg); color: var(--paid-ink); }
+  .badge.flag { background: var(--flag-bg); color: var(--flag-ink); }
+  .badge.topic { background: #e7eef9; color: var(--accent-ink); }
+  .benefit { margin: 0; font-size: 14px; }
+  .kv { display: grid; gap: 2px; }
+  .k { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .v { font-size: 14px; }
+  .card-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .nolink { font-size: 13px; color: var(--muted); }
+  .route { background: #fff; border: 1px dashed var(--line); border-radius: var(--radius); padding: 12px 16px; display: grid; gap: 6px; }
+  .route ol { margin: 0; padding-left: 20px; font-size: 14px; }
+  .banner { border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; border: 1px solid transparent; }
+  .banner strong { font-size: 15px; }
+  .banner p { margin: 0; font-size: 14px; }
+  .banner.info { background: var(--accent-soft); color: var(--accent-ink); border-color: #cfdcf5; }
+  .banner.error { background: var(--err-bg); color: var(--err-ink); border-color: #f3c9c9; }
+  .banner .actions { margin-top: 2px; }
+  .skeleton { height: 128px; border-radius: var(--radius); background: linear-gradient(90deg, #e6eaef 0%, #f3f5f8 50%, #e6eaef 100%); border: 1px solid var(--line); }
+  .intro ul { margin: 0; padding-left: 20px; }
+  .intro li { margin: 4px 0; }
+  .empty h2 { font-size: 18px; }
+  .starter { display: grid; gap: 10px; }
+  .starter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .compare { display: grid; gap: 16px; }
+  .col { display: grid; gap: 10px; align-content: start; }
+  .col h3 { margin: 0; font-size: 16px; }
+  .col .sub { margin: 0; font-size: 13px; color: var(--muted); }
+  .tabs { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+  .tab { flex: 1; text-align: center; padding: 9px 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
+  .tab.on { background: var(--accent-soft); color: var(--accent-ink); }
+  .col.baseline { display: none; }
+  .foot { font-size: 13px; color: var(--muted); margin: 0; }
+
+  @container screen (min-width: 800px) {
+    .main { grid-template-columns: 360px minmax(0, 1fr); padding: 24px; gap: 24px; align-items: start; }
+    .aside { position: sticky; top: 16px; display: grid; gap: 16px; }
+    .btn.primary { flex: 0 1 auto; }
+    .compare { grid-template-columns: 1fr 1fr; }
+    .tabs { display: none; }
+    .col.baseline { display: grid; }
+  }
+
+  /* режим одного кадра для снимков: ?only=<state>&device=mobile|desktop */
+  body.only { background: var(--bg); }
+  body.only .board { padding: 0; max-width: none; }
+  body.only .board-head, body.only .board-nav, body.only section.state:not(.target), body.only section.state > h2, body.only figure.frame:not(.target), body.only .note, body.only figcaption, body.only #s-components { display: none; }
+  body.only .device { border: 0; border-radius: 0; box-shadow: none; }
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="board-head">
+    <h1>Макет экрана подбора учебных материалов · трек 1</h1>
+    <p>Локальный макет. Данные вымышленные, оформление нейтральное. Один экран в семи состояниях, каждое в мобильном (390 px) и настольном (1120 px) варианте.</p>
+    <p>Компоненты и токены зафиксированы в UI-ките: <code>design/ui-kit.md</code>. При расхождении с макетом действует кит.</p>
+    <p>Спецификация и контракт API — в <code>PLAN.md</code>, раздел «Спецификация интерфейса». Снимок одного кадра: добавьте к адресу <code>?only=results&amp;device=mobile</code>.</p>
+  </header>
+  <nav class="board-nav" aria-label="Состояния">
+    <a href="#s-initial">1. Начальный</a>
+    <a href="#s-loading">2. Загрузка</a>
+    <a href="#s-results">3. Выдача</a>
+    <a href="#s-weak">4. Слабое совпадение</a>
+    <a href="#s-empty">5. Пустая выдача</a>
+    <a href="#s-error">6. Ошибка</a>
+    <a href="#s-compare">7. Сравнение методов</a>
+    <a href="#s-components">Компоненты и токены</a>
+  </nav>
+  <div id="sections"></div>
+
+  <section id="s-components" class="state">
+    <h2>Компоненты и токены</h2>
+    <table class="legend-table">
+      <thead><tr><th>Компонент</th><th>Что делает</th><th>Данные из API</th></tr></thead>
+      <tbody>
+        <tr><td>TaskForm</td><td>Поле задачи до 300 символов, кнопка «Подобрать материалы», сброс. Данные не очищаются при загрузке и ошибке</td><td><code>task</code></td></tr>
+        <tr><td>RefinementFields</td><td>Три необязательные группы чипов: стадия, опыт, формат. Одиночный выбор, повторное нажатие снимает выбор. Выпадающий список сферы бизнеса</td><td><code>stage</code>, <code>experience</code>, <code>format_pref</code>, <code>industry</code></td></tr>
+        <tr><td>DemoPanel</td><td>Тестовый профиль с синтетической историей и переключатель сравнения. Виден только в демо-режиме</td><td><code>GET /api/profiles</code>, <code>profile_id</code></td></tr>
+        <tr><td>StatusLine</td><td>Строка состояния с <code>role="status"</code>: загрузка, число найденных, допущения о стадии</td><td><code>status</code>, <code>message</code></td></tr>
+        <tr><td>StateBanner</td><td>Уточнение при слабом совпадении, сообщение об ошибке с кнопкой «Повторить»</td><td><code>clarification</code>, ошибка запроса</td></tr>
+        <tr><td>MaterialCard</td><td>Позиция, название, бейджи (формат, длительность, платность, уровень, пометка истории), причина, следующий шаг, действия. Переход показывается только при разрешённой ссылке. «Отметить изученным» добавляет событие в историю сеанса и перестраивает выдачу</td><td><code>items[]</code>, <code>history</code></td></tr>
+        <tr><td>RouteBlock</td><td>Маршрут из двух–трёх материалов выдачи в порядке изучения</td><td><code>route</code></td></tr>
+        <tr><td>EmptyState</td><td>Сообщение об отсутствии материалов, выбор темы, стартовая подборка</td><td><code>status = "none"</code>, <code>items</code> стартовой подборки</td></tr>
+        <tr><td>CompareView</td><td>Две колонки на широком экране, вкладки на узком. Один профиль, один каталог, два метода</td><td><code>POST /api/compare</code></td></tr>
+      </tbody>
+    </table>
+    <p class="note" style="margin-top:16px">Токены: шрифт системный, базовый размер 15 px, радиус 12 px, сетка 8 px. Цвет не является единственным носителем смысла: платность, ошибка и история дублируются текстом бейджей.</p>
+    <div class="swatches">
+      <span class="swatch"><i style="background:#2f5fd0"></i>Акцент #2F5FD0</span>
+      <span class="swatch"><i style="background:#1c2430"></i>Текст #1C2430</span>
+      <span class="swatch"><i style="background:#5b6673"></i>Вторичный #5B6673</span>
+      <span class="swatch"><i style="background:#f4f6f8"></i>Фон #F4F6F8</span>
+      <span class="swatch"><i style="background:#e8f4ec"></i>Бесплатно #E8F4EC</span>
+      <span class="swatch"><i style="background:#fff4df"></i>Платно #FFF4DF</span>
+      <span class="swatch"><i style="background:#f1e9ff"></i>История #F1E9FF</span>
+      <span class="swatch"><i style="background:#fdecec"></i>Ошибка #FDECEC</span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ---------- вымышленный каталог (совпадает с синтетическим контрактом в PLAN.md) ----------
+  const M = {
+    M01: { title: 'Чек-лист: первые шаги в продвижении', topic: 'Продвижение', format: 'Чек-лист', time: '15 мин', paid: false, level: 'Для начинающих', link: true, next: 'Отметьте три пункта, которые сделаете на этой неделе.' },
+    M02: { title: 'Курс «Системный маркетинг для растущего бизнеса»', topic: 'Продвижение', format: 'Курс', time: '6 ч', paid: true, level: 'Продвинутый', link: true, benefit: 'Воронка, план каналов и измеримые цели на квартал. Подробное содержание доступно на странице курса.', next: 'Откройте страницу курса: программа, сроки и условия.' },
+    M03: { title: 'Шаблон: контент-план на месяц', topic: 'Продвижение', format: 'Шаблон', time: '20 мин', paid: false, level: 'Практика', link: true, next: 'Скопируйте шаблон и заполните первую неделю.' },
+    M04: { title: 'Статья: как выбрать аудиторию и первый рекламный канал', topic: 'Продвижение', format: 'Статья', time: '10 мин', paid: false, level: 'Для начинающих', link: true, next: 'Запишите один сегмент аудитории и один канал для первой рекламы.' },
+    M05: { title: 'Вебинар: таргетированная реклама с бюджетом до 10 тысяч', topic: 'Продвижение', format: 'Вебинар', time: '90 мин', paid: true, level: 'Практика', link: false, benefit: 'Настройка первой кампании и чтение статистики без агентства.', next: 'Запись откроется на платформе после подключения каталога.' },
+    M06: { title: 'Шаблон: расчёт стоимости привлечения клиента', topic: 'Продвижение', format: 'Шаблон', time: '30 мин', paid: false, level: 'Продвинутый', link: true, next: 'Подставьте расходы за месяц и число новых клиентов.' },
+    M07: { title: 'Видео: пять ошибок в продвижении малого бизнеса', topic: 'Продвижение', format: 'Видео', time: '12 мин', paid: false, level: 'Для начинающих', link: true, next: 'Посмотрите и отметьте, какие ошибки уже есть у вас.' },
+    M08: { title: 'Курс «Старт продвижения за 7 дней»', topic: 'Продвижение', format: 'Курс', time: '3 ч', paid: true, level: 'Для начинающих', link: true, benefit: 'Программа на неделю: аудитория, канал, первое объявление и проверка результата.', next: 'Откройте страницу курса и посмотрите программу первого дня.' },
+    S01: { title: 'Чек-лист: первая продажа за неделю', topic: 'Продажи', format: 'Чек-лист', time: '15 мин', paid: false, level: 'Для начинающих', link: true, next: 'Выберите один канал и назначьте три разговора с клиентами.' },
+    S02: { title: 'Шаблон: скрипт разговора с клиентом', topic: 'Продажи', format: 'Шаблон', time: '20 мин', paid: false, level: 'Практика', link: true, next: 'Адаптируйте скрипт под свой продукт и проверьте на трёх звонках.' },
+    A01: { title: 'Статья: как выбрать налоговый режим', topic: 'Налоги и законы', format: 'Статья', time: '15 мин', paid: false, level: 'Для начинающих', link: true, next: 'Сравните режимы по таблице в статье и отметьте подходящий.' },
+    L01: { title: 'Чек-лист: выбрать форму бизнеса и зарегистрироваться', topic: 'Старт бизнеса', format: 'Чек-лист', time: '20 мин', paid: false, level: 'Для начинающих', link: true, next: 'Пройдите пункты и выберите форму регистрации.' }
+  };
+
+  const P01 = { task: 'Хочу начать продвигать свою кофейню, с чего начать?', stage: 'Недавно начал(а)', exp: 'Новичок', fmt: '', industry: 'Кафе и рестораны', profile: 'P01 · начинающий, первое продвижение' };
+  const P02 = { task: 'Нужно выстроить системное продвижение и считать его эффективность', stage: 'Работаю и расту', exp: 'Уверенно разбираюсь', fmt: 'Курс или вебинар', profile: 'P02 · опытный, нужен курс', compare: true };
+  const P04 = { task: 'Как оформить наследство на квартиру', profile: 'P04 · незнакомая тема' };
+  const P05 = { task: 'Хочу больше клиентов', profile: 'P05 · неоднозначная задача' };
+
+  // ---------- части экрана ----------
+  const topbar = () => `<header class="topbar"><div class="brand"><span class="logo" aria-hidden="true"></span>Учебная платформа</div><span class="tag">Демо-данные</span></header>`;
+
+  const chip = (label, on, extra) => `<span class="chip${on ? ' on' : ''}${extra ? ' ' + extra : ''}" role="radio" aria-checked="${on ? 'true' : 'false'}" tabindex="0">${esc(label)}</span>`;
+  const chipGroup = (legend, labels, selected) => `<fieldset class="field"><legend>${esc(legend)} <span class="opt">необязательно</span></legend><div class="chipgroup" role="radiogroup" aria-label="${esc(legend)}">${labels.map((l) => chip(l, l === selected)).join('')}</div></fieldset>`;
+
+  const demo = (o) => `<aside class="demo" aria-label="Демо-режим">
+      <div class="demo-row"><span class="k">Демо-режим</span><span class="hint">только в локальном стенде</span></div>
+      <div class="demo-row"><span>Тестовый профиль</span><span class="select" role="button" tabindex="0">${esc(o.profile || 'Не выбран')} <span aria-hidden="true">▾</span></span></div>
+      <label class="demo-row check"><span class="box${o.compare ? ' on' : ''}" aria-hidden="true"></span> Сравнить с подбором по теме</label>
+    </aside>`;
+
+  const form = (o) => {
+    const len = (o.task || '').length;
+    return `<section class="panel" aria-labelledby="h-form">
+      <h1 id="h-form">Подберём материалы под вашу задачу</h1>
+      <p class="lead">Опишите, что хотите сделать. Остальные поля можно пропустить.</p>
+      <div class="field">
+        <label for="task">Что вы хотите сделать?</label>
+        <textarea id="task" rows="3" placeholder="Например: запустить первую рекламу"${o.disabled ? ' disabled' : ''}>${esc(o.task || '')}</textarea>
+        <div class="hint">${len ? len + ' из 300 символов' : 'До 300 символов. Можно своими словами, без терминов'}</div>
+      </div>
+      <details class="refine" open>
+        <summary>Уточнения <span class="opt">необязательно</span></summary>
+        ${chipGroup('Стадия бизнеса', ['Только планирую', 'Недавно начал(а)', 'Работаю и расту'], o.stage)}
+        ${chipGroup('Опыт в теме', ['Новичок', 'Кое-что знаю', 'Уверенно разбираюсь'], o.exp)}
+        ${chipGroup('Нужный формат', ['Быстрый ответ', 'Шаблон', 'Курс или вебинар'], o.fmt)}
+        <div class="field"><label id="l-industry">Сфера бизнеса <span class="opt">необязательно</span></label><span class="select wide" role="combobox" aria-labelledby="l-industry" aria-expanded="false" tabindex="0">${esc(o.industry || 'Не указана')} <span aria-hidden="true">▾</span></span></div>
+      </details>
+      <div class="actions">
+        <button class="btn primary"${o.disabled ? ' disabled' : ''}>${o.loading ? 'Подбираем…' : 'Подобрать материалы'}</button>
+        <button class="btn link">Сбросить</button>
+      </div>
+    </section>`;
+  };
+
+  const badges = (c, extra) => {
+    const b = [];
+    if (extra && extra.topic) b.push(['topic', c.topic]);
+    b.push(['', c.format], ['', c.time], [c.paid ? 'paid' : 'free', c.paid ? 'Платно' : 'Бесплатно'], ['', c.level]);
+    if (extra && extra.flag) b.push(['flag', extra.flag]);
+    return `<div class="badges">${b.map(([k, t]) => `<span class="badge ${k}">${esc(t)}</span>`).join('')}</div>`;
+  };
+
+  const action = (c) => {
+    const mark = `<button class="btn small link">Отметить изученным</button>`;
+    if (!c.link) return `${mark}<span class="nolink">Ссылка на платформу не передана</span>`;
+    return `<button class="btn small ${c.paid ? 'outline' : 'secondary'}">${c.paid ? 'Открыть страницу курса' : 'Открыть материал'}</button>${mark}`;
+  };
+
+  const card = (rank, id, reason, extra) => {
+    const c = M[id];
+    const e = extra || {};
+    return `<article class="card" aria-label="Позиция ${rank}">
+      <div class="card-head"><span class="rank" aria-hidden="true">${rank}</span><h3 class="title">${esc(c.title)}</h3></div>
+      ${badges(c, e)}
+      ${c.paid && c.benefit ? `<p class="benefit">${esc(c.benefit)}</p>` : ''}
+      <div class="kv"><span class="k">Почему подходит</span><span class="v">${esc(reason)}</span></div>
+      <div class="kv"><span class="k">Следующий шаг</span><span class="v">${esc(e.next || c.next)}</span></div>
+      <div class="card-actions">${action(c)}</div>
+    </article>`;
+  };
+
+  const compactCard = (rank, id, reason, extra) => {
+    const c = M[id];
+    const e = extra || {};
+    return `<article class="card" aria-label="Позиция ${rank}">
+      <div class="card-head"><span class="rank" aria-hidden="true">${rank}</span><h3 class="title">${esc(c.title)}</h3></div>
+      ${badges(c, e)}
+      <div class="kv"><span class="k">Почему</span><span class="v">${esc(reason)}</span></div>
+      <div class="card-actions">${action(c)}</div>
+    </article>`;
+  };
+
+  const status = (text) => `<p class="status" role="status" aria-live="polite">${esc(text)}</p>`;
+
+  // ---------- правые части для состояний ----------
+  const right = {
+    initial: () => `<section class="panel intro" aria-labelledby="h-intro">
+        <h2 id="h-intro">Что вы получите</h2>
+        <ul>
+          <li>Материалы в порядке пользы для вашей задачи, а не по популярности.</li>
+          <li>Причину выбора и следующий шаг по каждому материалу.</li>
+          <li>Пометку «бесплатно» или «платно». Для платного — краткую пользу и переход на его страницу, если ссылка разрешена.</li>
+        </ul>
+        <p class="hint">Примеры задач: «Запустить первую рекламу», «Какой налоговый режим выбрать», «Навести порядок в задачах».</p>
+      </section>`,
+
+    loading: () => `<div class="results">${status('Подбираем материалы… Обычно это занимает меньше секунды.')}<div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div><div class="skeleton" aria-hidden="true"></div></div>`,
+
+    results: () => `<div class="results">
+        ${status('Нашли 8 материалов по теме «Продвижение». Показываем 5 с учётом стадии «недавно начали», уровня «новичок» и сферы «кафе и рестораны».')}
+        ${card(1, 'M01', 'Тема «Продвижение» совпадает с задачей. Подходит для стадии «недавно начали» и сферы «кафе и рестораны». Займёт около 15 минут.')}
+        ${card(2, 'M07', 'Подходит для вашей стадии и уровня. Короткий формат: около 12 минут.')}
+        ${card(3, 'M04', 'Подходит для вашей стадии и уровня. Займёт около 10 минут.')}
+        ${card(4, 'M08', 'Подходит для стадии «недавно начали» и уровня «новичок». Формат курса — если хотите пройти путь целиком.')}
+        ${card(5, 'M03', 'Подходит для стадии «недавно начали». На шаг глубже вашего уровня — пригодится как продолжение.')}
+        <section class="route" aria-labelledby="h-route"><span class="k" id="h-route">Маршрут на первую неделю</span>
+          <ol><li>Чек-лист «Первые шаги в продвижении»</li><li>Статья об аудитории и первом канале</li><li>Шаблон контент-плана на месяц</li></ol></section>
+        <button class="btn secondary">Показать ещё 3</button>
+      </div>`,
+
+    weak: () => `<div class="results">
+        <div class="banner info" role="status"><strong>Уточните тему</strong><p>Задача может относиться к продвижению или к продажам. Пока показываем материалы по обеим темам.</p>
+          <div class="actions"><div class="chipgroup" role="radiogroup" aria-label="Тема">${chip('Продвижение', false, 'focus-demo')}${chip('Продажи', false)}</div><button class="btn link">Оставить как есть</button></div></div>
+        ${status('Нашли 12 материалов по темам «Продвижение» и «Продажи». Показываем 5 самых востребованных: стадия и опыт не указаны.')}
+        ${card(1, 'M03', 'Тема «Продвижение» подходит к задаче. Один из самых востребованных материалов по теме.', { topic: true })}
+        ${card(2, 'S02', 'Тема «Продажи» подходит к задаче. Один из самых востребованных материалов по теме.', { topic: true })}
+        ${card(3, 'M02', 'Тема «Продвижение» подходит к задаче. Уточните стадию и опыт, чтобы понять, нужен ли углублённый курс.', { topic: true })}
+        ${card(4, 'S01', 'Тема «Продажи» подходит к задаче. Короткий формат на 15 минут.', { topic: true })}
+        ${card(5, 'M01', 'Тема «Продвижение» подходит к задаче. Короткий формат на 15 минут.', { topic: true })}
+      </div>`,
+
+    empty: () => `<div class="results">
+        <section class="panel empty" aria-labelledby="h-empty">
+          <h2 id="h-empty">По запросу «Как оформить наследство на квартиру» материалов пока нет</h2>
+          <p class="lead">Каталог покрывает старт бизнеса, налоги и законы, финансы и учёт, продвижение, продажи и организацию работы. Выберите тему, переформулируйте запрос или начните со стартовой подборки.</p>
+          <div class="chipgroup" role="radiogroup" aria-label="Тема">${['Старт бизнеса', 'Налоги и законы', 'Финансы и учёт', 'Продвижение', 'Продажи', 'Организация работы'].map((t) => chip(t, false)).join('')}</div>
+        </section>
+        <section class="starter" aria-labelledby="h-starter">
+          <div class="starter-head"><h2 id="h-starter" style="margin:0;font-size:17px">Стартовая подборка</h2><span class="hint">Вводные бесплатные материалы по каждой теме</span></div>
+          ${compactCard(1, 'A01', 'Стартовый материал по теме «Налоги и законы». Около 15 минут.', { topic: true })}
+          ${compactCard(2, 'L01', 'Стартовый материал по теме «Старт бизнеса». Около 20 минут.', { topic: true })}
+          ${compactCard(3, 'S01', 'Стартовый материал по теме «Продажи». Около 15 минут.', { topic: true })}
+          <button class="btn secondary">Показать все 5</button>
+        </section>
+      </div>`,
+
+    error: () => `<div class="results">
+        <div class="banner error" role="alert"><strong>Не удалось получить подборку</strong><p>Сервис не ответил. Введённые данные сохранены — повторите запрос.</p>
+          <div class="actions"><button class="btn small primary" style="flex:0 1 auto">Повторить</button></div></div>
+      </div>`,
+
+    compare: () => `<div class="results">
+        <div class="panel" style="gap:6px"><h2>Сравнение методов на одном профиле и каталоге</h2><p class="lead">Слева — подбор по совпадению темы (бейзлайн), справа — персональный подбор. Пометки отражают историю профиля: «Вы уже открывали», «Пройдено».</p></div>
+        <div class="tabs" role="tablist"><span class="tab" role="tab" aria-selected="false">Подбор по теме</span><span class="tab on" role="tab" aria-selected="true">Персональный подбор</span></div>
+        <div class="compare">
+          <div class="col baseline" role="tabpanel"><h3>Подбор по теме · бейзлайн</h3><p class="sub">Порядок одинаков для всех профилей с этой темой</p>
+            ${compactCard(1, 'M03', 'Совпадает тема «Продвижение».', { flag: 'Пройдено' })}
+            ${compactCard(2, 'M02', 'Совпадает тема «Продвижение».')}
+            ${compactCard(3, 'M01', 'Совпадает тема «Продвижение».', { flag: 'Вы уже открывали' })}
+            ${compactCard(4, 'M07', 'Совпадает тема «Продвижение».', { flag: 'Вы уже открывали' })}
+            ${compactCard(5, 'M05', 'Совпадает тема «Продвижение».')}
+          </div>
+          <div class="col personal" role="tabpanel"><h3>Персональный подбор</h3><p class="sub">Учитывает стадию, опыт, формат и историю</p>
+            ${compactCard(1, 'M02', 'Тема совпадает. Подходит для стадии «работаю и расту», уровня «уверенно разбираюсь» и формата «курс». Затрагивает систему и эффективность.')}
+            ${compactCard(2, 'M05', 'Подходит для стадии «работаю и расту» и формата «вебинар». На шаг ниже вашего уровня.')}
+            ${compactCard(3, 'M06', 'Подходит для вашей стадии и уровня. Затрагивает эффективность.')}
+            ${compactCard(4, 'M08', 'Формат курса — как вы просили. Рассчитан на старт, поэтому ниже.')}
+            ${compactCard(5, 'M07', 'Подходит для стадии. Вы его уже открывали, поэтому ниже.', { flag: 'Вы уже открывали' })}
+          </div>
+        </div>
+        <p class="foot">Различия: пройденный шаблон ушёл вниз, открытые материалы помечены, курс для растущего бизнеса поднялся на первое место. Бейзлайн не видит стадию, опыт, формат и историю.</p>
+      </div>`
+  };
+
+  const STATES = {
+    initial: { form: { task: '', stage: '', exp: '', fmt: '', profile: '' } },
+    loading: { form: Object.assign({}, P01, { disabled: true, loading: true }) },
+    results: { form: P01 },
+    weak: { form: P05 },
+    empty: { form: P04 },
+    error: { form: P01 },
+    compare: { form: P02 }
+  };
+
+  const render = (key) => {
+    const st = STATES[key];
+    return `<div class="screen">${topbar()}<div class="main"><div class="aside">${form(st.form)}${demo(st.form)}</div>${right[key]()}</div></div>`;
+  };
+
+  const SECTIONS = [
+    { id: 'initial', title: '1. Начальный экран', note: 'Пользователь видит назначение экрана, одно обязательное поле и уточнения, которые можно пропустить: стадия, опыт, формат и сфера бизнеса. Справа или ниже — что будет в результате. Кнопка активна при любом вводе, в том числе пустом: пустая задача даёт стартовую подборку (холодный старт).' },
+    { id: 'loading', title: '2. Загрузка', note: 'Поля сохраняются и блокируются до ответа, кнопка показывает «Подбираем…». Строка состояния объявляется вспомогательными технологиями через role="status". Скелетоны занимают место будущих карточек. Устаревший ответ после нового запроса отбрасывается.' },
+    { id: 'results', title: '3. Выдача', note: 'Профиль P01: задача о первом продвижении, стадия «недавно начал(а)», опыт «новичок», сфера «кафе и рестораны». Статус API: strong. Каждая карточка — позиция, название, бейджи формата, длительности, платности и уровня, причина из фактических признаков ранжирования, следующий шаг и действия. У платной карточки — краткая польза и переход на страницу курса, если ссылка разрешена. «Отметить изученным» добавляет событие в историю сеанса. Ниже — маршрут из материалов выдачи.' },
+    { id: 'weak', title: '4. Слабое совпадение', note: 'Профиль P05: «Хочу больше клиентов» подходит и к продвижению, и к продажам. Статус API: weak. Сверху уточнение с выбором темы, ниже — смешанная выдача, чтобы не было тупика. Выбор чипа повторяет запрос с полем topic без очистки формы. Показан пример видимого фокуса на чипе «Продвижение».' },
+    { id: 'empty', title: '5. Пустая выдача', note: 'Профиль P04: «Как оформить наследство на квартиру». Тема не распознана, статус API: none. Честное сообщение о пробеле, выбор темы и стартовая подборка из вводных бесплатных материалов. Та же вёрстка используется, когда API возвращает status = "cold" для пустого запроса, но без сообщения о пробеле.' },
+    { id: 'error', title: '6. Ошибка', note: 'Сервис недоступен или превышено время ожидания. Сообщение с role="alert", кнопка «Повторить» отправляет тот же запрос, данные формы не теряются. Ошибки валидации (слишком длинный запрос) показываются под полем, а не баннером.' },
+    { id: 'compare', title: '7. Сравнение методов (демо-режим)', note: 'Профиль P02: опытный пользователь, стадия «работаю и расту», нужен курс, в истории открыт чек-лист M01 и видео M07, пройден шаблон M03. Включён переключатель «Сравнить с подбором по теме». На широком экране две колонки, на узком — вкладки. Пользовательский сценарий проходит и без этого режима.' }
+  ];
+
+  const host = document.getElementById('sections');
+  host.innerHTML = SECTIONS.map((s) => `<section class="state" id="s-${s.id}" data-state="${s.id}">
+      <h2>${esc(s.title)}</h2>
+      <p class="note">${esc(s.note)}</p>
+      <div class="frames">
+        <figure class="frame mobile" data-device="mobile"><figcaption>Мобильный · 390 px</figcaption><div class="device">${render(s.id)}</div></figure>
+        <figure class="frame desktop" data-device="desktop"><figcaption>Настольный · 1120 px</figcaption><div class="device">${render(s.id)}</div></figure>
+      </div>
+    </section>`).join('');
+
+  // режим одного кадра для снимков
+  const q = new URLSearchParams(location.search);
+  const only = q.get('only');
+  if (only && STATES[only]) {
+    const device = q.get('device') === 'desktop' ? 'desktop' : 'mobile';
+    document.body.classList.add('only');
+    const sec = document.getElementById('s-' + only);
+    sec.classList.add('target');
+    const fig = sec.querySelector('figure.frame.' + device);
+    fig.classList.add('target');
+    if (device === 'desktop') fig.querySelector('.device').style.width = '1120px';
+    document.body.setAttribute('data-frame-height', String(Math.ceil(fig.getBoundingClientRect().height)));
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+{
+  "version": "fixtures-2026-11-09",
+  "note": "Записи для негативных тестов (PLAN.md, 2.5). В демонстрационную выдачу не попадают.",
+  "popularity_scale": "single",
+  "materials": [
+    {
+      "id": "F01", "title": "Чек-лист: первые шаги в продвижении", "format": "checklist",
+      "topics": ["marketing"], "signals": ["launch", "audience"], "stage": ["idea", "start"], "level": "intro",
+      "industries": ["horeca", "retail", "services"], "duration_minutes": 15, "access": "open",
+      "url": "https://example.org/materials/f01", "short_benefit": null, "popularity": 100,
+      "recommended_next": [], "next_step": null,
+      "fixture": "Дубликат M01 под другим кодом и с меньшей популярностью"
+    },
+    {
+      "id": "F02", "title": "Статья без уровня и стадии", "format": "article",
+      "topics": ["marketing"], "signals": [], "stage": [], "level": null,
+      "industries": [], "duration_minutes": null, "access": "open",
+      "url": "https://example.org/materials/f02", "short_benefit": null, "popularity": 50,
+      "recommended_next": [], "next_step": null,
+      "fixture": "Нет уровня, стадии и длительности: признаки нейтральны, следующий шаг по формату"
+    },
+    {
+      "id": "F03", "title": "Курс без ссылки", "format": "course",
+      "topics": ["marketing"], "signals": [], "stage": ["growth"], "level": "advanced",
+      "industries": [], "duration_minutes": 240, "access": "paid",
+      "url": null, "short_benefit": "Краткая польза платного курса без ссылки", "popularity": 40,
+      "recommended_next": [], "next_step": null,
+      "fixture": "Платный материал без ссылки: кнопки перехода нет"
+    },
+    {
+      "id": "F04", "title": "Документ со ссылкой по схеме ftp", "format": "document",
+      "topics": ["marketing"], "signals": [], "stage": ["start"], "level": "practical",
+      "industries": [], "duration_minutes": 20, "access": "open",
+      "url": "ftp://example.org/files/f04.docx", "short_benefit": null, "popularity": 30,
+      "recommended_next": [], "next_step": null,
+      "fixture": "Недопустимая схема ссылки: материал остаётся, кнопки перехода нет, адрес не отдаётся"
+    },
+    {
+      "id": "F05", "title": "Продвинутый курс о команде", "format": "course",
+      "topics": ["team"], "signals": ["hiring"], "stage": ["growth"], "level": "advanced",
+      "industries": [], "duration_minutes": 300, "access": "paid",
+      "url": "https://example.org/courses/f05", "short_benefit": "Найм и адаптация сотрудников", "popularity": 20,
+      "recommended_next": [], "next_step": null,
+      "fixture": "Тема без вводных бесплатных материалов: в стартовую подборку не попадает"
+    },
+    {
+      "id": "F06", "title": "Скрытый материал", "format": "article",
+      "topics": ["marketing"], "signals": [], "stage": ["start"], "level": "intro",
+      "industries": [], "duration_minutes": 10, "access": "open", "available": false,
+      "url": "https://example.org/materials/f06", "short_benefit": null, "popularity": 5000,
+      "recommended_next": [], "next_step": null,
+      "fixture": "Недоступный материал с высокой популярностью: в выдачу не попадает"
+    }
+  ]
+}

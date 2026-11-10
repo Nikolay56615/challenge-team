@@ -1,0 +1,22 @@
+# Запуск: docker compose up --build. Переменные берутся из оболочки или из файла .env рядом
+# с этим файлом, образец — env.example. Своя выгрузка каталога подключается наложением compose.data.yaml.
+services:
+  app:
+    build: .
+    image: track1-recommender:local
+    ports:
+      # Порт открыт только на этой машине: аутентификации нет. Как открыть его в сети — в README.
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    environment:
+      CATALOG_SOURCE: ${CATALOG_SOURCE:-synthetic}
+      CATALOG_PATH: ${CATALOG_PATH:-}
+      CATALOG_SIGNALS_PATH: ${CATALOG_SIGNALS_PATH:-}
+      CATALOG_MAPPING: ${CATALOG_MAPPING:-}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      MAX_TASK_LENGTH: ${MAX_TASK_LENGTH:-300}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true

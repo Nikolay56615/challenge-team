@@ -1,0 +1,83 @@
+"""Настройки из переменных окружения (PLAN.md, 4.5).
+
+Приложение читает только окружение процесса; файл `.env` читает docker compose. Порт задаёт
+команда запуска uvicorn: в контейнере сервис всегда слушает 8000, а `APP_PORT` в compose —
+порт на машине пользователя. Пустая переменная означает значение по умолчанию, неверное
+значение останавливает запуск с сообщением, в котором названа переменная.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = BACKEND_DIR / "data"
+DEFAULT_FRONTEND_DIST = BACKEND_DIR.parent / "frontend" / "dist"
+
+CATALOG_SOURCES = ("synthetic", "sqlite", "file")
+LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
+FLAGS = {"true": True, "false": False, "1": True, "0": False, "yes": True, "no": False, "on": True, "off": False}
+
+
+def _choice(value: str | None, default: str, name: str, allowed: tuple[str, ...]) -> str:
+    if value is None or value.strip() == "":
+        return default
+    choice = value.strip().lower()
+    if choice not in allowed:
+        raise ValueError(f"{name} должен быть одним из: {', '.join(allowed)}")
+    return choice
+
+
+def _flag(value: str | None, default: bool, name: str) -> bool:
+    return FLAGS[_choice(value, str(default).lower(), name, tuple(FLAGS))]
+
+
+def _path(value: str | None) -> Path | None:
+    if value is None or value.strip() == "":
+        return None
+    return Path(value.strip())
+
+
+def _int(value: str | None, default: int, name: str, low: int, high: int) -> int:
+    if value is None or value.strip() == "":
+        return default
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} должен быть целым числом") from exc
+    if not low <= number <= high:
+        raise ValueError(f"{name} должен быть в диапазоне {low}–{high}")
+    return number
+
+
+@dataclass(frozen=True, slots=True)
+class Settings:
+    catalog_source: str = "synthetic"
+    catalog_path: Path | None = None
+    catalog_signals_path: Path | None = None
+    catalog_mapping: Path | None = None
+    demo_mode: bool = True
+    max_task_length: int = 300
+    log_level: str = "info"
+    frontend_dist: Path = DEFAULT_FRONTEND_DIST
+
+    def __post_init__(self) -> None:
+        if self.log_level not in LOG_LEVELS:
+            raise ValueError(f"LOG_LEVEL должен быть одним из: {', '.join(LOG_LEVELS)}")
+
+
+def load_settings(env: Mapping[str, str] | None = None) -> Settings:
+    env = os.environ if env is None else env
+    return Settings(
+        catalog_source=_choice(env.get("CATALOG_SOURCE"), "synthetic", "CATALOG_SOURCE", CATALOG_SOURCES),
+        catalog_path=_path(env.get("CATALOG_PATH")),
+        catalog_signals_path=_path(env.get("CATALOG_SIGNALS_PATH")),
+        catalog_mapping=_path(env.get("CATALOG_MAPPING")),
+        demo_mode=_flag(env.get("DEMO_MODE"), True, "DEMO_MODE"),
+        max_task_length=_int(env.get("MAX_TASK_LENGTH"), 300, "MAX_TASK_LENGTH", 1, 2000),
+        log_level=_choice(env.get("LOG_LEVEL"), "info", "LOG_LEVEL", LOG_LEVELS),
+        frontend_dist=_path(env.get("FRONTEND_DIST")) or DEFAULT_FRONTEND_DIST,
+    )

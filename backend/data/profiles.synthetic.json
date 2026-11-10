@@ -1,0 +1,72 @@
+{
+  "version": "synthetic-2026-11-09",
+  "note": "Вымышленные тестовые профили (PLAN.md, 2.6). Используются только в демо-режиме и тестах.",
+  "profiles": [
+    {
+      "id": "P01", "label": "P01 · начинающий, первое продвижение",
+      "description": "Новичок без истории, кофейня, недавно начал(а)",
+      "task": "Хочу начать продвигать свою кофейню, с чего начать?",
+      "stage": "start", "experience": "none", "format_pref": null, "industry": "horeca", "history": []
+    },
+    {
+      "id": "P02", "label": "P02 · опытный, нужен курс",
+      "description": "Растущий бизнес, нужен курс; открывал чек-лист и видео, прошёл шаблон контент-плана",
+      "task": "Нужно выстроить системное продвижение и считать его эффективность",
+      "stage": "growth", "experience": "experienced", "format_pref": "course", "industry": null,
+      "history": [
+        {"material_id": "M01", "event": "view", "seq": 1},
+        {"material_id": "M03", "event": "complete", "seq": 2},
+        {"material_id": "M07", "event": "view", "seq": 3}
+      ]
+    },
+    {
+      "id": "P03", "label": "P03 · пустой профиль",
+      "description": "Без задачи, анкеты и истории: холодный старт",
+      "task": "", "stage": null, "experience": null, "format_pref": null, "industry": null, "history": []
+    },
+    {
+      "id": "P04", "label": "P04 · незнакомая тема",
+      "description": "Тема вне каталога",
+      "task": "Как оформить наследство на квартиру",
+      "stage": null, "experience": null, "format_pref": null, "industry": null, "history": []
+    },
+    {
+      "id": "P05", "label": "P05 · неоднозначная задача",
+      "description": "Задача подходит и к продвижению, и к продажам",
+      "task": "Хочу больше клиентов",
+      "stage": null, "experience": null, "format_pref": null, "industry": null, "history": []
+    },
+    {
+      "id": "P06", "label": "P06 · после просмотра чек-листа",
+      "description": "Как P01, но уже открывал чек-лист о первых шагах в продвижении",
+      "task": "Хочу начать продвигать свою кофейню, с чего начать?",
+      "stage": "start", "experience": "none", "format_pref": null, "industry": "horeca",
+      "history": [{"material_id": "M01", "event": "view", "seq": 1}]
+    },
+    {
+      "id": "P07", "label": "P07 · тема с пробелом",
+      "description": "Продажи распознаются, но лицензирования в каталоге нет",
+      "task": "Нужна лицензия на продажу алкоголя",
+      "stage": null, "experience": null, "format_pref": null, "industry": null, "history": []
+    },
+    {
+      "id": "P08", "label": "P08 · начатый курс",
+      "description": "Как P01, но уже начал курс о старте продвижения",
+      "task": "Хочу начать продвигать свою кофейню, с чего начать?",
+      "stage": "start", "experience": "none", "format_pref": null, "industry": "horeca",
+      "history": [{"material_id": "M08", "event": "start", "seq": 1}]
+    },
+    {
+      "id": "P09", "label": "P09 · выбор налогового режима",
+      "description": "Признак внутри одной темы: выбор режима",
+      "task": "Какой налоговый режим выбрать для ИП",
+      "stage": null, "experience": null, "format_pref": null, "industry": null, "history": []
+    },
+    {
+      "id": "P10", "label": "P10 · декларация и штрафы",
+      "description": "Признак внутри одной темы: отчётность, пара к P09",
+      "task": "Как сдать декларацию и не получить штраф",
+      "stage": null, "experience": null, "format_pref": null, "industry": null, "history": []
+    }
+  ]
+}

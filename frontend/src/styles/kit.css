@@ -1,0 +1,713 @@
+/* Стили компонентов UI-кита трека 1. Описание: design/ui-kit.md, разделы 3–4.
+   Порог компоновки 800 px задан числом: CSS не допускает переменную в условии @container. */
+
+/* ---------- основа ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- типографика ---------- */
+.h1 {
+  font-size: var(--font-size-h1);
+  line-height: 1.2;
+  font-weight: var(--font-weight-bold);
+}
+
+.h2 {
+  font-size: var(--font-size-h2);
+  line-height: 1.3;
+  font-weight: var(--font-weight-bold);
+}
+
+.h3 {
+  font-size: var(--font-size-h3);
+  line-height: 1.3;
+  font-weight: var(--font-weight-semibold);
+}
+
+.lead {
+  color: var(--color-muted);
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+}
+
+.note {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+}
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.list li {
+  margin: var(--space-1) 0;
+}
+
+/* ---------- экран и компоновка ---------- */
+.screen {
+  container: screen / inline-size;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.topbar__logo {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+}
+
+.tag {
+  font-size: var(--font-size-2xs);
+  color: var(--color-muted);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.layout {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.layout__aside {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+}
+
+.layout__content {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+@container screen (min-width: 800px) {
+  .layout {
+    grid-template-columns: var(--aside-width) minmax(0, 1fr);
+    gap: var(--space-5);
+    padding: var(--space-5);
+    align-items: start;
+  }
+}
+
+/* ---------- панель ---------- */
+.panel {
+  display: grid;
+  gap: 14px;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.panel--subtle {
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---------- поля ---------- */
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field__label,
+.field > legend {
+  padding: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.field > legend {
+  margin-bottom: 6px;
+}
+
+.field__optional {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-muted);
+}
+
+.field__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+}
+
+.field__error {
+  font-size: var(--font-size-xs);
+  color: var(--color-err-ink);
+}
+
+.textarea {
+  width: 100%;
+  min-height: calc(3 * var(--line-height-base) * var(--font-size-base) + 22px);
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-field);
+  resize: vertical;
+}
+
+.textarea::placeholder {
+  color: var(--color-muted);
+}
+
+.textarea:disabled {
+  background: var(--color-surface-disabled);
+  color: var(--color-muted);
+}
+
+.textarea[aria-invalid="true"] {
+  border-color: var(--color-err-ink);
+}
+
+.select {
+  appearance: none;
+  width: 100%;
+  min-height: var(--control-min-height);
+  padding: 8px 36px 8px 12px;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink);
+  background: var(--color-surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%235b6673' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 12px center / 12px 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-field);
+  cursor: pointer;
+}
+
+/* justify-self: в сетке .field список занимает ширину содержимого, а не всю строку */
+.select--compact {
+  justify-self: start;
+  width: auto;
+  max-width: 100%;
+  padding: 6px 32px 6px 10px;
+  border-radius: var(--radius-md);
+}
+
+.select:disabled {
+  background-color: var(--color-surface-disabled);
+  color: var(--color-muted);
+  cursor: default;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-min-height);
+  cursor: pointer;
+}
+
+.checkbox input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* ---------- чипы ---------- */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+}
+
+.chip__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-min-height);
+  padding: 8px 14px;
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.chip input:checked + .chip__label {
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.chip input:focus-visible + .chip__label {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.chip input:disabled + .chip__label {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---------- раскрытие ---------- */
+.disclosure {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-line);
+}
+
+.disclosure > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-min-height);
+  font-weight: var(--font-weight-semibold);
+  list-style: none;
+  cursor: pointer;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary::after {
+  content: "▾";
+  color: var(--color-muted);
+}
+
+.disclosure:not([open]) > summary::after {
+  content: "▸";
+}
+
+/* Содержимое details браузер кладёт в отдельный слот, и gap самого .disclosure
+   действует только под summary. Обёртка задаёт отступ между группами полей. */
+.disclosure__body {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* ---------- кнопки ---------- */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-min-height);
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  cursor: pointer;
+}
+
+.btn--primary {
+  color: #ffffff;
+  background: var(--color-accent);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.btn--secondary {
+  border-color: var(--color-line);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--color-surface-subtle);
+}
+
+.btn--outline {
+  color: var(--color-accent-ink);
+  border-color: var(--color-accent);
+}
+
+.btn--outline:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+}
+
+.btn--link {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-medium);
+  background: transparent;
+}
+
+.btn--link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn--sm {
+  padding: 8px 12px;
+  font-size: var(--font-size-sm);
+}
+
+.btn--link.btn--sm {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Основная кнопка формы на всю ширину строки на узком экране */
+.actions > .btn--primary {
+  flex: 1 1 auto;
+}
+
+@container screen (min-width: 800px) {
+  .actions > .btn--primary {
+    flex: 0 1 auto;
+  }
+}
+
+/* ---------- бейджи ---------- */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  padding: 2px 8px;
+  font-size: var(--font-size-2xs);
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--color-neutral-ink);
+  background: var(--color-neutral-bg);
+  border-radius: var(--radius-sm);
+}
+
+.badge--free {
+  color: var(--color-ok-ink);
+  background: var(--color-ok-bg);
+}
+
+.badge--paid {
+  color: var(--color-paid-ink);
+  background: var(--color-paid-bg);
+}
+
+.badge--flag {
+  color: var(--color-flag-ink);
+  background: var(--color-flag-bg);
+}
+
+.badge--topic {
+  color: var(--color-accent-ink);
+  background: var(--color-topic-bg);
+}
+
+/* ---------- карточка материала ---------- */
+.card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.card__title {
+  overflow-wrap: anywhere;
+}
+
+.card__benefit {
+  font-size: var(--font-size-sm);
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.rank {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-accent-ink);
+  background: var(--color-accent-soft);
+  border-radius: 50%;
+}
+
+.kv {
+  display: grid;
+  gap: 2px;
+}
+
+.kv__label {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.kv__value {
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- выдача, маршрут, состояния ---------- */
+.results {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.status-line {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.route {
+  display: grid;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.route ol {
+  margin: 0;
+  padding-left: 20px;
+  font-size: var(--font-size-sm);
+}
+
+.banner {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+}
+
+.banner__title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.banner__text {
+  font-size: var(--font-size-sm);
+}
+
+.banner--info {
+  color: var(--color-accent-ink);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-line);
+}
+
+.banner--error {
+  color: var(--color-err-ink);
+  background: var(--color-err-bg);
+  border-color: var(--color-err-line);
+}
+
+/* Растяжение основной кнопки на узком экране — правило формы. В баннере «Повторить» сохраняет свою ширину */
+.banner .actions > .btn--primary {
+  flex: 0 1 auto;
+}
+
+.skeleton {
+  height: 128px;
+  background: linear-gradient(90deg, var(--color-skeleton-a) 0%, var(--color-skeleton-b) 50%, var(--color-skeleton-a) 100%);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.starter {
+  display: grid;
+  gap: 10px;
+}
+
+.starter__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/* ---------- вкладки и сравнение ---------- */
+.tabs {
+  display: flex;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-field);
+}
+
+.tab {
+  flex: 1;
+  min-height: var(--control-min-height);
+  padding: 9px 8px;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  color: var(--color-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--color-accent-ink);
+  background: var(--color-accent-soft);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.tab:focus-visible {
+  outline-offset: -4px;
+}
+
+.compare {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.compare__col {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+
+.compare__sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+}
+
+@container screen (min-width: 800px) {
+  .compare {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---------- витрина кита ---------- */
+.kit-frame {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-frame);
+  overflow: hidden;
+}

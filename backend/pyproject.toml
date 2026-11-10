@@ -1,0 +1,10 @@
+[project]
+name = "track1-recommender"
+version = "0.1.0"
+description = "Прототип персональных рекомендаций учебных материалов, трек 1"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
