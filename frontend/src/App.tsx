@@ -11,8 +11,8 @@ import { Layout, Screen, TopBar } from './kit';
 import { DEFAULT_MAX_TASK_LENGTH, useMeta } from './state/useMeta';
 import { useRecommend } from './state/useRecommend';
 
-/** Куда перевести фокус после ответа: элемент нового состояния или карточку focusIndex */
-type FocusGoal = 'state' | 'card';
+/** Куда перевести фокус после ответа: элемент нового состояния, карточку focusIndex или выдачу после отправки формы */
+type FocusGoal = 'state' | 'card' | 'submit';
 
 export function App() {
   const metaState = useMeta();
@@ -81,6 +81,8 @@ export function App() {
   const onSubmit = () => {
     if (metaState.failed) metaState.reload();
     resetView();
+    // На узком экране выдача ниже формы: после ответа ведём фокус к её заголовку
+    focusGoal.current = 'submit';
     actions.submit();
   };
   const onReset = () => {
@@ -144,9 +146,10 @@ export function App() {
     );
   } else {
     const response = outcome.response;
+    // Сводка «Нашли N материалов…» остаётся только для вспомогательных технологий:
+    // на экране её заменяют сами карточки.
     status = response.message;
     if (response.status === 'strong' || response.status === 'weak') {
-      statusHidden = false;
       listResponse = response;
       showTopics = response.status === 'weak';
       if (response.status === 'weak' && response.clarification && !state.clarificationHidden) {
@@ -184,9 +187,12 @@ export function App() {
     const goal = focusGoal.current;
     if (!goal || state.loading) return;
     focusGoal.current = null;
+    // Ошибка поля: фокус уже переведён на поле задачи в TaskForm
+    if (state.fieldError) return;
     const active = document.activeElement;
-    // Пока шёл запрос, пользователь сам перевёл фокус: не перехватываем
-    if (active && active !== document.body && active !== statusRef.current) return;
+    // Пока шёл запрос, пользователь сам перевёл фокус: не перехватываем. Отправка формы — исключение:
+    // фокус остаётся на кнопке, хотя ответ уже показан в другой колонке или ниже по странице.
+    if (goal !== 'submit' && active && active !== document.body && active !== statusRef.current) return;
     let target: HTMLElement | null;
     if (failure) target = retryRef.current;
     else if (goal === 'card' && cardRef.current) target = cardRef.current;
@@ -197,7 +203,7 @@ export function App() {
 
   return (
     <Screen>
-      <TopBar brand="Учебная платформа" tag={meta?.demo_mode ? 'Демо-данные' : undefined} />
+      <TopBar brand="Учебная платформа" />
       <Layout
         aside={
           <>
@@ -239,6 +245,7 @@ export function App() {
               onMore={onMore}
               focusIndex={focusIndex}
               cardRef={cardRef}
+              headingRef={headingRef}
             />
             {view}
           </>

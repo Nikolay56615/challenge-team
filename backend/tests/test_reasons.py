@@ -12,7 +12,6 @@ from app.ranking.explain import (
     POPULARITY_PHRASE,
     QUOTED_TITLE_CHARS,
     _fit,
-    minutes_phrase,
     next_step,
     short_title,
 )
@@ -33,12 +32,8 @@ MARKERS = (
     ("Материал о теме", "signal"),
     ("стадии «", "stage"),
     ("Похоже, ", "stage"),
-    ("уровня «", "level"),
-    ("Уровень «", "level"),
     ("На шаг ", "level"),
     ("сферы «", "industry"),
-    ("Формат «", "format"),
-    ("Займёт около", "effort"),
     ("Продолжает материал", "continuation"),
     ("Вы начали", "in_progress"),
 )
@@ -68,7 +63,13 @@ def test_every_phrase_reflects_a_positive_contribution(run, profile_id):
 def test_strongest_profile_feature_is_explained(run, profile_id):
     outcome = run(profile_id)
     for item, reasons in zip(outcome.items, outcome.reasons):
-        positive = {k: v for k, v in item.contributions.items() if v > 0 and k != "topic"}
+        # Уровень, формат и длительность показывают бейджи, в причине они не повторяются
+        badge_only = {"level", "format", "effort"}
+        positive = {
+            k: v
+            for k, v in item.contributions.items()
+            if v > 0 and k not in badge_only and k != "topic"
+        }
         if not positive:
             continue
         top = max(positive.values())
@@ -77,22 +78,35 @@ def test_strongest_profile_feature_is_explained(run, profile_id):
         assert strongest & named, (item.material.id, reasons, item.contributions)
 
 
-def test_p01_reasons_name_stage_and_level_and_m01_industry(run):
+@pytest.mark.parametrize("profile_id", PROFILES)
+def test_personal_reasons_do_not_restate_badges(run, profile_id):
+    outcome = run(profile_id)
+    for reasons in outcome.reasons:
+        text = " ".join(reasons)
+        assert "Уровень «" not in text
+        assert "уровня «" not in text
+        assert "Формат «" not in text
+        assert "Займёт около" not in text
+
+
+def test_p01_reasons_name_stage_and_m01_industry(run):
     outcome = run("P01")
     for item, reasons in zip(outcome.items, outcome.reasons):
         text = " ".join(reasons)
         assert "стадии «недавно начали»" in text, item.material.id
-        assert "уровня «" in text or "На шаг" in text, item.material.id
         if item.material.id == "M01":
             assert "сферы «кафе и рестораны»" in text
 
 
-def test_p02_course_reason_names_requested_format(run):
+def test_p02_course_reason_names_signal_without_restating_badges(run):
     outcome = run("P02")
     first = outcome.reasons[0]
     assert outcome.items[0].material.id == "M02"
-    assert any("Формат «курс»" in r for r in first)
     assert any("Рекламный бюджет и окупаемость" in r for r in first)
+    text = " ".join(first)
+    assert "Формат «" not in text
+    assert "уровня «" not in text
+    assert "Займёт около" not in text
 
 
 def test_history_flags_are_badges_not_reasons(run):
@@ -153,33 +167,14 @@ def test_short_title_cuts_at_a_word_and_closes_the_quote():
     assert short_title("А" * 130) == "А" * QUOTED_TITLE_CHARS + "…"
 
 
-@pytest.mark.parametrize(
-    ("minutes", "text"),
-    [
-        (1, "Займёт около 1 минуты"),
-        (2, "Займёт около 2 минут"),
-        (4, "Займёт около 4 минут"),
-        (5, "Займёт около 5 минут"),
-        (11, "Займёт около 11 минут"),
-        (12, "Займёт около 12 минут"),
-        (21, "Займёт около 21 минуты"),
-        (22, "Займёт около 22 минут"),
-        (111, "Займёт около 111 минут"),
-        (121, "Займёт около 121 минуты"),
-    ],
-)
-def test_minutes_after_okolo_take_the_genitive(minutes, text):
-    assert minutes_phrase(minutes) == text
-
-
-def test_effort_and_starter_reasons_take_the_genitive():
+def test_personal_and_starter_reasons_do_not_duplicate_badges():
     rows = [{"id": "S1", "title": "Статья о первой продаже", "format": "article", "topics": ["sales"],
              "level": "intro", "popularity": 10, "duration_minutes": 21}]
     catalog = catalog_from_payloads({"materials": rows})
     personal = recommend(catalog, Profile(task="Как увеличить продажи", experience="none"), "personal")
-    assert "Займёт около 21 минуты" in personal.reasons[0]
+    assert personal.reasons[0] == ["Тема «Продажи» совпадает с задачей"]
     cold = recommend(catalog, Profile(), "personal")
-    assert cold.reasons[0] == ["Стартовый материал по теме «Продажи»", "Займёт около 21 минуты"]
+    assert cold.reasons[0] == ["Стартовый материал по теме «Продажи»"]
 
 
 def test_popularity_phrase_after_show_more_only_for_top_of_topic(run):

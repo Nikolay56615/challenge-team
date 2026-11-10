@@ -46,7 +46,6 @@ export function TaskForm({
       <h1 id={headingId} className="h1">
         Подберём материалы под вашу задачу
       </h1>
-      <p className="lead">Опишите, что хотите сделать. Остальные поля можно пропустить.</p>
       <TextAreaField
         id={taskId}
         label="Что вы хотите сделать?"

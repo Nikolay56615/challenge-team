@@ -147,6 +147,15 @@ p {
   gap: var(--space-3);
   align-content: start;
   min-width: 0;
+  /* Ширина чтения: на широких экранах карточки не растягиваются на всю колонку */
+  width: 100%;
+  max-width: 760px;
+  justify-self: start;
+}
+
+/* «Показать ещё» — по ширине подписи, а не колонки */
+.layout__content > .btn {
+  justify-self: start;
 }
 
 @container screen (min-width: 800px) {
@@ -639,14 +648,6 @@ p {
   gap: 10px;
 }
 
-.starter__head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-2);
-}
-
 /* ---------- вкладки и сравнение ---------- */
 .tabs {
   display: flex;
@@ -700,6 +701,7 @@ p {
 @container screen (min-width: 800px) {
   .compare {
     grid-template-columns: 1fr 1fr;
+    max-width: 1000px;
   }
 }
 

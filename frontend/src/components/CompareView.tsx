@@ -54,17 +54,15 @@ export function compareStatus(response: CompareResponse): string {
 
 interface ColumnProps {
   title: string;
-  /** Подзаголовок о порядке метода: виден, когда у колонки выдача по запросу */
-  sub: string;
   response: RecommendResponse;
   onComplete?(item: Item): void;
 }
 
 /**
- * Колонка метода. Выдача по запросу — подзаголовок и карточки. При none, cold и empty подзаголовок
- * о порядке неверен: вместо него сообщение ответа, а карточки собраны в группу «Стартовая подборка».
+ * Колонка метода. Выдача по запросу — карточки. При none, cold и empty вместо карточек сообщение
+ * ответа, а карточки собраны в группу «Стартовая подборка».
  */
-function Column({ title, sub, response, onComplete }: ColumnProps) {
+function Column({ title, response, onComplete }: ColumnProps) {
   const starterId = useId();
   const ranked = hasResults(response);
   // Бейдж темы — как в основной выдаче: у смешанной выдачи и стартовой подборки
@@ -77,10 +75,7 @@ function Column({ title, sub, response, onComplete }: ColumnProps) {
     <div className="compare__col">
       <h3 className="h3">{title}</h3>
       {ranked ? (
-        <>
-          <p className="compare__sub">{sub}</p>
-          {cards}
-        </>
+        cards
       ) : (
         <>
           <p>{toSentence(response.message)}</p>
@@ -124,22 +119,8 @@ export function CompareView({ response, onComplete, tab, onTabChange, headingRef
   const [baselineTab, personalTab] = tabs;
   const selected = tab === 'baseline' ? baselineTab.id : personalTab.id;
 
-  const baseline = (
-    <Column
-      title="Подбор по теме"
-      sub="Базовый подбор: порядок одинаков для всех профилей с этой темой"
-      response={response.baseline}
-      onComplete={onComplete}
-    />
-  );
-  const personal = (
-    <Column
-      title="Персональный подбор"
-      sub="Учитывает стадию, опыт, формат и историю"
-      response={response.personal}
-      onComplete={onComplete}
-    />
-  );
+  const baseline = <Column title="Подбор по теме" response={response.baseline} onComplete={onComplete} />;
+  const personal = <Column title="Персональный подбор" response={response.personal} onComplete={onComplete} />;
   // Позиции сравниваются только между двумя выдачами по запросу
   const diff = hasResults(response.baseline) && hasResults(response.personal) ? response.diff : null;
 
@@ -149,10 +130,11 @@ export function CompareView({ response, onComplete, tab, onTabChange, headingRef
         <h2 id={headingId} ref={headingRef} className="h2" tabIndex={-1}>
           Сравнение методов на одном профиле и каталоге
         </h2>
-        <p className="lead">
-          Подбор по теме не учитывает профиль, персональный — учитывает стадию, опыт, формат и историю. Пометки на
-          карточках показывают историю сеанса.
-        </p>
+        {diff ? (
+          <p className="note">
+            Изменились позиции: {diff.changed_positions} из {diff.compared_positions}.
+          </p>
+        ) : null}
       </Panel>
 
       {wide ? (
@@ -178,12 +160,6 @@ export function CompareView({ response, onComplete, tab, onTabChange, headingRef
           </div>
         </>
       )}
-
-      {diff ? (
-        <p className="note">
-          Изменились позиции: {diff.changed_positions} из {diff.compared_positions}.
-        </p>
-      ) : null}
     </div>
   );
 }

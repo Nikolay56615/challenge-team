@@ -17,7 +17,6 @@ export function RefinementFields({ meta, metaFailed = false, values, onChange, d
   const uid = useId();
   return (
     <Disclosure
-      defaultOpen
       summary={
         <span>
           Уточнения <span className="field__optional">необязательно</span>

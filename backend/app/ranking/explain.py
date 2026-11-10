@@ -81,11 +81,6 @@ def short_title(title: str, limit: int = QUOTED_TITLE_CHARS) -> str:
     return short
 
 
-def minutes_phrase(n: int) -> str:
-    """«Займёт около N минут»: после «около» нужен родительный падеж — 1 и 21 минуты, 2 и 5 минут."""
-    return f"Займёт около {n} {plural(n, 'минуты', 'минут', 'минут')}"
-
-
 def no_materials_text(topics: Sequence[str]) -> str:
     """«По теме «…» материалов пока нет» или «По темам «…» и «…» материалов пока нет», без точки."""
     where = "По теме" if len(topics) == 1 else "По темам"
@@ -117,24 +112,14 @@ def _phrase(feature: str, item: Scored, ctx: Context) -> str | None:
             return "Похоже, бизнес растёт — материал рассчитан на это"
         return "Похоже, вы на старте — материал рассчитан на это"
     if feature == "level":
-        label = (vocab.level_label(material.level) or "").lower()
-        if ctx.profile.experience:
-            if item.level_direction > 0:
-                return "На шаг глубже вашего уровня — пригодится как продолжение"
-            if item.level_direction < 0:
-                return "На шаг проще вашего уровня — подойдёт для повторения"
-            return f"Уровень «{label}» соответствует вашему опыту"
-        return f"Уровень «{label}» подходит по описанию задачи"
+        if item.level_direction > 0:
+            return "На шаг глубже вашего уровня — пригодится как продолжение"
+        if item.level_direction < 0:
+            return "На шаг проще вашего уровня — подойдёт для повторения"
+        return None
     if feature == "industry":
         industry = _industry_phrase(ctx)
         return f"Подходит для сферы «{industry}»" if industry else None
-    if feature == "format":
-        label = vocab.format_label(material.format).lower()
-        if ctx.profile.format_pref:
-            return f"Формат «{label}» — как вы просили"
-        return f"Формат «{label}» — как в описании задачи"
-    if feature == "effort" and material.duration_minutes:
-        return minutes_phrase(material.duration_minutes)
     if feature == "continuation" and item.continuation_of:
         source = ctx.catalog.get(item.continuation_of)
         if source is None:
@@ -166,14 +151,15 @@ def _fit(entries: list[tuple[str, str]]) -> list[str]:
 
 
 def _fit_parts(item: Scored, ctx: Context) -> list[tuple[str, str]]:
-    """Части общей фразы «Подходит для …»: стадия из чипа, точный уровень, сфера."""
+    """Части общей фразы «Подходит для …»: стадия из чипа и сфера.
+
+    Уровень, формат и длительность не повторяются: их показывают бейджи карточки.
+    """
     contributions = item.contributions
     parts: list[tuple[str, str]] = []
     stage = _stage_phrase(ctx)
     if stage and contributions.get("stage", 0) > 0:
         parts.append(("stage", f"стадии «{stage}»"))
-    if ctx.profile.experience and contributions.get("level", 0) > 0 and item.level_direction == 0:
-        parts.append(("level", f"уровня «{(vocab.level_label(item.material.level) or '').lower()}»"))
     industry = _industry_phrase(ctx)
     if industry and contributions.get("industry", 0) > 0:
         parts.append(("industry", f"сферы «{industry}»"))
@@ -183,7 +169,8 @@ def _fit_parts(item: Scored, ctx: Context) -> list[tuple[str, str]]:
 def personal_reasons(item: Scored, ctx: Context) -> list[str]:
     """Две–три фразы из признаков с положительным вкладом, по убыванию вклада.
 
-    Стадия, точный уровень и сфера объединяются в одну фразу «Подходит для …». Фраза о теме
+    Стадия и сфера объединяются в одну фразу «Подходит для …». Уровень, формат и длительность
+    не повторяются: их показывают бейджи карточки. Фраза о теме
     опускается, если в выдаче одна тема и без неё остаётся не меньше двух фраз: тему уже
     называет строка состояния. Фразу о востребованности получает победитель равенства из тройки
     самых популярных кандидатов своей темы.
@@ -222,10 +209,7 @@ def baseline_reasons(item: Scored) -> list[str]:
 
 
 def starter_reasons(item: Scored) -> list[str]:
-    phrases = [f"Стартовый материал по теме «{vocab.topic_label(item.starter_topic)}»"] if item.starter_topic else []
-    if item.material.duration_minutes:
-        phrases.append(minutes_phrase(item.material.duration_minutes))
-    return phrases
+    return [f"Стартовый материал по теме «{vocab.topic_label(item.starter_topic)}»"] if item.starter_topic else []
 
 
 def next_step(material: Material) -> str:

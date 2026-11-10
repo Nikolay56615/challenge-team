@@ -101,8 +101,11 @@ for (const width of [1120, 390]) {
   let list = await cards(page);
   const top3 = list.slice(0, 3).map((c) => c.title);
   check('E2', `P01: тройка M01, M07, M04 (${width})`, JSON.stringify(top3) === JSON.stringify([T.M01, T.M07, T.M04]), top3.join(' / '));
-  const reasonsOk = list.slice(0, 3).every((c) => c.text.includes('стадии') && (c.text.includes('уровня') || c.text.includes('На шаг')));
-  check('E2', `P01: причины со стадией и уровнем (${width})`, reasonsOk);
+  const reasonsOk = list.slice(0, 3).every((c) =>
+    c.text.includes('стадии') &&
+    !c.text.includes('Уровень «') && !c.text.includes('уровня «') &&
+    !c.text.includes('Формат «') && !c.text.includes('Займёт около'));
+  check('E2', `P01: причины со стадией, без повтора бейджей (${width})`, reasonsOk);
   check('E2', `P01: у M01 названа сфера (${width})`, list[0].text.includes('кафе и рестораны'));
   check('E2', `P01: у карточек есть следующий шаг и действие (${width})`, list.every((c) => c.text.includes('Следующий шаг') && (c.links.length || c.buttons.length)));
   check('E2', `P01: маршрут на первую неделю (${width})`, (await page.getByText('Маршрут на первую неделю').count()) > 0);
@@ -240,6 +243,10 @@ for (const width of [1120, 390]) {
     reached = await field.evaluate((el) => el === document.activeElement);
   }
   await page.keyboard.type('Запустить первую рекламу');
+  // Уточнения свёрнуты: Tab до summary, Enter раскрывает группы
+  await page.keyboard.press('Tab');
+  const onSummary = await page.evaluate(() => document.activeElement?.tagName === 'SUMMARY');
+  if (onSummary) await page.keyboard.press('Enter');
   // Стадия с клавиатуры: Tab до радиогруппы, стрелка выбирает, пробел снимает выбор
   let onRadio = false;
   for (let i = 0; i < 6 && !onRadio; i++) {

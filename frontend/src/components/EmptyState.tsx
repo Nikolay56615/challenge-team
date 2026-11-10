@@ -81,12 +81,9 @@ export function EmptyState({
 
       {starter.length > 0 ? (
         <section className="starter" aria-labelledby={starterId}>
-          <div className="starter__head">
-            <h2 id={starterId} className="h2">
-              Стартовая подборка
-            </h2>
-            <span className="hint">Вводные бесплатные материалы по каждой теме</span>
-          </div>
+          <h2 id={starterId} className="h2">
+            Стартовая подборка
+          </h2>
           {visible.map((item, index) => (
             <MaterialCard
               key={item.material_id}

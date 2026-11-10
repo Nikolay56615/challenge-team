@@ -22,6 +22,8 @@ export interface ResultListProps {
   /** Карточка с этим индексом получает cardRef: после «Показать ещё» фокус переходит на первую новую */
   focusIndex?: number | null;
   cardRef?: Ref<HTMLElement>;
+  /** Заголовок выдачи: принимает фокус после ответа на отправку формы */
+  headingRef?: Ref<HTMLHeadingElement>;
 }
 
 /**
@@ -41,6 +43,7 @@ export function ResultList({
   onMore,
   focusIndex = null,
   cardRef,
+  headingRef,
 }: ResultListProps) {
   const items = response?.items ?? [];
   const total = response?.total_candidates ?? 0;
@@ -55,7 +58,11 @@ export function ResultList({
       </StatusLine>
       {loading ? <Skeleton count={3} /> : null}
       {/* Заголовок для навигации по заголовкам: карточки h3 не попадают под «Демо-режим» */}
-      {showItems ? <h2 className="visually-hidden">Подборка</h2> : null}
+      {showItems ? (
+        <h2 ref={headingRef} className="visually-hidden" tabIndex={-1}>
+          Подборка
+        </h2>
+      ) : null}
       {showItems &&
         items.map((item, index) => (
           <MaterialCard
