@@ -2,7 +2,7 @@
 
 Запуск из корня проекта, одна команда воспроизводит все числа:
   python -X utf8 evaluation/feed_eval.py data/local/catalog.sqlite3 data/local/catalog-signals.sqlite3
-Флаг `--card` записывает паспорт модели в app/backend/data/model-card.json: его читает `GET /api/model-card`.
+Флаг `--card` записывает паспорт модели в backend/data/model-card.json: его читает `GET /api/model-card`.
 Флаг `--articles` вместо этого запускает проверку весов для материалов без журнала на псевдоэталоне редакционных
 связей; её протокол записан в функции `articles`.
 Выводятся только агрегаты: без кодов, названий и идентификаторов.
@@ -109,7 +109,7 @@ from dataclasses import dataclass, replace
 from math import log1p, log2
 from pathlib import Path
 
-import offline_pilot as pilot  # первым: закрепляет пакет приложения из app/backend
+import offline_pilot as pilot  # первым: закрепляет пакет приложения из backend
 import offline_courses as o1
 import offline_stats as stats
 from app.catalog.coverage import normalize_popularity

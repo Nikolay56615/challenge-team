@@ -43,8 +43,8 @@ evaluation/track1-offline-courses.md): сетка NESTED_GRID, вес 0 — то
 18 проверок с поправкой Холма. Вес подменяется только в процессе оценки, код приложения не меняется.
 Без флага вывод прежний.
 
-Код приложения по умолчанию берётся из `app/backend`; переменная окружения OFFLINE_BACKEND задаёт другой
-каталог бэкенда, например снимок `.work/waveA/app/backend`. Если она задана, скрипт пишет об этом в поток
+Код приложения по умолчанию берётся из `backend`; переменная окружения OFFLINE_BACKEND задаёт другой
+каталог бэкенда. Если переменная задана, скрипт пишет об этом в поток
 ошибок; основной вывод от этого не меняется.
 
 Выводятся только агрегаты: без кодов, названий и идентификаторов.
@@ -71,7 +71,7 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parents[1]
 BACKEND = Path(os.environ.get("OFFLINE_BACKEND") or PROJECT / "backend").resolve()
 sys.path.insert(0, str(BACKEND))
-# Пакет приложения фиксируется до offline_courses и build_pairs: они добавляют в путь app/backend, а
+# Пакет приложения фиксируется до offline_courses и build_pairs: они добавляют в путь backend, а
 # подмодули уже импортированного пакета ищутся в его каталоге
 import app  # noqa: E402
 

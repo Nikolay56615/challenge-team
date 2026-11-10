@@ -11,7 +11,7 @@ python -X utf8 evaluation/feed_eval.py data/local/catalog.sqlite3 data/local/cat
 python -X utf8 evaluation/feed_eval.py data/local/catalog.sqlite3 data/local/catalog-signals.sqlite3 --articles
 ```
 
-Первая команда выбирает веса, сравнивает ленту с совместными записями и популярностью и записывает паспорт модели в `app/backend/data/model-card.json`. Вторая проверяет веса материалов без журнала. Длительность на рабочей машине: около 9 минут и около 8 минут.
+Первая команда выбирает веса, сравнивает ленту с совместными записями и популярностью и записывает паспорт модели в `backend/data/model-card.json`. Вторая проверяет веса материалов без журнала. Длительность на рабочей машине: около 9 минут и около 8 минут.
 
 ## Что получилось
 
