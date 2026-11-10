@@ -1,18 +1,6 @@
 # Передача проекта команде
 
-## Что перенесено из рабочей папки Claude
-
-| Исходные файлы | Где искать в репозитории |
-| --- | --- |
-| `app/backend/`, `app/frontend/` | `backend/` и `frontend/`. Исходники, тесты, тестовый каталог, профили и файлы зависимостей |
-| `app/README.md`, `app/Dockerfile`, `app/compose.yaml`, `app/compose.data.yaml`, `app/env.example` | [README](../README.md) и файлы в корне. Команды выполняются из корня |
-| `app/.github/workflows/docker-check.yml` | [Проверка в GitHub Actions](../.github/workflows/docker-check.yml) |
-| `PLAN.md`, `PROJECT.md`, `CURRENT.md`, `OPEN_QUESTIONS.md`, `SOURCE_MANIFEST.md`, `materials/case.md`, выбранные руководства | Документы лежат по тем же путям. Ссылки на код обновлены |
-| `design/ui-kit.md`, `design/track1/mockup.html`, выбранные PNG | [UI-кит](../design/ui-kit.md), [макет](../design/track1/mockup.html) и [снимки](../design/track1/preview/) |
-| `evaluation/track1-first-run.md`, `evaluation/track1-offline-courses.md`, скрипты и выбранные снимки | [Первый прогон](../evaluation/track1-first-run.md) и [офлайн-оценка](../evaluation/track1-offline-courses.md) |
-| `data/local/data-description.md`, `scripts/inspect_catalog.py` | [Описание схемы](data-description.md) и [скрипт сверки](../scripts/inspect_catalog.py) |
-
-Командные инструкции, дизайн-референс, план презентации и эта таблица добавлены для передачи. Если меняете алгоритм, обновляйте [PLAN.md](../PLAN.md). Если меняете интерфейс, обновляйте [UI-кит](../design/ui-kit.md) и добавляйте снимки в PR.
+Код перенесён из `app/` в корень репозитория. С ним доступны [план](PLAN.md), [условие](../materials/case.md), [UI-кит](../design/ui-kit.md), [макет](../design/track1/mockup.html) и [протоколы проверки](../evaluation/track1-first-run.md).
 
 ## Что проверить
 
