@@ -84,9 +84,19 @@ def parse(text: str) -> list[Slide]:
 
 
 def inline(text: str) -> str:
-    """Разметка строки: ссылки остаются текстом, код — моноширинным, числа не рвутся на границе разрядов."""
-    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    """Разметка строки: внешние ссылки кликабельны, код — моноширинным, числа не рвутся на границе разрядов."""
+    links: list[str] = []
+
+    def link(match: re.Match[str]) -> str:
+        label, url = match.groups()
+        if not url.startswith(("https://", "http://")):
+            return label
+        links.append(f'<a href="{html.escape(url, quote=True)}">{html.escape(label)}</a>')
+        return f"\x00{len(links) - 1}\x00"
+
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, text)
     text = html.escape(text, quote=False)
+    text = re.sub(r"\x00(\d+)\x00", lambda match: links[int(match[1])], text)
     text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
     text = re.sub(r"(\d) (?=\d{3}\b)", rf"\1{NBSP}", text)
     return re.sub(r"(\d) %", rf"\1{NBSP}%", text)
