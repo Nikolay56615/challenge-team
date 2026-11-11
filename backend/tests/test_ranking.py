@@ -469,8 +469,7 @@ def test_signal_only_task_without_such_materials_is_an_honest_gap(catalog):
     outcome = recommend(catalog, Profile(task="Регистрация товарного знака"), "personal")
     assert outcome.status == "none" and outcome.detected_topics == ()
     assert outcome.message == "По запросу «Регистрация товарного знака» материалов пока нет"
-    # Первой предлагается тема понятия: товарный знак относится к «Налогам и законам»
-    assert outcome.clarification["options"][0]["value"] == "taxes_law"
+    assert [option["value"] for option in outcome.clarification["options"][:2]] == ["start", "taxes_law"]
     assert all(item.starter_topic for item in outcome.items)
 
 

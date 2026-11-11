@@ -5,7 +5,7 @@
 //   npm --prefix evaluation/e2e run check:a11y -- [адрес] [папка результатов]
 
 import { readFileSync } from 'node:fs';
-import { base, chooseProfile, runBrowserChecks, submit } from './browser.mjs';
+import { afterPost, base, chooseProfile, runBrowserChecks, submit } from './browser.mjs';
 
 const axeSource = readFileSync(new URL(import.meta.resolve('axe-core/axe.min.js')), 'utf8');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -52,9 +52,41 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
     await audit(page, 'сравнение P02', width);
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
-    await page.getByRole('button', { name: 'Сбросить' }).click();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
     await submit(page);
     await audit(page, 'пустая форма, стартовая подборка', width);
+
+    await page.route('**/api/recommend', async (route) => {
+      const response = await route.fetch();
+      const result = await response.json();
+      const items = result.items.map((item) => item.format === 'course' ? {
+        ...item, url: 'https://kurs.alfabank.ru/courses/test-course/', link_allowed: true,
+        lesson_count: 22, has_certificate: true,
+        course_details: {
+          description: 'Практика планирования бюджета', audiences: ['Владельцам магазинов'],
+          outcomes: ['Составить бюджет'],
+        },
+      } : item);
+      await route.fulfill({ response, json: { ...result, items } });
+    });
+    await chooseProfile(page, 'P02');
+    await submit(page);
+    await page.getByText('22 урока', { exact: true }).first().waitFor();
+    await audit(page, 'курс со ссылкой и числом уроков', width);
+    await page.locator('summary').filter({ hasText: 'Подробнее о курсе' }).first().click();
+    await page.getByText('Составить бюджет', { exact: true }).first().waitFor();
+    await audit(page, 'раскрытые сведения о курсе', width);
+    await page.unroute('**/api/recommend');
+
+    const filters = page.getByRole('group', { name: 'Фильтры выдачи' });
+    const apply = filters.getByRole('button', { name: 'Применить фильтры' });
+    await filters.getByLabel('Формат', { exact: true }).selectOption('template');
+    await afterPost(page, () => apply.click());
+    await audit(page, 'отфильтрованная выдача', width);
+    await filters.getByLabel('Доступ', { exact: true }).selectOption('paid');
+    await afterPost(page, () => apply.click());
+    await page.getByRole('heading', { name: 'По выбранным фильтрам материалов нет' }).waitFor();
+    await audit(page, 'пустая отфильтрованная выдача', width);
 
     await page.route('**/api/recommend', (route) => route.abort('failed'));
     await page.getByRole('button', { name: 'Подобрать материалы' }).click();

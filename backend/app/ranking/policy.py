@@ -5,12 +5,19 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from .. import vocab
-from ..catalog.lexicon import ParsedTask, parse_task, title_matches_gaps
+from ..catalog.lexicon import TOPIC_ORDER, ParsedTask, parse_task, title_matches_gaps
 from ..catalog.models import Catalog, Material
 from . import baseline, explain, personal
-from .base import Context, HistoryIndex, Profile, Scored
+from .base import Context, HistoryIndex, MaterialFilters, Profile, Scored
 
 METHODS = ("personal", "baseline")
+FILTERS_EMPTY_MESSAGE = "По выбранным фильтрам материалов нет"
+
+
+@dataclass(frozen=True, slots=True)
+class FilterOptions:
+    formats: tuple[str, ...]
+    access: tuple[str, ...]
 
 
 @dataclass(slots=True)
@@ -24,6 +31,23 @@ class Outcome:
     message: str
     clarification: dict | None
     route: list[Material]
+    filter_options: FilterOptions | None = None
+
+
+def _filter_candidates(candidates: list[Material], filters: MaterialFilters) -> tuple[list[Material], FilterOptions]:
+    formats = {m.format for m in candidates}
+    access = {m.access for m in candidates}
+    options = FilterOptions(
+        formats=tuple(code for code in vocab.FORMATS if code in formats),
+        access=tuple(code for code in vocab.ACCESS if code in access),
+    )
+    if filters.format is None and filters.access is None:
+        return candidates, options
+    return [
+        m for m in candidates
+        if (filters.format is None or m.format == filters.format)
+        and (filters.access is None or m.access == filters.access)
+    ], options
 
 
 def _duplicate_key(material: Material) -> tuple[str, str]:
@@ -54,9 +78,9 @@ def eligible(catalog: Catalog, history: HistoryIndex) -> list[Material]:
     return sorted(best.values(), key=lambda m: m.id)
 
 
-def topics_with_materials(pool: list[Material]) -> list[str]:
+def topics_with_materials(pool: list[Material], *, order: tuple[str, ...] = TOPIC_ORDER) -> list[str]:
     present = {t for m in pool for t in m.topics}
-    return [t for t in vocab.CHIP_TOPICS if t in present]
+    return [t for t in order if t in present]
 
 
 def levels_beyond_courses(catalog: Catalog) -> bool:
@@ -101,17 +125,12 @@ def _options(topics: list[str] | tuple[str, ...]) -> list[dict]:
     return [{"label": vocab.topic_label(t), "value": t} for t in topics]
 
 
-def _first(topics: list[str], preferred: tuple[str, ...]) -> list[str]:
-    """Темы с материалами, сначала предпочтительные: так «товарный знак» первой предложит «Налоги и законы»."""
-    return [t for t in preferred if t in topics] + [t for t in topics if t not in preferred]
-
-
 def _starter_outcome(
     *, method: str, status: str, message: str, pool: list[Material], history: HistoryIndex,
-    limit: int, detected: tuple[str, ...], by_level: bool, preferred: tuple[str, ...] = ()
+    limit: int, detected: tuple[str, ...], by_level: bool
 ) -> Outcome:
     picks = starter_selection(pool, history, by_level=by_level)
-    options = _first(topics_with_materials(pool), preferred)
+    options = topics_with_materials(pool)
     if not picks and not options:
         return Outcome(
             method=method, status="empty", detected_topics=detected, items=[], reasons=[], total_candidates=0,
@@ -164,13 +183,16 @@ def _signal_outcome(
     candidates = [m for m in pool if wanted & {code for code, _ in m.signals}]
     if not candidates:
         return None
+    available_signals = {code for m in candidates for code, _ in m.signals}
+    candidates, filter_options = _filter_candidates(candidates, profile.filters)
     # Вклад признака и причина считаются только по понятиям, отобравшим кандидатов
     focused = replace(parsed, signals=parsed.concepts)
     ctx = Context(profile=profile, parsed=focused, topics=(), history=history, disabled=disabled, catalog=catalog.materials)
     ranked = personal.rank(candidates, ctx)
     items = ranked[: profile.limit]
-    found = tuple(s for s in parsed.concepts if any(s in {code for code, _ in m.signals} for m in candidates))
-    missing = tuple(s for s in parsed.concepts if s not in found)
+    shown_signals = {code for m in candidates for code, _ in m.signals}
+    found = tuple(s for s in parsed.concepts if s in shown_signals)
+    missing = tuple(s for s in parsed.concepts if s not in available_signals)
     route: list[Material] = []
     if _start_like(profile, parsed.stage_hint):
         route = explain.build_route(_route_window(ranked, profile.limit), catalog.materials)
@@ -183,9 +205,10 @@ def _signal_outcome(
         total_candidates=len(candidates),
         message=explain.signal_results_message(
             signals=found, total=len(candidates), items=items, ctx=ctx, gaps=parsed.gaps, missing=missing
-        ),
+        ) if candidates else FILTERS_EMPTY_MESSAGE,
         clarification=None,
         route=route,
+        filter_options=filter_options,
     )
 
 
@@ -205,6 +228,7 @@ def _title_match_outcome(
             by_level=levels_beyond_courses(catalog),
         )
 
+    candidates, filter_options = _filter_candidates(candidates, profile.filters)
     ctx = Context(
         profile=profile, parsed=parsed, topics=parsed.topics if method == "baseline" else (),
         history=history, disabled=frozenset(catalog.disabled_features), catalog=catalog.materials,
@@ -223,8 +247,10 @@ def _title_match_outcome(
         method=method, status="strong", detected_topics=parsed.topics, items=items,
         reasons=[explain.title_match_reasons(parsed.gaps, reasons) for reasons in ranking_reasons],
         total_candidates=len(candidates),
-        message=explain.title_results_message(method=method, total=len(candidates), items=items, ctx=ctx),
+        message=explain.title_results_message(method=method, total=len(candidates), items=items, ctx=ctx)
+        if candidates else FILTERS_EMPTY_MESSAGE,
         clarification=None, route=route,
+        filter_options=filter_options,
     )
 
 
@@ -258,7 +284,6 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
                 pool=pool, history=history, limit=profile.limit, detected=(),
                 by_level=levels_beyond_courses(catalog),
             )
-        preferred = parsed.topics if signal_only else ()
         return _starter_outcome(
             method=method,
             status="none",
@@ -267,7 +292,6 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
             ),
             pool=pool, history=history, limit=profile.limit, detected=(),
             by_level=levels_beyond_courses(catalog),
-            preferred=preferred,
         )
 
     candidates = [m for m in pool if set(m.topics) & set(topics)]
@@ -280,14 +304,16 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
             by_level=levels_beyond_courses(catalog),
         )
 
-    # Статус, строка состояния и уточнение опираются на темы с кандидатами; распознанные темы
-    # без материалов называются в строке состояния
+    # Статус и варианты уточнения опираются на темы исходных кандидатов.
     covered = tuple(t for t in topics if any(t in m.topics for m in candidates))
     missing = tuple(t for t in topics if t not in covered)
+    original_count = len(candidates)
+    candidates, filter_options = _filter_candidates(candidates, profile.filters)
+    filtered_topics = tuple(t for t in covered if any(t in m.topics for m in candidates))
     ctx = Context(
         profile=profile,
         parsed=parsed,
-        topics=covered,
+        topics=filtered_topics,
         history=history,
         disabled=frozenset(catalog.disabled_features),
         catalog=catalog.materials,
@@ -305,11 +331,12 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
     clarification = None
     if status == "weak":
         options = list(covered) if len(covered) >= 2 else list(covered) + [
-            t for t in topics_with_materials(pool) if t not in covered
+            t for t in topics_with_materials(pool, order=vocab.CHIP_TOPICS) if t not in covered
         ]
         clarification = {
             "question": "Уточните тему",
-            "text": explain.weak_clarification_text(covered, parsed.gaps),
+            "text": explain.weak_clarification_text(covered, parsed.gaps) if len(candidates) == original_count
+            else "Выберите тему, чтобы уточнить подбор.",
             "options": _options(options),
         }
 
@@ -318,9 +345,12 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
         route = explain.build_route(_route_window(ranked, profile.limit), catalog.materials)
 
     signal = next((i.matched_signal for i in items if i.matched_signal), None)
-    message = explain.results_message(
-        method=method, topics=covered, total=len(candidates), items=items, ctx=ctx, signal=signal, missing=missing
-    )
+    message = FILTERS_EMPTY_MESSAGE
+    if candidates:
+        message = explain.results_message(
+            method=method, topics=filtered_topics, total=len(candidates), items=items, ctx=ctx, signal=signal,
+            missing=missing,
+        )
     if method == "personal":
         reasons = [explain.personal_reasons(i, ctx) for i in items]
     else:
@@ -335,4 +365,5 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
         message=message,
         clarification=clarification,
         route=route,
+        filter_options=filter_options,
     )
