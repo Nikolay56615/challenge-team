@@ -293,7 +293,9 @@ async function textSpacingCheck(page, state, width, extra = '') {
     [`текстов ${spacing.texts}${extra}`, ...spacing.problems.slice(0, 3), reflow.ok ? '' : `ширина документа ${reflow.scrollWidth}`].filter(Boolean).join('; '));
 }
 
-const consoleNoise = (text) => text.includes('net::ERR_FAILED') || text.includes('Failed to load resource') || text.includes('Failed to fetch');
+// Chromium на Linux предупреждает об этой директиве. В заголовке она нужна браузерам с поддержкой Web Bluetooth.
+const consoleNoise = (text) => text.includes('net::ERR_FAILED') || text.includes('Failed to load resource') || text.includes('Failed to fetch')
+  || text === "Error with Permissions-Policy header: Unrecognized feature: 'bluetooth'.";
 
 /** Состояние ошибки поля: связи для вспомогательных технологий и фокус */
 async function fieldErrorChecks(page, width) {
