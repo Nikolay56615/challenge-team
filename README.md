@@ -35,7 +35,7 @@ $env:APP_PORT = "8080"; docker compose up --build
 Workflow [.github/workflows/docker-check.yml](.github/workflows/docker-check.yml) запускается при push, pull request и вручную. GitHub выполняет его, только если папка `.github/` лежит в корне репозитория. В нём два задания:
 
 - `backend-tests` прогоняет тесты бэкенда на Python 3.12.
-- `docker` собирает образ и проверяет его состав: в `/srv/app` лежат только `backend/app`, `backend/data`, `backend/requirements.txt` и `frontend/dist`, файлов `*.sqlite3` в образе нет. Затем задание поднимает контейнер, ждёт `GET /api/health`, проверяет подбор для профиля P01 и выдачу интерфейса с корня. В конце оно запускает контейнер с наложением `compose.data.yaml` на JSON-каталоге из `backend/data` и проверяет, что `/api/health` сообщает источник `file`. При сбое задание выводит журнал контейнера.
+- `docker` собирает образ и проверяет его состав. В `/srv/app` лежат только `backend/app`, `backend/data`, `backend/requirements.txt` и `frontend/dist`. Задание проверяет отсутствие файлов `*.sqlite3` в образе, запускает контейнер, проверяет готовность, подбор для P01 и интерфейс в Chromium. В конце задание запускает контейнер с `compose.data.yaml` на JSON-каталоге из `backend/data` и проверяет, что `/api/health` сообщает источник `file`. При сбое задание выводит журнал контейнера.
 
 ## Запуск без Docker
 
@@ -88,6 +88,17 @@ DEMO_MODE=false .venv/bin/python -m uvicorn app.main:app --port 8000
 В Windows вместо `.venv/bin/python` — `.venv\Scripts\python`.
 
 Тесты проверяют порядок выдачи на тестовых профилях, соответствие причин фактическим признакам ранжирования, разбор запроса на наборе фраз, статусы при неполных сведениях, ошибки валидации и HTTP, правила ссылок, демо-режим, загрузчики JSON и SQLite на вымышленных данных и метрики на разметке релевантности `backend/tests/relevance.json`. `npm run build` в `frontend` проверяет типы TypeScript и собирает интерфейс.
+
+Сквозные сценарии и проверка доступности используют Chromium из Playwright. Запустите приложение с собранным интерфейсом, тестовым каталогом и включённым демо-режимом. Из корня репозитория выполните:
+
+```bash
+npm --prefix evaluation/e2e ci
+npm --prefix evaluation/e2e run install:browser
+npm --prefix evaluation/e2e run check:ui
+npm --prefix evaluation/e2e run check:a11y
+```
+
+На Linux для установки системных библиотек Chromium добавьте `-- --with-deps` к команде `install:browser`. По умолчанию проверки обращаются к `http://127.0.0.1:8000`. Другой адрес можно передать после `--`, например `npm --prefix evaluation/e2e run check:ui -- http://127.0.0.1:8080`. Снимки и JSON-отчёты сохраняются в `evaluation/e2e/.results/`. В GitHub Actions они доступны в артефакте `browser-checks` задания `docker`.
 
 ## Маршрут демонстрации
 

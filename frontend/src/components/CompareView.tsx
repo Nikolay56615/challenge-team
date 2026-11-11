@@ -46,7 +46,7 @@ export function compareStatus(response: CompareResponse): string {
   }
   if (hasResults(personal)) return `${ready} Подбор по теме не нашёл материалов по запросу.`;
   if (hasResults(baseline)) return `${ready} Персональный подбор не нашёл материалов по запросу.`;
-  if (baseline.status === 'cold' && personal.status === 'cold') {
+  if (baseline.status === 'cold' && personal.status === 'cold' && baseline.items.length && personal.items.length) {
     return `${ready} Без задачи оба метода показывают стартовую подборку.`;
   }
   return `${ready} Ни один метод не нашёл материалов по запросу.`;

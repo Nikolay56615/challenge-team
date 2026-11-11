@@ -161,6 +161,19 @@ def test_body_errors_are_422_in_unified_format(client, body, content_type, messa
     }
 
 
+def test_compare_requires_content_type(client):
+    response = client.post("/api/compare", content=b'{"task": "x"}')
+    assert response.status_code == 422
+    assert error_of(response)["details"] == [{"field": "body", "message": BODY_NOT_OBJECT}]
+
+
+@pytest.mark.parametrize("path", ["/api/recommend", "/api/compare"])
+def test_size_limit_precedes_content_type_check(client, path):
+    response = client.post(path, content=b"x" * (MAX_BODY_BYTES + 1))
+    assert response.status_code == 413
+    assert error_of(response)["code"] == "payload_too_large"
+
+
 def test_field_named_body_is_reported_as_unknown_field(client):
     response = client.post("/api/recommend", json={"body": 1})
     assert error_of(response)["details"] == [{"field": "body", "message": "Неизвестное поле «body»"}]

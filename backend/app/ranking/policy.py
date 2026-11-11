@@ -107,17 +107,25 @@ def _first(topics: list[str], preferred: tuple[str, ...]) -> list[str]:
 
 
 def _starter_outcome(
-    *, method: str, status: str, message: str, question: str, text: str, pool: list[Material], history: HistoryIndex,
+    *, method: str, status: str, message: str, pool: list[Material], history: HistoryIndex,
     limit: int, detected: tuple[str, ...], by_level: bool, preferred: tuple[str, ...] = ()
 ) -> Outcome:
     picks = starter_selection(pool, history, by_level=by_level)
     options = _first(topics_with_materials(pool), preferred)
-    if not picks:
+    if not picks and not options:
         return Outcome(
             method=method, status="empty", detected_topics=detected, items=[], reasons=[], total_candidates=0,
             message=explain.EMPTY_MESSAGE, clarification=None, route=[],
         )
     items = picks[:limit]
+    if status == "cold":
+        question = explain.COLD_QUESTION
+        text = explain.COLD_STARTER_TEXT if picks else explain.COLD_TEXT
+        if not picks:
+            message = explain.COLD_TEXT
+    else:
+        question = "Выберите тему"
+        text = explain.none_clarification_text(options, has_starter=bool(picks))
     return Outcome(
         method=method,
         status=status,
@@ -204,20 +212,17 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
     if not topics:
         if parsed.is_empty:
             return _starter_outcome(
-                method=method, status="cold", message=explain.COLD_MESSAGE, question=explain.COLD_QUESTION,
-                text=explain.COLD_TEXT, pool=pool, history=history, limit=profile.limit, detected=(),
+                method=method, status="cold", message=explain.COLD_MESSAGE,
+                pool=pool, history=history, limit=profile.limit, detected=(),
                 by_level=levels_beyond_courses(catalog),
             )
         preferred = parsed.topics if signal_only else ()
-        available = _first(topics_with_materials(pool), preferred)
         return _starter_outcome(
             method=method,
             status="none",
             message=explain.none_message(
                 profile.task, gaps=parsed.gaps, baseline_without_topic=signal_only and method == "baseline"
             ),
-            question="Выберите тему",
-            text=explain.none_clarification_text(available),
             pool=pool, history=history, limit=profile.limit, detected=(),
             by_level=levels_beyond_courses(catalog),
             preferred=preferred,
@@ -225,13 +230,10 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
 
     candidates = [m for m in pool if set(m.topics) & set(topics)]
     if not candidates:
-        available = topics_with_materials(pool)
         return _starter_outcome(
             method=method,
             status="none",
             message=explain.no_materials_text(topics),
-            question="Выберите тему",
-            text=explain.none_clarification_text(available),
             pool=pool, history=history, limit=profile.limit, detected=topics,
             by_level=levels_beyond_courses(catalog),
         )

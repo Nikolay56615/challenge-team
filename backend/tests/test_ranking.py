@@ -191,6 +191,40 @@ def test_empty_catalog_gives_empty_status():
     outcome = recommend(catalog, Profile(task=""), "personal")
     assert outcome.status == "empty"
     assert outcome.items == []
+    assert outcome.clarification is None
+
+
+@pytest.mark.parametrize(("task", "status"), [("", "cold"), ("Наследство", "none")])
+@pytest.mark.parametrize("method", ["personal", "baseline"])
+def test_topics_remain_selectable_without_free_starter_materials(task, status, method):
+    catalog = catalog_from_payloads(
+        {"materials": [{"id": "Z1", "title": "Курс", "format": "course", "topics": ["sales"], "access": "paid"}]}
+    )
+    outcome = recommend(catalog, Profile(task=task), method)
+
+    assert outcome.status == status
+    assert outcome.items == [] and outcome.total_candidates == 0
+    assert "стартов" not in outcome.clarification["text"] and "Ниже" not in outcome.clarification["text"]
+    topic, = [option["value"] for option in outcome.clarification["options"]]
+    assert topic == "sales"
+    result = recommend(catalog, Profile(task=task, topic=topic), method)
+    assert result.status == "strong" and ids(result) == ["Z1"]
+
+
+def test_topics_remain_selectable_after_completing_all_starter_materials():
+    catalog = catalog_from_payloads(
+        {"materials": [{"id": "Z1", "title": "Статья", "format": "article", "topics": ["sales"], "level": "intro"}]}
+    )
+    assert ids(recommend(catalog, Profile())) == ["Z1"]
+    history = (HistoryEvent("Z1", "complete", 1),)
+    outcome = recommend(catalog, Profile(history=history))
+
+    assert outcome.status == "cold"
+    assert outcome.items == [] and outcome.total_candidates == 0
+    topic, = [option["value"] for option in outcome.clarification["options"]]
+    assert topic == "sales"
+    result = recommend(catalog, Profile(topic=topic, history=history))
+    assert ids(result) == ["Z1"] and result.items[0].flags == ["completed"]
 
 
 @pytest.mark.parametrize(

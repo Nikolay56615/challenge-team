@@ -400,15 +400,18 @@ def weak_clarification_text(topics: tuple[str, ...], gaps: tuple[str, ...]) -> s
     return text
 
 
-def none_clarification_text(topics: list[str]) -> str:
+def none_clarification_text(topics: list[str], *, has_starter: bool) -> str:
     labels = [vocab.topic_label(t).lower() for t in topics]
-    return (
-        f"Каталог покрывает темы: {', '.join(labels)}. "
+    action = (
         "Выберите тему, переформулируйте запрос или начните со стартовой подборки."
+        if has_starter
+        else "Выберите тему или переформулируйте запрос."
     )
+    return f"Каталог покрывает темы: {', '.join(labels)}. {action}"
 
 
 COLD_QUESTION = "С чего хотите начать?"
-COLD_TEXT = "Выберите тему или опишите задачу. Ниже — вводные бесплатные материалы по каждой теме."
+COLD_TEXT = "Выберите тему или опишите задачу."
+COLD_STARTER_TEXT = f"{COLD_TEXT} Ниже — вводные бесплатные материалы по каждой теме."
 COLD_MESSAGE = "Показываем вводные бесплатные материалы по каждой теме."
-EMPTY_MESSAGE = "Подходящих материалов не нашлось. Измените запрос или выберите другую тему."
+EMPTY_MESSAGE = "Подходящих материалов не нашлось. Измените запрос."

@@ -1,5 +1,5 @@
 # Проверка комплекта, два независимых задания. Тесты бэкенда. Docker: сборка образа, его состав, ответ
-# контейнера, подбор для профиля P01, выдача интерфейса и запуск с наложением compose.data.yaml. Рассчитан
+# контейнера, подбор для профиля P01, браузерные проверки и запуск с наложением compose.data.yaml. Рассчитан
 # на репозиторий, в корне которого лежат backend/, frontend/, Dockerfile и файлы compose:
 # GitHub читает workflow только из .github/workflows в корне.
 name: docker-check
@@ -79,6 +79,30 @@ jobs:
         run: |
           curl -fsS http://127.0.0.1:8000/ -o index.html
           grep -q '<div id="root">' index.html
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+      - name: Установка Chromium и зависимостей проверок
+        working-directory: evaluation/e2e
+        run: |
+          npm ci
+          npm run install:browser -- --with-deps
+      - name: Сквозные проверки и доступность
+        working-directory: evaluation/e2e
+        run: |
+          ui=0
+          a11y=0
+          npm run check:ui || ui=$?
+          npm run check:a11y || a11y=$?
+          test "$ui" -eq 0 && test "$a11y" -eq 0
+      - name: Снимки и отчёты браузерных проверок
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-checks
+          path: evaluation/e2e/.results/
+          include-hidden-files: true
+          if-no-files-found: ignore
       - name: Наложение compose.data.yaml с JSON-каталогом
         # Папка монтируется только на чтение и читается пользователем контейнера с uid 10001
         env:
