@@ -1,8 +1,7 @@
 """Причины, следующий шаг, маршрут и тексты выдачи (PLAN.md, 3.5–3.6).
 
-Каждая фраза причины соответствует признаку с положительным вкладом. Исключение —
-фраза о востребованности: её получает материал, который выиграл равенство оценок по популярности
-и входит в тройку самых популярных кандидатов своей темы.
+Причины персонального подбора объясняют положительные вклады, разрешение равенств по популярности
+и отбор по названию для узких задач.
 """
 
 from __future__ import annotations
@@ -212,6 +211,11 @@ def starter_reasons(item: Scored) -> list[str]:
     return [f"Стартовый материал по теме «{vocab.topic_label(item.starter_topic)}»"] if item.starter_topic else []
 
 
+def title_match_reasons(gaps: tuple[str, ...], ranking_reasons: list[str]) -> list[str]:
+    title_reason = f"В названии есть упоминание о {join_ru(list(gaps))}"
+    return _fit([("title", title_reason), *[("ranking", reason) for reason in ranking_reasons]])
+
+
 def next_step(material: Material) -> str:
     return material.next_step or vocab.NEXT_STEP_BY_FORMAT.get(material.format, "Откройте материал и отметьте главное")
 
@@ -375,6 +379,12 @@ def signal_results_message(
     return _with_tail(head, _order_sentence(method="personal", ctx=ctx, items=items, total=total, signal=None))
 
 
+def title_results_message(*, method: str, total: int, items: Sequence[Scored], ctx: Context) -> str:
+    word = plural(total, "материал", "материала", "материалов")
+    head = f"Нашли {total} {word} по совпадению в названии."
+    return _with_tail(head, _order_sentence(method=method, ctx=ctx, items=items, total=total, signal=None))
+
+
 def none_message(task: str, *, gaps: Sequence[str] = (), baseline_without_topic: bool = False) -> str:
     """Заголовок пустой выдачи без распознанной темы, без точки.
 
@@ -414,4 +424,5 @@ COLD_QUESTION = "С чего хотите начать?"
 COLD_TEXT = "Выберите тему или опишите задачу."
 COLD_STARTER_TEXT = f"{COLD_TEXT} Ниже — вводные бесплатные материалы по каждой теме."
 COLD_MESSAGE = "Показываем вводные бесплатные материалы по каждой теме."
+NO_TITLE_MATCH_MESSAGE = "По этому запросу подходящих материалов не нашлось"
 EMPTY_MESSAGE = "Подходящих материалов не нашлось. Измените запрос."

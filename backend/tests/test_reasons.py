@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from app import vocab
 from app.catalog.models import HistoryEvent
 from app.ranking.base import POPULAR_TOP_N, HistoryIndex, Profile
 from app.ranking.explain import (
@@ -44,11 +45,14 @@ def features_of(phrase: str) -> set[str]:
 
 
 @pytest.mark.parametrize("profile_id", PROFILES)
-def test_every_phrase_reflects_a_positive_contribution(run, profile_id):
+def test_each_reason_explains_ranking_or_starter_topic(run, profile_id):
     outcome = run(profile_id)
     for item, reasons in zip(outcome.items, outcome.reasons):
         assert 1 <= len(reasons) <= MAX_REASON_PHRASES
         assert sum(len(r) for r in reasons) + 2 * (len(reasons) - 1) <= MAX_REASON_CHARS
+        if item.starter_topic:
+            assert reasons == [f"Стартовый материал по теме «{vocab.topic_label(item.starter_topic)}»"]
+            continue
         for phrase in reasons:
             if phrase == POPULARITY_PHRASE:
                 assert item.tie_won and item.popular_in_topic

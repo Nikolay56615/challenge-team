@@ -197,6 +197,26 @@ await runBrowserChecks('results.json', results, async (browser) => {
     check('E7', `P04: сообщение о пробеле, темы и стартовая подборка (${width})`, gap > 0 && (await page.getByRole('radio').count()) >= 3 && (await cards(page)).length >= 3);
     await shot(page, `p04${tag}`);
 
+    // E7: P07 — узкий запрос, переход от стартовой подборки к выбранной теме.
+    await chooseProfile(page, 'P07');
+    const narrowTask = await page.getByLabel('Что вы хотите сделать?').inputValue();
+    const narrow = await submit(page);
+    const narrowHeading = page.getByRole('heading', { name: 'По этому запросу подходящих материалов не нашлось' });
+    const starterRegion = page.getByRole('region', { name: 'Стартовая подборка' });
+    const starter = await cards(page, starterRegion);
+    check('E7', `P07: после сообщения показана только стартовая подборка (${width})`,
+      (await narrow.json()).status === 'none' && (await narrowHeading.isVisible()) &&
+      starter.length > 0 && starter.length === (await cards(page)).length);
+    await shot(page, `p07${tag}`);
+    const narrowTopics = page.getByRole('group', { name: 'Тема', exact: true });
+    const narrowed = await afterPost(page, () => narrowTopics.getByText('Продажи', { exact: true }).click());
+    const narrowedBody = await narrowed.json();
+    check('E7', `P07: выбор «Продажи» возвращает подборку по теме (${width})`,
+      narrowed.request().postDataJSON().topic === 'sales' && narrowedBody.status === 'strong' &&
+      narrowedBody.items.length > 0 && narrowedBody.items.every((item) => item.topics.includes('sales')) &&
+      (await cards(page)).length === narrowedBody.items.length && !(await starterRegion.isVisible()) &&
+      (await page.getByLabel('Что вы хотите сделать?').inputValue()) === narrowTask);
+
     // E8: сбой API и повтор без повторного ввода
     await chooseProfile(page, 'P01');
     await page.route('**/api/recommend', (route) => route.abort('failed'));

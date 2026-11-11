@@ -500,7 +500,8 @@ FORMAT_HINTS: dict[str, Patterns] = {
     "quick": _compile(("быстро", "кратко", "коротко", "чек-лист", "памятк")),
 }
 
-# Слова-пробелы: тем нет в каталоге (PLAN.md, 3.5). Подпись во фразе «Материалов о … пока нет» -> шаблоны.
+# Узкие темы, которые требуют подтверждения при подборе (PLAN.md, 3.5).
+# Подпись после «о» -> шаблоны для задачи и названий материалов.
 GAP_PATTERNS: dict[str, Patterns] = {
     "лицензировании": _compile(("лицензи",)),
     "продаже алкоголя": _compile(("алкогол",)),
@@ -535,6 +536,12 @@ def _found(tokens: tuple[str, ...], patterns: Patterns, *, negatable: bool = Fal
                     continue
             return True
     return False
+
+
+def title_matches_gaps(title: str, gaps: tuple[str, ...]) -> bool:
+    """Все признаки узкой задачи должны встретиться в одном названии."""
+    tokens = tuple(tokenize(title))
+    return all(_found(tokens, GAP_PATTERNS[label]) for label in gaps)
 
 
 @dataclass(frozen=True, slots=True)

@@ -34,7 +34,13 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
     await page.getByLabel('Тестовый профиль').waitFor();
     await audit(page, 'начальный экран', width);
 
-    for (const [id, state] of [['P01', 'P01, выдача и маршрут'], ['P02', 'P02, платные карточки и пометки'], ['P05', 'P05, уточнение темы'], ['P04', 'P04, пробел и стартовая подборка']]) {
+    for (const [id, state] of [
+      ['P01', 'P01, выдача и маршрут'],
+      ['P02', 'P02, платные карточки и пометки'],
+      ['P05', 'P05, уточнение темы'],
+      ['P04', 'P04, пробел и стартовая подборка'],
+      ['P07', 'P07, узкий запрос без совпадений'],
+    ]) {
       await chooseProfile(page, id);
       await submit(page);
       await audit(page, state, width);

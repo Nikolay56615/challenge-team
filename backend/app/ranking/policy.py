@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from .. import vocab
-from ..catalog.lexicon import ParsedTask, parse_task
+from ..catalog.lexicon import ParsedTask, parse_task, title_matches_gaps
 from ..catalog.models import Catalog, Material
 from . import baseline, explain, personal
 from .base import Context, HistoryIndex, Profile, Scored
@@ -189,6 +189,45 @@ def _signal_outcome(
     )
 
 
+def _title_match_outcome(
+    catalog: Catalog, profile: Profile, parsed: ParsedTask, history: HistoryIndex, pool: list[Material], method: str
+) -> Outcome:
+    topics = set(parsed.topics)
+    candidates = [
+        material for material in pool
+        if (method == "personal" or topics.intersection(material.topics))
+        and title_matches_gaps(material.title, parsed.gaps)
+    ]
+    if not candidates:
+        return _starter_outcome(
+            method=method, status="none", message=explain.NO_TITLE_MATCH_MESSAGE,
+            pool=pool, history=history, limit=profile.limit, detected=parsed.topics,
+            by_level=levels_beyond_courses(catalog),
+        )
+
+    ctx = Context(
+        profile=profile, parsed=parsed, topics=parsed.topics if method == "baseline" else (),
+        history=history, disabled=frozenset(catalog.disabled_features), catalog=catalog.materials,
+    )
+    ranked = personal.rank(candidates, ctx) if method == "personal" else baseline.rank(candidates, ctx)
+    items = ranked[:profile.limit]
+    route: list[Material] = []
+    if method == "personal" and _start_like(profile, parsed.stage_hint):
+        route = explain.build_route(_route_window(ranked, profile.limit), catalog.materials)
+    ranking_reasons = (
+        [explain.personal_reasons(item, ctx) for item in items]
+        if method == "personal"
+        else [explain.baseline_reasons(item) for item in items]
+    )
+    return Outcome(
+        method=method, status="strong", detected_topics=parsed.topics, items=items,
+        reasons=[explain.title_match_reasons(parsed.gaps, reasons) for reasons in ranking_reasons],
+        total_candidates=len(candidates),
+        message=explain.title_results_message(method=method, total=len(candidates), items=items, ctx=ctx),
+        clarification=None, route=route,
+    )
+
+
 def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> Outcome:
     if method not in METHODS:
         raise ValueError(f"unknown method {method}")
@@ -197,6 +236,9 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
     pool = eligible(catalog, history)
     explicit = profile.topic is not None
     topics: tuple[str, ...] = (profile.topic,) if explicit else parsed.topics
+
+    if not explicit and parsed.gaps and not parsed.concepts:
+        return _title_match_outcome(catalog, profile, parsed, history, pool, method)
 
     # Тема выведена из понятия признака, сама задача её не называет
     signal_only = parsed.topics_from_signals and not explicit

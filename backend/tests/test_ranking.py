@@ -14,6 +14,7 @@ TOP5_P01 = ["M01", "M07", "M04", "M08", "M03"]
 TOP5_P02 = ["M02", "M05", "M06", "M08", "M07"]
 BASELINE_MARKETING = ["M03", "M02", "M01", "M07", "M05"]
 SHOW_MORE_LIMIT = 10  # «Показать ещё» повторяет запрос с этим пределом
+NARROW_TASK = "Нужна лицензия на продажу алкоголя"
 
 
 def synthetic_without(*topics: str) -> Catalog:
@@ -99,12 +100,64 @@ def test_p05_with_chosen_topic_is_strong_and_single_topic(run):
     assert all("marketing" in item.material.topics for item in outcome.items)
 
 
-def test_p07_gap_word_gives_weak_with_message(run):
-    outcome = run("P07")
-    assert outcome.status == "weak"
+@pytest.mark.parametrize("method", ["personal", "baseline"])
+def test_p07_gives_starter_and_topic_choice_when_no_title_matches(run, method):
+    outcome = run("P07", method)
+    assert outcome.status == "none"
     assert outcome.detected_topics == ("sales",)
-    assert "лицензировании" in outcome.clarification["text"]
-    assert all("sales" in item.material.topics for item in outcome.items)
+    assert outcome.message == "По этому запросу подходящих материалов не нашлось"
+    assert ids(outcome) == ["A01", "L01", "S01", "M01", "O01"]
+    assert all(item.starter_topic for item in outcome.items)
+    assert any(option["value"] == "sales" for option in outcome.clarification["options"])
+    narrowed = run("P07", method, topic="sales")
+    assert narrowed.status == "strong" and set(ids(narrowed)) == {"S01", "S02", "S03", "S04"}
+
+
+def test_narrow_request_requires_all_title_matches_and_personal_searches_across_topics():
+    catalog = catalog_from_payloads({"materials": [
+        {"id": "X01", "title": "Как получить лицензию на продажу алкоголя", "format": "article", "topics": ["taxes_law"]},
+        {"id": "X02", "title": "Лицензия на ПО", "format": "article", "topics": ["sales"]},
+        {"id": "X03", "title": "Продажа алкоголя", "format": "article", "topics": ["sales"]},
+    ]})
+    profile = Profile(task=NARROW_TASK)
+    personal = recommend(catalog, profile, "personal")
+    baseline = recommend(catalog, profile, "baseline")
+    assert personal.status == "strong" and ids(personal) == ["X01"]
+    assert personal.total_candidates == 1
+    assert personal.reasons[0][0] == "В названии есть упоминание о лицензировании и продаже алкоголя"
+    assert baseline.status == "none" and all(item.starter_topic for item in baseline.items)
+
+
+@pytest.mark.parametrize("method", ["personal", "baseline"])
+@pytest.mark.parametrize("exclusion", ["unavailable", "purchased"])
+def test_narrow_request_applies_catalog_eligibility(method, exclusion):
+    catalog = catalog_from_payloads({"materials": [
+        {"id": "X01", "title": "Как получить лицензию на продажу алкоголя", "format": "article", "topics": ["sales"],
+         "available": exclusion != "unavailable"},
+        {"id": "X02", "title": "Продажа алкоголя и порядок получения лицензии", "format": "article", "topics": ["sales"]},
+    ]})
+    history = (HistoryEvent("X01", "purchase", 1),) if exclusion == "purchased" else ()
+    outcome = recommend(catalog, Profile(task=NARROW_TASK, history=history), method)
+    assert outcome.status == "strong" and ids(outcome) == ["X02"]
+    assert outcome.total_candidates == 1
+
+
+def test_narrow_request_ranks_title_matches_by_the_selected_method():
+    catalog = catalog_from_payloads({"materials": [
+        {"id": "X01", "title": "Лицензия на продажу алкоголя для нового бизнеса", "format": "article",
+         "topics": ["sales"], "stage": ["start"], "popularity": 1},
+        {"id": "X02", "title": "Продажа алкоголя и продление лицензии", "format": "article",
+         "topics": ["sales"], "stage": ["growth"], "popularity": 10},
+    ]})
+    profile = Profile(task=NARROW_TASK, stage="start")
+    assert ids(recommend(catalog, profile, "personal")) == ["X01", "X02"]
+    assert ids(recommend(catalog, profile, "baseline")) == ["X02", "X01"]
+
+
+def test_narrow_request_with_an_independent_concept_uses_concept_search(catalog):
+    outcome = recommend(catalog, Profile(task="Какую CRM выбрать и как получить лицензию"))
+    assert outcome.status == "strong" and ids(outcome) == ["S02", "S03"]
+    assert "Материалов о лицензировании пока нет" in outcome.message
 
 
 def test_p04_unknown_topic_gives_gap_and_starter(run):
@@ -291,7 +344,6 @@ def test_none_message_converts_quotes_in_the_task_echo(catalog):
         "Нужен шаблон для продвижения",
         "Как продвигать магазин",
         "Хочу больше клиентов",
-        "Нужна лицензия на продажу алкоголя",
         "Какой налоговый режим выбрать для ИП",
     ],
 )
@@ -320,9 +372,8 @@ def test_format_hint_is_explained_without_a_false_cause(catalog):
     assert outcome.message.endswith("Уточнения не заполнены, поэтому порядок учитывает описание задачи: формат «шаблон».")
 
 
-def test_popularity_wording_stays_for_p05_and_p07(run):
+def test_popularity_wording_stays_for_p05(run):
     assert run("P05").message.endswith("Показываем 5 самых востребованных: стадия и опыт не указаны.")
-    assert run("P07").message.endswith("Стадия и опыт не указаны, поэтому порядок — по востребованности.")
 
 
 def test_novice_chip_is_named_when_levels_are_not_marked():
@@ -457,10 +508,11 @@ def test_explicit_topic_wins_over_signal_inference(catalog):
 # ---------- пустая выдача со словом-пробелом, маршрут, один материал ----------
 
 
-def test_none_with_a_gap_word_names_the_gap(catalog):
+def test_narrow_request_without_any_topic_gives_a_starter_when_no_title_matches(catalog):
     outcome = recommend(catalog, Profile(task="Нужен сертификат на продукцию"), "personal")
     assert outcome.status == "none"
-    assert outcome.message == "Материалов о сертификации пока нет"
+    assert outcome.message == "По этому запросу подходящих материалов не нашлось"
+    assert all(item.starter_topic for item in outcome.items)
 
 
 @pytest.mark.parametrize("limit", [1, 2, 3, 4, 5, 10])
