@@ -1,43 +1,46 @@
-/* Токены UI-кита трека 1. Описание и контраст пар: design/ui-kit.md, раздел 2. */
+/* Токены UI-кита трека 1. Описание и контраст пар: design/ui-kit.md, раздел 2.
+   Палитра, типографика и радиусы повторяют визуальный язык shift-frontend-web;
+   акцент затемнён до #C41230, чтобы белый текст на кнопке проходил 4,5:1. */
 :root {
   /* Цвет */
-  --color-ink: #1c2430;
-  --color-muted: #5b6673;
-  --color-bg: #f4f6f8;
+  --color-ink: #5d001d;
+  --color-muted: #6b5b60;
+  --color-bg: #fffafa;
   --color-surface: #ffffff;
-  --color-surface-subtle: #fafbfc;
-  --color-surface-disabled: #f7f8fa;
-  --color-line: #dde3ea;
-  --color-line-strong: #848f9f;
-  --color-accent: #2f5fd0;
-  --color-accent-hover: #2752b8;
-  --color-accent-soft: #eaf1fb;
-  --color-accent-ink: #1f3f85;
-  --color-accent-line: #cfdcf5;
-  --color-topic-bg: #e7eef9;
-  --color-neutral-bg: #eef1f5;
-  --color-neutral-ink: #3b4652;
+  --color-surface-subtle: #f8f6f6;
+  --color-surface-disabled: #f4f1f1;
+  --color-line: #ebebeb;
+  --color-line-strong: #8b7c80;
+  --color-accent: #c41230;
+  --color-accent-hover: #a50e28;
+  --color-accent-soft: #fdecef;
+  --color-accent-ink: #8e0b22;
+  --color-accent-line: #f0c4cb;
+  --color-button-secondary: #f2f2f2;
+  --color-topic-bg: #fdecef;
+  --color-neutral-bg: #efe9ea;
+  --color-neutral-ink: #4a3b40;
   --color-ok-bg: #e8f4ec;
   --color-ok-ink: #1f6b3a;
   --color-paid-bg: #fff4df;
   --color-paid-ink: #8a5a00;
   --color-flag-bg: #f1e9ff;
   --color-flag-ink: #5b3a9e;
-  --color-err-bg: #fdecec;
+  --color-err-bg: #fde8ea;
   --color-err-ink: #9c2a2a;
-  --color-err-line: #f3c9c9;
-  --color-skeleton-a: #e6eaef;
-  --color-skeleton-b: #f3f5f8;
-  --color-focus: #2f5fd0;
+  --color-err-line: #f0c3c7;
+  --color-skeleton-a: #efe9ea;
+  --color-skeleton-b: #f8f6f6;
+  --color-focus: #c41230;
 
   /* Типографика */
-  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-size-base: 15px;
-  --line-height-base: 1.45;
-  --font-size-h1: 22px;
-  --font-size-h2: 17px;
+  --font-family: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-size-base: 16px;
+  --line-height-base: 1.5;
+  --font-size-h1: 30px;
+  --font-size-h2: 20px;
   --font-size-h3: 17px;
-  --font-size-sm: 14px;
+  --font-size-sm: 15px;
   --font-size-xs: 13px;
   --font-size-2xs: 12px;
   --font-weight-regular: 400;
@@ -54,19 +57,19 @@
   --space-6: 32px;
 
   /* Радиусы */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-field: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-field: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   --radius-pill: 999px;
 
   /* Тень: только рамки витрины */
-  --shadow-frame: 0 1px 2px rgba(20, 30, 50, 0.06);
+  --shadow-frame: 0 8px 24px rgba(93, 0, 29, 0.06);
 
   /* Фокус и размеры */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
-  --control-min-height: 40px;
+  --control-min-height: 44px;
   --aside-width: 360px;
 }

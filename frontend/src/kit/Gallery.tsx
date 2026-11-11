@@ -485,12 +485,12 @@ export function Gallery() {
             ))}
           </div>
         </Specimen>
-        <Specimen id="tokens-type" title="2.2 Типографика" note="Шрифт системный, без загрузки веб-шрифтов.">
-          <p className="h1">Заголовок экрана · --font-size-h1, 22 px</p>
-          <p className="h2">Заголовок панели · --font-size-h2, 17 px</p>
-          <p className="h3">Название материала · --font-size-h3, 16 px</p>
-          <p>Основной текст и поле задачи · --font-size-base, 15 px</p>
-          <p className="status-line">Строка состояния, чипы, значения карточки · --font-size-sm, 14 px</p>
+        <Specimen id="tokens-type" title="2.2 Типографика" note="Onest, локальные woff2 для кириллицы и латиницы: внешние CDN не нужны.">
+          <p className="h1">Заголовок экрана · --font-size-h1, 30 px</p>
+          <p className="h2">Заголовок панели · --font-size-h2, 20 px</p>
+          <p className="h3">Название материала · --font-size-h3, 17 px</p>
+          <p>Основной текст и поле задачи · --font-size-base, 16 px</p>
+          <p className="status-line">Строка состояния, чипы, значения карточки · --font-size-sm, 15 px</p>
           <p className="hint">Подсказки и примечания · --font-size-xs, 13 px</p>
           <span className="kv__label">Подписи блоков карточки · --font-size-2xs, 12 px</span>
         </Specimen>
