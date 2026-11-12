@@ -4,10 +4,12 @@ import { CompareView, compareStatus, type CompareTab } from './components/Compar
 import { DemoPanel } from './components/DemoPanel';
 import { EmptyState, STARTER_VISIBLE, starterTotal } from './components/EmptyState';
 import { IntroPanel } from './components/IntroPanel';
+import { mergeFilterOptions, ResultFilters } from './components/ResultFilters';
 import { LOADING_STATUS, ResultList } from './components/ResultList';
 import { NETWORK_ERROR_TEXT, StateBanner } from './components/StateBanner';
 import { TaskForm } from './components/TaskForm';
-import { Layout, Screen, TopBar } from './kit';
+import { TopicPicker } from './components/TopicPicker';
+import { Layout, Panel, Screen, TopBar } from './kit';
 import { DEFAULT_MAX_TASK_LENGTH, useMeta } from './state/useMeta';
 import { useRecommend } from './state/useRecommend';
 
@@ -19,6 +21,8 @@ export function App() {
   const { meta, profiles } = metaState;
   const { state, actions } = useRecommend();
   const maxLength = meta?.max_task_length ?? DEFAULT_MAX_TASK_LENGTH;
+  const topics = meta?.topics ?? [];
+  const [catalogTopic, setCatalogTopic] = useState<TopicCode | null>(null);
 
   // Представление выдачи переживает повтор того же запроса и сбрасывается новым запросом
   const [compareTab, setCompareTab] = useState<CompareTab>('personal');
@@ -50,6 +54,7 @@ export function App() {
   const onComplete = fromContent((item: Item) => actions.markComplete(item.material_id));
   const onChooseTopic = fromContent((topic: TopicCode) => actions.chooseTopic(topic));
   const onRetry = fromContent(actions.retry);
+  const onApplyFilters = fromContent(actions.applyFilters);
   const shown = state.outcome?.kind === 'recommend' ? state.outcome.response : null;
 
   /** «Показать ещё»: фокус на первую новую карточку */
@@ -78,19 +83,21 @@ export function App() {
     actions.hideClarification();
   };
 
-  const onSubmit = () => {
+  const submitFromForm = (action: () => void) => {
     if (metaState.failed) metaState.reload();
     resetView();
     // На узком экране выдача ниже формы: после ответа ведём фокус к её заголовку
     focusGoal.current = 'submit';
-    actions.submit();
+    action();
   };
   const onReset = () => {
     resetView();
+    setCatalogTopic(null);
     actions.reset();
   };
   const onSelectProfile = (id: string | null) => {
     resetView();
+    setCatalogTopic(null);
     actions.selectProfile(profiles?.find((profile) => profile.id === id) ?? null);
   };
 
@@ -99,10 +106,20 @@ export function App() {
   let status = '';
   let statusHidden = true;
   let listResponse: RecommendResponse | null = null;
-  let showTopics = false;
   let view: ReactNode = null;
 
   const { outcome, failure } = state;
+  const filterOptions = outcome?.kind === 'compare'
+    ? mergeFilterOptions(outcome.response.baseline.filter_options, outcome.response.personal.filter_options)
+    : shown?.filter_options;
+  const filters = filterOptions && !state.loading && !failure ? (
+    <ResultFilters options={filterOptions} applied={state.resultCall?.body.filters} onApply={onApplyFilters} />
+  ) : null;
+  const resultTopic = state.resultCall?.body.topic;
+  const resultItems = outcome?.kind === 'compare' ? outcome.response.personal.items : outcome?.response.items;
+  const topicItem = resultTopic ? resultItems?.find((item) => item.topics.includes(resultTopic)) : undefined;
+  const topicLabel = topics.find((topic) => topic.value === resultTopic)?.label
+    ?? (resultTopic && topicItem ? topicItem.topic_labels[topicItem.topics.indexOf(resultTopic)] : undefined);
   if (state.loading) {
     status = LOADING_STATUS;
     statusHidden = false;
@@ -138,6 +155,8 @@ export function App() {
     view = (
       <CompareView
         response={outcome.response}
+        topicLabel={topicLabel}
+        filters={filters}
         onComplete={onComplete}
         tab={compareTab}
         onTabChange={setCompareTab}
@@ -151,7 +170,6 @@ export function App() {
     status = response.message;
     if (response.status === 'strong' || response.status === 'weak') {
       listResponse = response;
-      showTopics = response.status === 'weak';
       if (response.status === 'weak' && response.clarification && !state.clarificationHidden) {
         banner = (
           <StateBanner
@@ -216,9 +234,21 @@ export function App() {
               loading={state.loading}
               onTaskChange={actions.setTask}
               onRefinementsChange={actions.setRefinements}
-              onSubmit={onSubmit}
+              onSubmit={() => submitFromForm(actions.submit)}
               onReset={onReset}
             />
+            {topics.length > 0 ? (
+              <Panel as="div" tone="subtle">
+                <TopicPicker
+                  label="Тема каталога"
+                  options={topics}
+                  value={catalogTopic}
+                  onChange={setCatalogTopic}
+                  onShow={(topic) => submitFromForm(() => actions.browseTopic(topic))}
+                  disabled={state.loading}
+                />
+              </Panel>
+            ) : null}
             {profiles ? (
               <DemoPanel
                 profiles={profiles}
@@ -240,7 +270,8 @@ export function App() {
               statusRef={statusRef}
               loading={state.loading}
               response={listResponse}
-              showTopics={showTopics}
+              topicLabel={topicLabel}
+              filters={listResponse ? filters : null}
               onComplete={onComplete}
               onMore={onMore}
               focusIndex={focusIndex}

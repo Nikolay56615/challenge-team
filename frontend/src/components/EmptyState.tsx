@@ -1,11 +1,14 @@
-import { useId, type Ref } from 'react';
+import { useId, useState, type Ref } from 'react';
 import type { Item, RecommendResponse, TopicCode } from '../api/types';
+import { formatShownMaterials } from '../format';
 import { Button, ChipGroup, Panel } from '../kit';
 import { MAX_LIMIT } from '../state/useRecommend';
-import { MaterialCard } from './MaterialCard';
+import { hasNoMaterialLinks, MaterialCard, MISSING_LINKS_NOTE } from './MaterialCard';
+import { TopicPicker } from './TopicPicker';
 
 /** Сколько карточек стартовой подборки видно до «Показать все N» */
 export const STARTER_VISIBLE = 3;
+const MAX_TOPIC_CHIPS = 7;
 
 /** N в «Показать все N»: вся стартовая подборка по total_candidates, не больше предела API */
 export function starterTotal(response: RecommendResponse): number {
@@ -47,6 +50,7 @@ export function EmptyState({
   const uid = useId();
   const headingId = `${uid}-title`;
   const starterId = `${uid}-starter`;
+  const [selectedTopic, setSelectedTopic] = useState<TopicCode | null>(null);
 
   const isEmpty = response.status === 'empty';
   const clarification = isEmpty ? null : response.clarification;
@@ -55,6 +59,7 @@ export function EmptyState({
   const starter = isEmpty ? [] : response.items;
   const visible = expanded ? starter : starter.slice(0, STARTER_VISIBLE);
   const total = isEmpty ? 0 : starterTotal(response);
+  const linksMissing = hasNoMaterialLinks(visible);
 
   return (
     <div className="results">
@@ -63,7 +68,15 @@ export function EmptyState({
           {heading}
         </h2>
         {clarification?.text ? <p className="lead">{clarification.text}</p> : null}
-        {options.length > 0 ? (
+        {options.length > MAX_TOPIC_CHIPS ? (
+          <TopicPicker
+            label="Тема"
+            options={options}
+            value={selectedTopic}
+            onChange={setSelectedTopic}
+            onShow={(value) => onChooseTopic?.(value)}
+          />
+        ) : options.length > 0 ? (
           <ChipGroup
             legend="Тема"
             legendHidden
@@ -84,12 +97,14 @@ export function EmptyState({
           <h2 id={starterId} className="h2">
             Стартовая подборка
           </h2>
+          <p className="note">{formatShownMaterials(visible.length, response.total_candidates)}</p>
+          {linksMissing ? <p className="note">{MISSING_LINKS_NOTE}</p> : null}
           {visible.map((item, index) => (
             <MaterialCard
               key={item.material_id}
               item={item}
               compact
-              showTopics
+              linkNoteInList={linksMissing}
               onComplete={onComplete}
               cardRef={index === focusIndex ? cardRef : undefined}
             />

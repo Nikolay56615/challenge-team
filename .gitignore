@@ -12,6 +12,7 @@ frontend/.screenshots/
 .env
 
 # Копия выгрузки и любые базы SQLite со служебными файлами не попадают в репозиторий
+*.backup
 *.sqlite3
 *.sqlite3-*
 

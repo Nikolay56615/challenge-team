@@ -14,7 +14,7 @@ const check = (id, name, ok, note = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${id} ${name}${note ? ' — ' + note : ''}`);
 };
 
-async function open(browser, width) {
+async function open(browser, width, prepare) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU' });
   const page = await context.newPage();
   const errors = [];
@@ -22,6 +22,7 @@ async function open(browser, width) {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
+  if (prepare) await prepare(page);
   await page.goto(base + '/');
   await page.getByRole('button', { name: 'Подобрать материалы' }).waitFor();
   return { page, context, errors };
@@ -52,6 +53,184 @@ async function comparisonTitles(page, width, name) {
   return (await cards(page, column)).map((card) => card.title);
 }
 
+async function checkTopicNavigation(browser, width) {
+  const { page, context } = await open(browser, width);
+  try {
+    await chooseProfile(page, 'P02');
+    const task = page.getByLabel('Что вы хотите сделать?');
+    const draft = 'Какую CRM выбрать';
+    await task.fill(draft);
+    const picker = page.getByLabel('Тема каталога', { exact: true });
+    const openTopic = page.getByRole('button', { name: 'Показать материалы темы', exact: true });
+    const topicHeading = page.getByRole('heading', { name: 'Подборка по теме «Продвижение»', exact: true });
+    const submitted = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST') submitted.push(request);
+    });
+
+    await picker.focus();
+    await page.keyboard.press('Home');
+    for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+    check('E5', `Выбор темы с клавиатуры ждёт подтверждения (${width})`,
+      (await picker.inputValue()) === 'marketing' && submitted.length === 0);
+    await page.keyboard.press('Tab');
+    const focusOnButton = await openTopic.evaluate((button) => button === document.activeElement);
+    const opened = await afterPost(page, () => page.keyboard.press('Enter'));
+    const topicBody = opened.request().postDataJSON();
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Подборка по теме «Продвижение»');
+    check('E5', `Просмотр темы сохраняет черновик, уточнения и историю (${width})`,
+      focusOnButton && (await topicHeading.isVisible()) && (await task.inputValue()) === draft &&
+      topicBody.task === '' && topicBody.topic === 'marketing' && topicBody.limit === 5 &&
+      topicBody.stage === 'growth' && topicBody.format_pref === 'course' && topicBody.history.length === 3 &&
+      (await page.getByText('Показано 5 из 8 материалов', { exact: true }).isVisible()));
+
+    const more = await afterPost(page, () => page.getByRole('button', { name: 'Показать ещё 3' }).click());
+    const moreBody = more.request().postDataJSON();
+    const moreData = await more.json();
+    const complete = page.locator('article.card').first().getByRole('button', { name: 'Отметить изученным' });
+    const studied = await afterPost(page, () => complete.click());
+    const studiedBody = studied.request().postDataJSON();
+    check('E11', `Раскрытие и отметка об изучении сохраняют параметры темы (${width})`,
+      JSON.stringify(moreBody) === JSON.stringify({ ...topicBody, limit: 10 }) &&
+      studiedBody.task === '' && studiedBody.topic === 'marketing' && studiedBody.limit === 10 &&
+      studiedBody.history.at(-1)?.event === 'complete' &&
+      studiedBody.history.at(-1)?.material_id === moreData.items[0].material_id);
+
+    let failedBody;
+    await page.route('**/api/recommend', (route) => {
+      failedBody = route.request().postDataJSON();
+      return route.abort('failed');
+    });
+    await openTopic.click();
+    await page.getByRole('alert').waitFor();
+    await page.unroute('**/api/recommend');
+    const retry = await afterPost(page, () => page.getByRole('button', { name: 'Повторить' }).click());
+    check('E8', `Повтор запроса восстанавливает выбранную тему (${width})`,
+      JSON.stringify(retry.request().postDataJSON()) === JSON.stringify(failedBody) && (await topicHeading.isVisible()));
+
+    const typed = await submit(page);
+    check('E5', `Обычная отправка использует введённую задачу (${width})`,
+      typed.request().postDataJSON().task === draft && typed.request().postDataJSON().topic === null &&
+      !(await topicHeading.isVisible()));
+    await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
+    const compared = await afterPost(page, () => openTopic.click(), '/api/compare');
+    const comparison = await compared.json();
+    check('E4', `Оба метода сравнивают выбранную тему (${width})`,
+      [comparison.baseline, comparison.personal].every((outcome) => outcome.detected_topics.join() === 'marketing') &&
+      (await page.getByRole('heading', { name: 'Сравнение по теме «Продвижение»' }).isVisible()));
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    check('E5', `Сброс очищает выбор темы каталога (${width})`, (await picker.inputValue()) === '');
+
+    await page.route('**/api/recommend', async (route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      if (data.status === 'none' && data.clarification) {
+        data.clarification.options.push(
+          { value: 'strategy', label: 'Стратегия' },
+          { value: 'tech', label: 'Технологии и ИИ' },
+          { value: 'marketplaces', label: 'Маркетплейсы' },
+        );
+      }
+      await route.fulfill({ response, json: data });
+    });
+    await chooseProfile(page, 'P04');
+    await submit(page);
+    const fallback = page.getByRole('region', { name: /материалов пока нет/ });
+    const fallbackPicker = fallback.getByLabel('Тема', { exact: true });
+    const requestsBefore = submitted.length;
+    await fallbackPicker.selectOption('sales');
+    const waited = submitted.length === requestsBefore;
+    const chosen = await afterPost(page, () => fallback.getByRole('button', { name: 'Показать материалы темы' }).click());
+    const chosenData = await chosen.json();
+    check('E7', `В пустой выдаче длинный список тем ждёт подтверждения (${width})`,
+      waited && chosen.request().postDataJSON().topic === 'sales' && chosenData.status === 'strong' &&
+      (await page.getByRole('heading', { name: 'Подборка по теме «Продажи»' }).isVisible()));
+  } finally {
+    await context.close();
+  }
+}
+
+async function checkResultFilters(browser, width) {
+  const { page, context } = await open(browser, width);
+  try {
+    await chooseProfile(page, 'P05');
+    await submit(page);
+    const filters = page.getByRole('group', { name: 'Фильтры выдачи' });
+    const format = filters.getByLabel('Формат', { exact: true });
+    const access = filters.getByLabel('Доступ', { exact: true });
+    const apply = filters.getByRole('button', { name: 'Применить фильтры' });
+    const reset = filters.getByRole('button', { name: 'Сбросить фильтры' });
+    await access.focus();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Tab');
+    const onApply = await apply.evaluate((element) => element === document.activeElement);
+    const applied = await afterPost(page, () => page.keyboard.press('Enter'));
+    const appliedBody = applied.request().postDataJSON();
+    const appliedData = await applied.json();
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Показано 5 из 8 материалов');
+    check('E12', `Клавиатура применяет доступ, счётчик и фокус обновляются (${width})`,
+      onApply && appliedBody.filters.access === 'open' && appliedData.total_candidates === 8 &&
+      appliedData.items.every((item) => item.access === 'open'));
+
+    const more = await afterPost(page, () => page.getByRole('button', { name: 'Показать ещё 3' }).click());
+    const complete = page.locator('article.card').first().getByRole('button', { name: 'Отметить изученным' });
+    const studied = await afterPost(page, () => complete.click());
+    const studiedBody = studied.request().postDataJSON();
+    check('E12', `Раскрытие и отметка сохраняют фильтр (${width})`,
+      more.request().postDataJSON().filters.access === 'open' && (await more.json()).items.length === 8 &&
+      studiedBody.filters.access === 'open' && studiedBody.history.at(-1)?.event === 'complete' &&
+      (await page.getByRole('heading', { name: 'Показано 8 из 8 материалов' }).isVisible()));
+
+    await format.selectOption('template');
+    let failedBody;
+    await page.route('**/api/recommend', (route) => {
+      failedBody = route.request().postDataJSON();
+      return route.abort('failed');
+    });
+    await apply.click();
+    await page.getByRole('alert').waitFor();
+    await page.unroute('**/api/recommend');
+    const retried = await afterPost(page, () => page.getByRole('button', { name: 'Повторить' }).click());
+    const topic = page.getByRole('group', { name: 'Тема', exact: true });
+    const clarified = await afterPost(page, () => topic.getByText('Продажи', { exact: true }).click());
+    check('E12', `Повтор и уточнение сохраняют оба фильтра (${width})`,
+      JSON.stringify(retried.request().postDataJSON()) === JSON.stringify(failedBody) &&
+      clarified.request().postDataJSON().filters.format === 'template' &&
+      clarified.request().postDataJSON().filters.access === 'open' &&
+      clarified.request().postDataJSON().topic === 'sales');
+
+    await access.selectOption('paid');
+    await afterPost(page, () => apply.click());
+    const empty = page.getByRole('paragraph').filter({ hasText: /^По выбранным фильтрам материалов нет$/ });
+    check('E12', `Пустая выдача показывает сообщение и сброс (${width})`,
+      await empty.isVisible() && await reset.isEnabled() && (await cards(page)).length === 0 &&
+      (await page.getByText('Стартовая подборка', { exact: true }).count()) === 0);
+    await shot(page, `filters-empty-${width}`);
+    await reset.focus();
+    const cleared = await afterPost(page, () => page.keyboard.press('Enter'));
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Подборка по теме «Продажи»');
+    check('E12', `Сброс с клавиатуры восстанавливает выдачу и фокус (${width})`,
+      cleared.request().postDataJSON().filters === null && (await cleared.json()).total_candidates === 4);
+
+    await chooseProfile(page, 'P02');
+    await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
+    await submit(page, '/api/compare');
+    await format.selectOption('course');
+    const compared = await afterPost(page, () => apply.click(), '/api/compare');
+    const comparison = await compared.json();
+    for (const name of ['Подбор по теме', 'Персональный подбор']) {
+      check('E12', `В сравнении видны только курсы метода «${name}» (${width})`,
+        (await comparisonTitles(page, width, name)).length === 2);
+    }
+    check('E12', `Формат применяется к обоим методам (${width})`,
+      await filters.count() === 1 && [comparison.baseline, comparison.personal].every((method) =>
+        method.total_candidates === 2 && method.items.every((item) => item.format === 'course')));
+  } finally {
+    await context.close();
+  }
+}
+
 const T = {
   M01: 'Чек-лист: первые шаги в продвижении',
   M02: 'Курс «Системный маркетинг для растущего бизнеса»',
@@ -68,6 +247,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
   {
     const health = await fetch(base + '/api/health').then((r) => r.status).catch(() => 0);
     const { page, context, errors } = await open(browser, 1120);
+    await page.getByText('Тестовый каталог', { exact: true }).waitFor();
     check('E1', 'Интерфейс открывается, /api/health отвечает', health === 200 && (await page.locator('h1').count()) === 1, `health ${health}`);
     await shot(page, 'initial-1120');
     check('E1', 'Нет ошибок в консоли при загрузке', errors.length === 0, errors.join(' | '));
@@ -91,7 +271,8 @@ await runBrowserChecks('results.json', results, async (browser) => {
       !c.text.includes('Формат «') && !c.text.includes('Займёт около'));
     check('E2', `P01: причины со стадией, без повтора бейджей (${width})`, reasonsOk);
     check('E2', `P01: у M01 названа сфера (${width})`, list[0].text.includes('кафе и рестораны'));
-    check('E2', `P01: у карточек есть следующий шаг и действие (${width})`, list.every((c) => c.text.includes('Следующий шаг') && (c.links.length || c.buttons.length)));
+    check('E2', `P01: карточки показывают доступные действия (${width})`,
+      list.every((c) => c.links.length ? c.text.includes('Следующий шаг') : c.buttons.includes('Скопировать название')));
     check('E2', `P01: маршрут на первую неделю (${width})`, (await page.getByText('Маршрут на первую неделю').count()) > 0);
     check('E2', `Карточки озвучиваются как «Позиция N» (${width})`, list.every((c, i) => c.label === `Позиция ${i + 1}`));
     await shot(page, `p01${tag}`);
@@ -112,7 +293,10 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const m02 = list[0];
     check('E3', `P02: первым курс M02 с пользой и переходом (${width})`, m02.title === T.M02 && m02.text.includes('Воронка') && m02.links.some((l) => l.text.includes('Открыть страницу курса')));
     const m05 = list.find((c) => c.title === T.M05);
-    check('E3', `P02: у M05 нет перехода и есть примечание (${width})`, m05 && m05.links.length === 0 && m05.text.includes('Ссылка на платформу не передана'));
+    check('E3', `P02: у M05 есть копирование и примечание вместо перехода (${width})`,
+      m05 && m05.links.length === 0 && m05.buttons.includes('Скопировать название') &&
+      m05.text.includes('Ссылка на платформу не передана') && !m05.text.includes('Следующий шаг') &&
+      (await page.getByText('У материалов в этой подборке нет ссылок на платформу.', { exact: true }).count()) === 0);
     check('E3', `P02: пометки истории видны (${width})`, list.some((c) => c.text.includes('Вы уже открывали')));
     const external = list.flatMap((c) => c.links);
     check('E3', `Внешние ссылки с rel noopener noreferrer (${width})`, external.every((l) => l.rel.includes('noopener') && l.rel.includes('noreferrer')));
@@ -150,7 +334,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
       JSON.stringify(personalP01) === JSON.stringify(singleP01) && JSON.stringify(personalP02) === JSON.stringify(singleP02));
 
     // E4: задача без темы. Подбор по теме показывает своё сообщение и стартовую подборку, позиции не сравниваются
-    await page.getByRole('button', { name: 'Сбросить' }).click();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
     await page.getByLabel('Что вы хотите сделать?').fill('Какую CRM выбрать');
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
     await submit(page, '/api/compare');
@@ -171,7 +355,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
     // E5: пустая форма
-    await page.getByRole('button', { name: 'Сбросить' }).click();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
     check('E5', `«Сбросить» очищает задачу (${width})`, (await page.getByLabel('Что вы хотите сделать?').inputValue()) === '');
     await submit(page);
     const coldHeading = await page.getByRole('heading', { name: 'С чего хотите начать?' }).count();
@@ -196,6 +380,12 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const gap = await page.getByRole('heading', { name: /материалов пока нет/ }).count();
     check('E7', `P04: сообщение о пробеле, темы и стартовая подборка (${width})`, gap > 0 && (await page.getByRole('radio').count()) >= 3 && (await cards(page)).length >= 3);
     await shot(page, `p04${tag}`);
+    const starterList = page.getByRole('region', { name: 'Стартовая подборка' });
+    const beforeExpand = await starterList.getByText('Показано 3 из 5 материалов', { exact: true }).isVisible();
+    await starterList.getByRole('button', { name: 'Показать все 5' }).click();
+    await starterList.getByText('Показано 5 из 5 материалов', { exact: true }).waitFor();
+    check('E7', `P04: счётчик стартовой подборки обновляется при раскрытии (${width})`,
+      beforeExpand && (await cards(page, starterList)).length === 5);
 
     // E7: P07 — узкий запрос, переход от стартовой подборки к выбранной теме.
     await chooseProfile(page, 'P07');
@@ -233,6 +423,125 @@ await runBrowserChecks('results.json', results, async (browser) => {
     check('E1', `Нет ошибок страницы в сценарии (${width})`, errors.filter((e) => !e.includes('net::ERR_FAILED') && !e.includes('Failed to fetch') && !e.includes('Failed to load resource')).length === 0, errors.join(' | ').slice(0, 300));
     await context.close();
   }
+
+  for (const width of [390, 1120]) {
+    let withCourse = false;
+    const courseUrl = 'https://kurs.alfabank.ru/courses/test-course/';
+    const { page, context } = await open(browser, width, async (page) => {
+      await page.route('**/api/meta', async (route) => {
+        const response = await route.fetch();
+        const meta = await response.json();
+        const source = width === 390 ? 'sqlite' : 'file';
+        await route.fulfill({ response, json: { ...meta, catalog: { source, available: 1086 } } });
+      });
+      await page.route('**/api/recommend', async (route) => {
+        const response = await route.fetch();
+        const result = await response.json();
+        const items = result.items.map((item, index) => ({
+          ...item, url: null, link_allowed: false,
+          topic_labels: index === 0 ? ['Налоги и законы', 'Продажи', 'Продвижение'] : item.topic_labels,
+          ...(withCourse && index === 0 ? {
+            format: 'course', format_label: 'Курс', access: 'paid', access_label: 'Платно', is_paid: true,
+            duration_minutes: 60, lesson_count: 22, has_certificate: true, url: courseUrl, link_allowed: true,
+            short_benefit: 'Прежняя краткая польза',
+            course_details: {
+              description: 'Практика планирования бюджета',
+              audiences: ['Владельцам магазинов'],
+              outcomes: ['Составить бюджет'],
+            },
+          } : {}),
+        }));
+        await route.fulfill({ response, json: { ...result, status: 'strong', clarification: null, items } });
+      });
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'clipboard', {
+          value: {
+            writeText: async (title) => {
+              if (window.failClipboard) throw new Error('Clipboard denied');
+              window.copiedTitle = title;
+            },
+          },
+        });
+      });
+    });
+    await page.getByText(/Локальный каталог · 1\s086 доступных материалов/).waitFor();
+    await page.getByLabel('Что вы хотите сделать?').fill('Хочу больше клиентов');
+    await submit(page);
+    const items = page.locator('article.card');
+    const first = items.first();
+    check('E2', `Сводка и одно пояснение для выдачи без ссылок (${width})`,
+      (await page.getByRole('heading', { name: 'Показано 5 из 12 материалов' }).isVisible()) &&
+      (await page.getByText('У материалов в этой подборке нет ссылок на платформу.', { exact: true }).count()) === 1 &&
+      (await page.getByText('Ссылка на платформу не передана', { exact: true }).count()) === 0 &&
+      (await page.getByText('Следующий шаг', { exact: true }).count()) === 0);
+    check('E2', `Карточка показывает первые две темы в порядке API (${width})`,
+      JSON.stringify(await first.locator('.badge--topic').allTextContents()) === JSON.stringify(['Налоги и законы', 'Продажи']));
+
+    const copy = first.getByRole('button', { name: 'Скопировать название' });
+    await copy.focus();
+    await page.keyboard.press('Enter');
+    await first.getByRole('status').getByText('Название скопировано').waitFor();
+    const title = await first.getByRole('heading').textContent();
+    check('E9', `Копирование с клавиатуры сохраняет фокус (${width})`,
+      await copy.evaluate((button, title) => button === document.activeElement && window.copiedTitle === title, title));
+    await page.evaluate(() => { window.failClipboard = true; });
+    await page.keyboard.press('Enter');
+    const manualCopy = first.getByRole('status').getByText('Выделите название материала и скопируйте его вручную.');
+    await manualCopy.waitFor();
+    check('E9', `При отказе буфера обмена видна ручная инструкция (${width})`, await manualCopy.isVisible());
+
+    await afterPost(page, () => page.getByRole('button', { name: 'Показать ещё 5' }).click());
+    await page.waitForFunction(() => document.activeElement === document.querySelectorAll('article.card')[5]);
+    check('E9', `Раскрытие обновляет счётчик и переносит фокус к первой новой карточке (${width})`,
+      (await page.getByRole('heading', { name: 'Показано 10 из 12 материалов' }).isVisible()) &&
+      (await page.getByText('Уточните задачу, чтобы сузить подборку.', { exact: true }).isVisible()) &&
+      (await items.count()) === 10);
+
+    withCourse = true;
+    await context.route(courseUrl, (route) => route.fulfill({
+      contentType: 'text/html; charset=utf-8', body: '<title>Тестовая страница курса</title>',
+    }));
+    await submit(page);
+    const link = first.getByRole('link', { name: 'Открыть страницу курса' });
+    const disclosure = first.locator('summary').filter({ hasText: 'Подробнее о курсе' });
+    const outcome = first.getByText('Составить бюджет', { exact: true });
+    check('E9', `Описание видно сразу, а подробности свёрнуты (${width})`,
+      await first.getByText('Практика планирования бюджета.', { exact: true }).isVisible() &&
+      (await first.getByText('Прежняя краткая польза.', { exact: true }).count()) === 0 &&
+      !(await outcome.isVisible()) && await link.isVisible());
+    await disclosure.focus();
+    await page.keyboard.press('Enter');
+    await outcome.waitFor();
+    check('E9', `Enter раскрывает сведения о курсе и сохраняет фокус (${width})`,
+      await first.getByText('Владельцам магазинов', { exact: true }).isVisible() &&
+      await disclosure.evaluate((el) => document.activeElement === el) && await link.isVisible());
+    await page.keyboard.press('Space');
+    await outcome.waitFor({ state: 'hidden' });
+    check('E9', `Пробел сворачивает подробности, переход остаётся видимым (${width})`,
+      await disclosure.evaluate((el) => document.activeElement === el) && await link.isVisible());
+    check('E9', `Курс показывает длительность, число уроков и сертификат (${width})`,
+      await first.getByText('60 мин', { exact: true }).isVisible() &&
+      await first.getByText('22 урока', { exact: true }).isVisible() &&
+      await first.getByText('Сертификат', { exact: true }).isVisible());
+    check('E9', `В смешанной выдаче карточка без ссылки предлагает копирование (${width})`,
+      await items.nth(1).getByRole('button', { name: 'Скопировать название' }).isVisible() &&
+      await items.nth(1).getByText('Ссылка на платформу не передана').isVisible() &&
+      await first.getByText('Следующий шаг', { exact: true }).isVisible() &&
+      (await page.getByText('У материалов в этой подборке нет ссылок на платформу.').count()) === 0);
+    await link.focus();
+    const [tab] = await Promise.all([context.waitForEvent('page'), page.keyboard.press('Enter')]);
+    await tab.waitForURL(courseUrl);
+    await tab.waitForLoadState();
+    const titleOfTab = await tab.title();
+    check('E9', `Enter открывает ссылку курса в новой вкладке (${width})`,
+      titleOfTab === 'Тестовая страница курса' && (await link.getAttribute('rel'))?.includes('noopener'),
+      titleOfTab);
+    await tab.close();
+    await context.close();
+  }
+
+  for (const width of [390, 1120]) await checkTopicNavigation(browser, width);
+  for (const width of [390, 1120]) await checkResultFilters(browser, width);
 
   // E5: все вводные материалы уже изучены, но тема остаётся доступной.
   {

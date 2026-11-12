@@ -7,6 +7,7 @@ import type {
   FormatPrefCode,
   HistoryEvent,
   IndustryCode,
+  MaterialFilters,
   Profile,
   RecommendRequest,
   RecommendResponse,
@@ -246,6 +247,11 @@ export function useRecommend() {
     method: 'personal',
   });
 
+  const runFromForm = (body: RecommendRequest) => {
+    if (state.loading) return;
+    run({ kind: state.compare ? 'compare' : 'recommend', body }, true);
+  };
+
   const actions = {
     setTask: (value: string) => dispatch({ type: 'task', value }),
     setRefinements: (patch: Partial<RefinementValues>) => dispatch({ type: 'fields', patch }),
@@ -257,9 +263,14 @@ export function useRecommend() {
     setCompare: (value: boolean) => dispatch({ type: 'compare', value }),
 
     /** «Подобрать материалы»: тело из формы, limit 5; при включённом сравнении — /api/compare */
-    submit: () => {
-      if (state.loading) return;
-      run({ kind: state.compare ? 'compare' : 'recommend', body: bodyFromForm() }, true);
+    submit: () => runFromForm(bodyFromForm()),
+
+    /** Просмотр темы использует уточнения и историю из формы, а текст задачи остаётся черновиком. */
+    browseTopic: (topic: TopicCode) => runFromForm({ ...bodyFromForm(), task: '', topic }),
+
+    applyFilters: (filters: MaterialFilters | null) => {
+      const base = state.resultCall;
+      if (base && !state.loading) run({ kind: base.kind, body: { ...base.body, filters, limit: DEFAULT_LIMIT } });
     },
 
     /** Выбор темы в уточнении: тот же запрос с полем topic; подборка по теме начинается с limit 5 */

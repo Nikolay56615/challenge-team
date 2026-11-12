@@ -20,10 +20,12 @@
 
 Запуск из корня проекта:
   python -X utf8 evaluation/offline_courses.py data/local/catalog.sqlite3
+  python -X utf8 evaluation/offline_courses.py --backup <файл> --catalog <catalog.sqlite3>
 """
 
 from __future__ import annotations
 
+import argparse
 import random
 import sqlite3
 import sys
@@ -350,10 +352,25 @@ def fmt(value: float) -> str:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) < 2:
-        print(__doc__)
-        return 2
-    evaluate(Path(argv[1]))
+    parser = argparse.ArgumentParser(description="Офлайн-оценка подбора курсов")
+    parser.add_argument("legacy_catalog", type=Path, nargs="?")
+    parser.add_argument("--backup", type=Path)
+    parser.add_argument("--catalog", type=Path)
+    args = parser.parse_args(argv[1:])
+    if args.backup and args.catalog and not args.legacy_catalog:
+        from next_course import ImportErrorDetail, evaluate_backup
+        from app.catalog.models import CatalogError
+
+        try:
+            evaluate_backup(args.backup, args.catalog)
+        except (ImportErrorDetail, CatalogError) as exc:
+            parser.exit(1, f"Ошибка оценки: {exc}\n")
+        except (ValueError, OSError):
+            parser.exit(1, "Ошибка оценки: не удалось прочитать поля истории\n")
+    elif args.legacy_catalog and not (args.backup or args.catalog):
+        evaluate(args.legacy_catalog)
+    else:
+        parser.error("Укажите прежний каталог либо оба параметра --backup и --catalog")
     return 0
 
 

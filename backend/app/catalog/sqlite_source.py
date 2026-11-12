@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -27,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import vocab
+from .course_details import CourseDetails
 from .coverage import disabled_features, normalize_popularity, summarize
 from .mapping import CatalogMapping, load_mapping, norm_label
 from .models import Catalog, CatalogError, Material
@@ -77,6 +79,10 @@ COUNTED_TABLES: tuple[str, ...] = (
 
 SIGNALS_TABLE = "MaterialSignals"
 SIGNALS_COLUMNS = ("MaterialId", "MaterialFormat", "SignalCode", "MatchedTitle")
+DETAILS_TABLE = "MaterialDetails"
+DETAILS_COLUMNS = ("MaterialId", "MaterialFormat", "PlatformUrl", "LessonCount", "HasCertificate")
+PLATFORM_SECTIONS = {"article": "articles", "course": "courses", "document": "documents", "webinar": "webinars"}
+SLUG = re.compile(r"[a-z0-9_-]+")
 
 # Источник популярности (PLAN.md, 2.2): записи на курсы, входящие редакционные ссылки
 BY_ENROLLMENTS = frozenset({"course"})
@@ -92,9 +98,20 @@ FIELD_CHECKS: dict[str, Callable[[Material], bool]] = {
     "level": lambda m: m.level is not None,
     "industries": lambda m: bool(m.industries),
     "duration": lambda m: m.duration_minutes is not None,
+    "lesson_count": lambda m: m.lesson_count is not None,
+    "certificate": lambda m: m.has_certificate is True,
+    "course_description": lambda m: bool(m.course_details and m.course_details.description),
+    "course_sections": lambda m: bool(m.course_details and (m.course_details.audiences or m.course_details.outcomes)),
     "popularity": lambda m: m.popularity_raw > 0,
     "recommended_next": lambda m: bool(m.recommended_next),
 }
+
+
+def platform_url(fmt: str, slug: object) -> str | None:
+    section = PLATFORM_SECTIONS.get(fmt)
+    if section and isinstance(slug, str) and SLUG.fullmatch(slug):
+        return f"https://kurs.alfabank.ru/{section}/{slug}/"
+    return None
 
 
 def load_sqlite_catalog(
@@ -207,6 +224,10 @@ class _Entry:
     fmt: str
     title: str
     duration: Any = None
+    url: str | None = None
+    lesson_count: int | None = None
+    has_certificate: bool | None = None
+    course_details: CourseDetails | None = None
     statuses: list[str | None] = field(default_factory=list)
     hidden: bool = False
     settings_type: str | None = None
@@ -253,6 +274,7 @@ class _Reader:
             if self.db.has(table)
         }
         self.read_entities()
+        self.read_details()
         self.read_settings()
         self.read_topics()
         self.read_stages()
@@ -303,6 +325,25 @@ class _Reader:
         self.stats["skipped_records"] = skipped
         self.stats["titles_missing"] = sum(untitled.values())
         self.stats["id_collisions"] = sum(1 for keys in self.index.values() if len(keys) > 1)
+
+    def read_details(self) -> None:
+        table = DETAILS_TABLE
+        if not all(self.db.has(table, column) for column in DETAILS_COLUMNS):
+            return
+        columns = ", ".join(f"[{column}]" for column in DETAILS_COLUMNS)
+        details_column = self.db.pick(table, "CourseDetails")
+        sql = f"SELECT {columns}, {details_column} FROM [{table}]"
+        for ref, fmt, url, lessons, certificate, details in self.db.rows(table, sql):
+            entry = self.entries.get(f"{fmt}:{ref}")
+            if entry is None:
+                continue
+            if isinstance(url, str) and (canonical := platform_url(fmt, url.rstrip("/").rsplit("/", 1)[-1])):
+                if url == canonical:
+                    entry.url = canonical
+            if fmt == "course":
+                entry.lesson_count = lessons if type(lessons) is int and lessons > 0 else None
+                entry.has_certificate = _flag(certificate)
+                entry.course_details = CourseDetails.from_json(details)
 
     def read_settings(self) -> None:
         table = "ContentSettings"
@@ -549,6 +590,10 @@ def _build(reader: _Reader, signals: dict[str, dict[str, int]]) -> list[Material
                 # Без записей и ссылок normalize_popularity даёт 0, как без источника. Равенства решает id
                 popularity=ranks.get(key, 0.0),
                 recommended_next=tuple(entry.next_items),
+                url=entry.url if not reasons else None,
+                lesson_count=entry.lesson_count if not reasons else None,
+                has_certificate=entry.has_certificate if not reasons else None,
+                course_details=entry.course_details if not reasons else None,
             )
         )
     stats["duration_parse"] = {key: durations[key] for key in ("parsed", "unparsed", "missing")}

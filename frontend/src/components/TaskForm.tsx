@@ -1,6 +1,6 @@
 import { useEffect, useId } from 'react';
 import type { MetaResponse } from '../api/types';
-import { charsGenitive } from '../format';
+import { charsGenitive, formatAvailableMaterials } from '../format';
 import { Button, Panel, TextAreaField } from '../kit';
 import type { FormValues, RefinementValues } from '../state/useRecommend';
 import { RefinementFields } from './RefinementFields';
@@ -35,6 +35,7 @@ export function TaskForm({
   const uid = useId();
   const headingId = `${uid}-title`;
   const taskId = `${uid}-task`;
+  const catalog = meta?.catalog;
 
   // Ошибка валидации: фокус на поле, текст ошибки связан через aria-describedby
   useEffect(() => {
@@ -46,6 +47,13 @@ export function TaskForm({
       <h1 id={headingId} className="h1">
         Подберём материалы под вашу задачу
       </h1>
+      {catalog ? (
+        <p className="note">
+          {catalog.source === 'synthetic'
+            ? 'Тестовый каталог'
+            : `Локальный каталог · ${formatAvailableMaterials(catalog.available)}`}
+        </p>
+      ) : null}
       <TextAreaField
         id={taskId}
         label="Что вы хотите сделать?"

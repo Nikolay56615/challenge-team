@@ -416,7 +416,7 @@ function WeakDemo() {
           onDismiss={noop}
         />
       ) : null}
-      <ResultList status={S.WEAK.message} response={S.WEAK} showTopics onComplete={noop} onMore={noop} />
+      <ResultList status={S.WEAK.message} response={S.WEAK} onComplete={noop} onMore={noop} />
     </FrameBody>
   );
 }
@@ -758,10 +758,10 @@ export function Gallery() {
               <p className="hint">«Пройдено»: кнопки «Отметить изученным» нет</p>
               <MaterialCard item={S.CARD_COMPLETED} onComplete={noop} />
               <p className="hint">Смешанная выдача: бейдж темы</p>
-              <MaterialCard item={S.CARD_TOPIC} showTopics onComplete={noop} />
+              <MaterialCard item={S.CARD_TOPIC} onComplete={noop} />
               <p className="hint">Компактные карточки: сравнение и стартовая подборка</p>
               <MaterialCard item={S.CARD_COMPACT} compact onComplete={noop} />
-              <MaterialCard item={S.CARD_COMPACT_FLAG} compact showTopics onComplete={noop} />
+              <MaterialCard item={S.CARD_COMPACT_FLAG} compact onComplete={noop} />
               <p className="hint">RouteBlock</p>
               <RouteBlock route={S.ROUTE} />
             </FrameBody>

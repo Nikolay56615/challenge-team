@@ -33,3 +33,27 @@ export function charsGenitive(n: number): string {
 export function formatCounter(length: number, max: number): string {
   return `${length} из ${max} ${charsGenitive(max)}`;
 }
+
+const number = new Intl.NumberFormat('ru-RU');
+const plural = new Intl.PluralRules('ru-RU');
+
+export function formatLessonCount(count: number): string {
+  const form = plural.select(count);
+  const noun = form === 'one' ? 'урок' : form === 'few' ? 'урока' : 'уроков';
+  return `${number.format(count)} ${noun}`;
+}
+
+export function formatAvailableMaterials(total: number): string {
+  const count = number.format(total);
+  switch (plural.select(total)) {
+    case 'one': return `${count} доступный материал`;
+    case 'few': return `${count} доступных материала`;
+    default: return `${count} доступных материалов`;
+  }
+}
+
+export function formatShownMaterials(shown: number, total: number): string {
+  if (shown === 1 && total === 1) return 'Показан 1 материал';
+  const noun = plural.select(total) === 'one' ? 'материала' : 'материалов';
+  return `Показано ${number.format(shown)} из ${number.format(total)} ${noun}`;
+}

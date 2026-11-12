@@ -11,6 +11,7 @@ from .catalog.models import MATERIAL_ID_MAX_LENGTH, MATERIAL_ID_PATTERN
 StageCode = Literal["idea", "start", "growth"]
 ExperienceCode = Literal["none", "some", "experienced"]
 FormatPrefCode = Literal["quick", "template", "course"]
+MaterialFormatCode = Literal["checklist", "article", "template", "document", "video", "course", "webinar", "podcast"]
 IndustryCode = Literal[
     "horeca", "retail", "ecom", "services", "construction", "logistics", "b2b", "manufacturing", "wholesale", "b2g"
 ]
@@ -37,6 +38,13 @@ class HistoryEventIn(BaseModel):
     seq: int = Field(ge=0, le=1_000_000_000)
 
 
+class FiltersIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    format: MaterialFormatCode | None = None
+    access: AccessCode | None = None
+
+
 class RecommendRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -50,11 +58,17 @@ class RecommendRequest(BaseModel):
     profile_id: str | None = Field(default=None, max_length=16, pattern=r"^[A-Za-z0-9_\-]+$")
     limit: int = Field(default=5, ge=1, le=10)
     method: MethodCode = "personal"
+    filters: FiltersIn | None = None
 
 
 class Option(BaseModel):
     label: str
     value: str
+
+
+class FilterOptionsOut(BaseModel):
+    formats: list[Option]
+    access: list[Option]
 
 
 class SignalOut(BaseModel):
@@ -65,6 +79,14 @@ class SignalOut(BaseModel):
 class FlagOut(BaseModel):
     code: FlagCode
     label: str
+
+
+class CourseDetailsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    description: str | None
+    audiences: list[str]
+    outcomes: list[str]
 
 
 class ItemOut(BaseModel):
@@ -80,6 +102,9 @@ class ItemOut(BaseModel):
     level_label: str | None
     industries: list[str]
     duration_minutes: int | None
+    lesson_count: int | None = None
+    has_certificate: bool | None = None
+    course_details: CourseDetailsOut | None = None
     access: AccessCode
     access_label: str
     is_paid: bool
@@ -128,6 +153,7 @@ class RecommendResponse(BaseModel):
     items: list[ItemOut]
     route: Route | None
     total_candidates: int
+    filter_options: FilterOptionsOut | None = None
 
 
 class CompareDiff(BaseModel):
@@ -141,7 +167,13 @@ class CompareResponse(BaseModel):
     diff: CompareDiff
 
 
+class MetaCatalog(BaseModel):
+    source: str
+    available: int
+
+
 class MetaResponse(BaseModel):
+    catalog: MetaCatalog
     topics: list[Option]
     stages: list[Option]
     experience: list[Option]

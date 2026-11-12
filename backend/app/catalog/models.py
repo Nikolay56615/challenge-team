@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from .course_details import CourseDetails
+
 # Код материала: одно правило для загрузчика JSON и для истории в запросе (schemas.HistoryEventIn).
 # Материал с другим кодом нельзя было бы отметить изученным: запрос с такой историей получил бы 422.
 MATERIAL_ID_MAX_LENGTH = 64
@@ -43,6 +45,9 @@ class Material:
     url: str | None = None
     short_benefit: str | None = None
     next_step: str | None = None
+    lesson_count: int | None = None
+    has_certificate: bool | None = None
+    course_details: CourseDetails | None = None
 
     @property
     def is_paid(self) -> bool:

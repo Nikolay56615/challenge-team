@@ -1,8 +1,9 @@
-import type { Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 import type { Item, RecommendResponse } from '../api/types';
+import { formatShownMaterials } from '../format';
 import { Button, Skeleton, StatusLine } from '../kit';
 import { MAX_LIMIT } from '../state/useRecommend';
-import { MaterialCard } from './MaterialCard';
+import { hasNoMaterialLinks, MaterialCard, MISSING_LINKS_NOTE } from './MaterialCard';
 import { RouteBlock } from './RouteBlock';
 
 export const LOADING_STATUS = 'Подбираем материалы… Обычно это занимает меньше секунды.';
@@ -16,7 +17,8 @@ export interface ResultListProps {
   /** Загрузка: три скелетона вместо карточек */
   loading?: boolean;
   response?: RecommendResponse | null;
-  showTopics?: boolean;
+  topicLabel?: string;
+  filters?: ReactNode;
   onComplete?(item: Item): void;
   onMore?(): void;
   /** Карточка с этим индексом получает cardRef: после «Показать ещё» фокус переходит на первую новую */
@@ -38,7 +40,8 @@ export function ResultList({
   statusRef,
   loading = false,
   response,
-  showTopics = false,
+  topicLabel,
+  filters,
   onComplete,
   onMore,
   focusIndex = null,
@@ -50,6 +53,8 @@ export function ResultList({
   const more = Math.min(total, MAX_LIMIT) - items.length;
   const canShowMore = !loading && total > items.length && items.length < MAX_LIMIT && more > 0;
   const showItems = !loading && items.length > 0;
+  const filteredEmpty = !loading && Boolean(response?.filter_options) && total === 0;
+  const linksMissing = hasNoMaterialLinks(items);
 
   return (
     <>
@@ -57,18 +62,22 @@ export function ResultList({
         {status}
       </StatusLine>
       {loading ? <Skeleton count={3} /> : null}
-      {/* Заголовок для навигации по заголовкам: карточки h3 не попадают под «Демо-режим» */}
-      {showItems ? (
-        <h2 ref={headingRef} className="visually-hidden" tabIndex={-1}>
-          Подборка
+      {showItems || filteredEmpty ? (
+        <h2 ref={headingRef} className="h2" tabIndex={-1}>
+          {topicLabel ? `Подборка по теме «${topicLabel}»`
+            : filteredEmpty ? response?.message : formatShownMaterials(items.length, total)}
         </h2>
       ) : null}
+      {showItems && topicLabel ? <p className="note">{formatShownMaterials(items.length, total)}</p> : null}
+      {filteredEmpty && topicLabel ? <p>{response?.message}</p> : null}
+      {filters}
+      {showItems && linksMissing ? <p className="note">{MISSING_LINKS_NOTE}</p> : null}
       {showItems &&
         items.map((item, index) => (
           <MaterialCard
             key={item.material_id}
             item={item}
-            showTopics={showTopics}
+            linkNoteInList={linksMissing}
             onComplete={onComplete}
             cardRef={index === focusIndex ? cardRef : undefined}
           />
@@ -78,6 +87,9 @@ export function ResultList({
         <Button variant="secondary" onClick={onMore}>
           Показать ещё {more}
         </Button>
+      ) : null}
+      {showItems && items.length >= MAX_LIMIT && total > items.length ? (
+        <p className="note">Уточните задачу, чтобы сузить подборку.</p>
       ) : null}
     </>
   );
