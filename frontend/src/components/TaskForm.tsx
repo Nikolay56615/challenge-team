@@ -13,7 +13,10 @@ export interface TaskFormProps {
   maxLength: number;
   /** Ошибка валидации задачи из ответа 422 */
   error: string | null;
+  /** Запрос в работе: повторная отправка не проходит */
   loading: boolean;
+  /** Визуальная загрузка: включается с задержкой, чтобы быстрый ответ не давал вспышки */
+  busy?: boolean;
   onTaskChange(value: string): void;
   onRefinementsChange(patch: Partial<RefinementValues>): void;
   onSubmit(): void;
@@ -29,6 +32,7 @@ export function TaskForm({
   maxLength,
   error,
   loading,
+  busy = false,
   onTaskChange,
   onRefinementsChange,
   onSubmit,
@@ -65,7 +69,7 @@ export function TaskForm({
         placeholder="Например: запустить первую рекламу"
         hint={`До ${maxLength} ${charsGenitive(maxLength)}. Можно своими словами, без терминов`}
         error={error}
-        disabled={loading}
+        disabled={busy}
         rows={3}
       />
       <RefinementFields
@@ -73,18 +77,18 @@ export function TaskForm({
         metaFailed={metaFailed}
         values={values}
         onChange={onRefinementsChange}
-        disabled={loading}
+        disabled={busy}
       />
       <div className="actions">
         {/* Во время загрузки кнопка остаётся в фокусе: aria-disabled вместо disabled */}
         <Button
           variant="primary"
-          aria-disabled={loading || undefined}
+          aria-disabled={busy || undefined}
           onClick={() => {
             if (!loading) onSubmit();
           }}
         >
-          {loading ? 'Подбираем…' : 'Подобрать материалы'}
+          {busy ? 'Подбираем…' : 'Подобрать материалы'}
         </Button>
         <Button variant="link" onClick={onReset}>
           Сбросить

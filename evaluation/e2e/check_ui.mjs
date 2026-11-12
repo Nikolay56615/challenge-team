@@ -505,19 +505,31 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const early = await page.evaluate(() => ({
       cards: document.querySelectorAll('.card').length,
       skeletons: document.querySelectorAll('.skeleton').length,
+      fieldDisabled: document.querySelector('textarea')?.disabled,
+      buttonText: document.querySelector('.actions .btn--primary')?.textContent?.trim(),
     }));
     await page.waitForTimeout(200);
     const skeleton = await page.evaluate(() => ({
       cards: document.querySelectorAll('.card').length,
       count: document.querySelectorAll('.skeleton').length,
       height: Math.round(document.querySelector('.skeleton')?.getBoundingClientRect().height ?? 0),
+      fieldDisabled: document.querySelector('textarea')?.disabled,
+      buttonText: document.querySelector('.actions .btn--primary')?.textContent?.trim(),
     }));
     await slow;
     await page.unroute('**/api/recommend');
     await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
-    check('E13', `До скелетона остаётся прежняя выдача, затем скелетон по габаритам карточки (${width})`,
-      early.cards === 5 && early.skeletons === 0 && skeleton.cards === 0 &&
-      skeleton.count === 5 && skeleton.height === (width === 390 ? 461 : 297), JSON.stringify({ early, skeleton }));
+    const late = await page.evaluate(() => ({
+      fieldDisabled: document.querySelector('textarea')?.disabled,
+      buttonText: document.querySelector('.actions .btn--primary')?.textContent?.trim(),
+    }));
+    check('E13', `До скелетона остаётся прежняя выдача и активная форма, затем загрузка по габаритам карточки (${width})`,
+      early.cards === 5 && early.skeletons === 0 && early.fieldDisabled === false &&
+      early.buttonText === 'Подобрать материалы' && skeleton.cards === 0 &&
+      skeleton.count === 5 && skeleton.height === (width === 390 ? 461 : 297) &&
+      skeleton.fieldDisabled === true && skeleton.buttonText === 'Подбираем…' &&
+      late.fieldDisabled === false && late.buttonText === 'Подобрать материалы',
+      JSON.stringify({ early, skeleton, late }));
 
     check('E1', `Нет ошибок страницы в сценарии (${width})`, errors.filter((e) => !e.includes('net::ERR_FAILED') && !e.includes('Failed to fetch') && !e.includes('Failed to load resource')).length === 0, errors.join(' | ').slice(0, 300));
     await context.close();

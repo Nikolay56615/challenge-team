@@ -6,6 +6,7 @@ import { IntroPanel } from './components/IntroPanel';
 import { RecommendationPane } from './components/RecommendationPane';
 import { TaskForm } from './components/TaskForm';
 import { Screen, TopBar } from './kit';
+import { useDelayedFlag } from './state/useDelayedFlag';
 import { DEFAULT_MAX_TASK_LENGTH, useMeta } from './state/useMeta';
 import { useRecommend, type Section } from './state/useRecommend';
 
@@ -19,6 +20,9 @@ export function App() {
   const { meta, profiles, failed, reload } = useMeta();
   const session = useRecommend(section);
   const { recommendation, catalog } = session;
+  // Поля и кнопки не гаснут на быстром ответе: визуальная загрузка включается через 200 мс,
+  // как и скелетон выдачи. Быстрый запрос не даёт вспышки серых контролов.
+  const formBusy = useDelayedFlag(recommendation.state.loading);
   const topics = meta?.topics ?? [];
   const sectionHeading = useRef<HTMLHeadingElement>(null);
   const previousSection = useRef(section);
@@ -65,6 +69,7 @@ export function App() {
                 maxLength={meta?.max_task_length ?? DEFAULT_MAX_TASK_LENGTH}
                 error={recommendation.state.fieldError}
                 loading={recommendation.state.loading}
+                busy={formBusy}
                 onTaskChange={session.setTask}
                 onRefinementsChange={session.setRefinements}
                 onSubmit={() => {
@@ -87,8 +92,11 @@ export function App() {
                     session.selectProfile(profiles.find((profile) => profile.id === id) ?? null);
                   }}
                   compare={session.compare}
-                  onCompareChange={session.setCompare}
-                  disabled={recommendation.state.loading}
+                  onCompareChange={(value) => {
+                    // Во время запроса переключатель ждёт ответа, чтобы выдача не разошлась с режимом
+                    if (!recommendation.state.loading) session.setCompare(value);
+                  }}
+                  disabled={formBusy}
                 />
               ) : null}
             </>
