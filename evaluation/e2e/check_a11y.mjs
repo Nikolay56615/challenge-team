@@ -93,6 +93,24 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
     await page.getByRole('alert').waitFor({ timeout: 5000 });
     await audit(page, 'ошибка запроса', width);
     await page.unroute('**/api/recommend');
+
+    // Повторное действие: прежняя выдача на экране, карточки помечены aria-busy
+    await page.route('**/api/recommend', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      await route.continue();
+    });
+    await chooseProfile(page, 'P01');
+    const first = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).click();
+    await first;
+    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
+    const repeat = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Отметить изученным' }).last().click();
+    await page.waitForTimeout(300);
+    await audit(page, 'обновление выдачи', width);
+    await repeat;
+    await page.unroute('**/api/recommend');
+
     await page.getByRole('link', { name: 'Каталог', exact: true }).click();
     await page.getByRole('heading', { name: 'Каталог', exact: true }).waitFor();
     await audit(page, 'каталог, выбор темы', width);

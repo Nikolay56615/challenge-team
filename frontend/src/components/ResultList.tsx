@@ -2,11 +2,12 @@ import type { ReactNode, Ref } from 'react';
 import type { Item, RecommendResponse } from '../api/types';
 import { formatShownMaterials } from '../format';
 import { Button, Skeleton, StatusLine } from '../kit';
-import { MAX_LIMIT } from '../state/useRecommend';
+import { DEFAULT_LIMIT, MAX_LIMIT } from '../state/useRecommend';
 import { hasNoMaterialLinks, MaterialCard, MISSING_LINKS_NOTE } from './MaterialCard';
 import { RouteBlock } from './RouteBlock';
 
 export const LOADING_STATUS = 'Подбираем материалы… Обычно это занимает меньше секунды.';
+export const REFRESHING_STATUS = 'Обновляем подборку…';
 
 export interface ResultListProps {
   /** Текст строки состояния */
@@ -14,8 +15,12 @@ export interface ResultListProps {
   /** Строка остаётся для вспомогательных технологий, но не видна */
   statusHidden?: boolean;
   statusRef?: Ref<HTMLParagraphElement>;
-  /** Загрузка: три скелетона вместо карточек */
+  /** Запрос в работе: «Показать ещё» не отправляет второй запрос */
   loading?: boolean;
+  /** Скелетон виден: запрос идёт дольше порога задержки */
+  skeletonVisible?: boolean;
+  /** Прежние карточки остаются на экране, пока идёт повторный запрос */
+  busy?: boolean;
   response?: RecommendResponse | null;
   topicLabel?: string;
   limitHint?: string;
@@ -40,6 +45,8 @@ export function ResultList({
   statusHidden = false,
   statusRef,
   loading = false,
+  skeletonVisible = false,
+  busy = false,
   response,
   topicLabel,
   limitHint = 'Уточните задачу, чтобы сузить подборку.',
@@ -53,9 +60,10 @@ export function ResultList({
   const items = response?.items ?? [];
   const total = response?.total_candidates ?? 0;
   const more = Math.min(total, MAX_LIMIT) - items.length;
-  const canShowMore = !loading && total > items.length && items.length < MAX_LIMIT && more > 0;
-  const showItems = !loading && items.length > 0;
-  const filteredEmpty = !loading && Boolean(response?.filter_options) && total === 0;
+  const canShowMore = total > items.length && items.length < MAX_LIMIT && more > 0;
+  // Пока идёт повторный запрос, карточки остаются: выдача не исчезает на каждый запрос
+  const showItems = items.length > 0;
+  const filteredEmpty = Boolean(response?.filter_options) && total === 0;
   const linksMissing = hasNoMaterialLinks(items);
 
   return (
@@ -63,7 +71,7 @@ export function ResultList({
       <StatusLine ref={statusRef} tabIndex={-1} className={statusHidden ? 'visually-hidden' : undefined}>
         {status}
       </StatusLine>
-      {loading ? <Skeleton count={3} /> : null}
+      {loading && skeletonVisible ? <Skeleton count={DEFAULT_LIMIT} className="skeleton--card" /> : null}
       {showItems || filteredEmpty ? (
         <h2 ref={headingRef} className="h2" tabIndex={-1}>
           {topicLabel ? `Подборка по теме «${topicLabel}»`
@@ -80,13 +88,20 @@ export function ResultList({
             key={item.material_id}
             item={item}
             linkNoteInList={linksMissing}
+            busy={busy}
             onComplete={onComplete}
             cardRef={index === focusIndex ? cardRef : undefined}
           />
         ))}
-      {!loading && response?.route ? <RouteBlock route={response.route} /> : null}
+      {response?.route ? <RouteBlock route={response.route} /> : null}
       {canShowMore ? (
-        <Button variant="secondary" onClick={onMore}>
+        <Button
+          variant="secondary"
+          aria-disabled={loading || undefined}
+          onClick={() => {
+            if (!loading) onMore?.();
+          }}
+        >
           Показать ещё {more}
         </Button>
       ) : null}

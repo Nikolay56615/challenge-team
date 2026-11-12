@@ -21,6 +21,8 @@ export interface EmptyStateProps {
   topic: TopicCode | null;
   onChooseTopic?(topic: TopicCode): void;
   onComplete?(item: Item): void;
+  /** Идёт повторный запрос: прежние данные ещё на экране */
+  busy?: boolean;
   /** Подборка раскрыта. Флаг хранит экран: он переживает повтор запроса */
   expanded: boolean;
   /** «Показать все N»: экран раскрывает подборку и при нехватке карточек запрашивает до 10 */
@@ -41,6 +43,7 @@ export function EmptyState({
   topic,
   onChooseTopic,
   onComplete,
+  busy = false,
   expanded,
   onExpand,
   headingRef,
@@ -105,12 +108,19 @@ export function EmptyState({
               item={item}
               compact
               linkNoteInList={linksMissing}
+              busy={busy}
               onComplete={onComplete}
               cardRef={index === focusIndex ? cardRef : undefined}
             />
           ))}
           {total > visible.length ? (
-            <Button variant="secondary" onClick={onExpand}>
+            <Button
+              variant="secondary"
+              aria-disabled={busy || undefined}
+              onClick={() => {
+                if (!busy) onExpand?.();
+              }}
+            >
               Показать все {total}
             </Button>
           ) : null}

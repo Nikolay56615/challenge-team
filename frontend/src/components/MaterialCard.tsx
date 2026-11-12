@@ -9,6 +9,8 @@ export interface MaterialCardProps {
   compact?: boolean;
   /** Пояснение об отсутствии ссылок уже показано над выдачей */
   linkNoteInList?: boolean;
+  /** Идёт повторный запрос: прежние данные ещё на экране */
+  busy?: boolean;
   onComplete?(item: Item): void;
   /** Для переноса фокуса на карточку после раскрытия списка */
   cardRef?: Ref<HTMLElement>;
@@ -34,7 +36,7 @@ function linkLabel(item: Item): string {
 }
 
 /** Анатомия карточки: design/ui-kit.md, раздел 4 */
-export function MaterialCard({ item, compact = false, linkNoteInList = false, onComplete, cardRef }: MaterialCardProps) {
+export function MaterialCard({ item, compact = false, linkNoteInList = false, busy = false, onComplete, cardRef }: MaterialCardProps) {
   const [copyFeedback, setCopyFeedback] = useState('');
   const free = isFree(item);
   const duration = formatDuration(item.duration_minutes);
@@ -60,7 +62,7 @@ export function MaterialCard({ item, compact = false, linkNoteInList = false, on
   };
 
   return (
-    <Card label={`Позиция ${item.rank}`} ref={cardRef} tabIndex={cardRef ? -1 : undefined}>
+    <Card label={`Позиция ${item.rank}`} ref={cardRef} tabIndex={cardRef ? -1 : undefined} aria-busy={busy || undefined}>
       <div className="card__head">
         <RankMarker rank={item.rank} />
         <h3 className="h3 card__title">{item.title}</h3>
@@ -110,7 +112,14 @@ export function MaterialCard({ item, compact = false, linkNoteInList = false, on
           </Button>
         )}
         {!completed && onComplete ? (
-          <Button variant="link" size="sm" onClick={() => onComplete(item)}>
+          <Button
+            variant="link"
+            size="sm"
+            aria-disabled={busy || undefined}
+            onClick={() => {
+              if (!busy) onComplete(item);
+            }}
+          >
             Отметить изученным
           </Button>
         ) : null}

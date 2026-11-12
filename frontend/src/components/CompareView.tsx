@@ -60,6 +60,7 @@ export function compareStatus(response: CompareResponse): string {
 interface ColumnProps {
   title: string;
   response: RecommendResponse;
+  busy?: boolean;
   onComplete?(item: Item): void;
 }
 
@@ -67,7 +68,7 @@ interface ColumnProps {
  * Колонка метода. Выдача по запросу — карточки. При none, cold и empty вместо карточек сообщение
  * ответа, а карточки собраны в группу «Стартовая подборка».
  */
-function Column({ title, response, onComplete }: ColumnProps) {
+function Column({ title, response, busy = false, onComplete }: ColumnProps) {
   const starterId = useId();
   const ranked = hasResults(response);
   const linksMissing = hasNoMaterialLinks(response.items);
@@ -78,7 +79,7 @@ function Column({ title, response, onComplete }: ColumnProps) {
     </>
   ) : null;
   const cards = response.items.map((item) => (
-    <MaterialCard key={item.material_id} item={item} compact linkNoteInList={linksMissing} onComplete={onComplete} />
+    <MaterialCard key={item.material_id} item={item} compact linkNoteInList={linksMissing} busy={busy} onComplete={onComplete} />
   ));
 
   return (
@@ -115,12 +116,14 @@ export interface CompareViewProps {
   /** Выбранная вкладка хранится снаружи: представление пересоздаётся при повторе запроса */
   tab: CompareTab;
   onTabChange(tab: CompareTab): void;
+  /** Идёт повторный запрос: прежнее сравнение ещё на экране */
+  busy?: boolean;
   /** Заголовок принимает фокус, когда нажатый элемент исчез вместе с прежним ответом */
   headingRef?: Ref<HTMLHeadingElement>;
 }
 
 /** Один профиль, один каталог, два метода. Широкий экран — две колонки, узкий — вкладки. */
-export function CompareView({ response, topicLabel, filters, onComplete, tab, onTabChange, headingRef }: CompareViewProps) {
+export function CompareView({ response, topicLabel, filters, onComplete, tab, onTabChange, busy = false, headingRef }: CompareViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const wide = useScreenIsWide(rootRef);
   const uid = useId();
@@ -132,8 +135,8 @@ export function CompareView({ response, topicLabel, filters, onComplete, tab, on
   const [baselineTab, personalTab] = tabs;
   const selected = tab === 'baseline' ? baselineTab.id : personalTab.id;
 
-  const baseline = <Column title="Подбор по теме" response={response.baseline} onComplete={onComplete} />;
-  const personal = <Column title="Персональный подбор" response={response.personal} onComplete={onComplete} />;
+  const baseline = <Column title="Подбор по теме" response={response.baseline} busy={busy} onComplete={onComplete} />;
+  const personal = <Column title="Персональный подбор" response={response.personal} busy={busy} onComplete={onComplete} />;
   // Позиции сравниваются только между двумя выдачами по запросу
   const diff = hasResults(response.baseline) && hasResults(response.personal) ? response.diff : null;
 

@@ -10,6 +10,8 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* Место под полосу прокрутки занято всегда: между коротким и длинным состоянием контент не сдвигается */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -753,6 +755,35 @@ p {
   background: linear-gradient(90deg, var(--color-skeleton-a) 0%, var(--color-skeleton-b) 50%, var(--color-skeleton-a) 100%);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
+  /* Скелетон появляется только на медленном ответе: мягкое проявление вместо вспышки */
+  animation: skeleton-in 180ms ease-out both;
+}
+
+/* Скелетон выдачи повторяет габариты карточки: при медленном ответе страница не прыгает */
+.skeleton--card {
+  height: 297px;
+}
+
+/* Узкая колонка: карточка выдачи выше из-за переносов текста */
+@container screen (max-width: 799px) {
+  .skeleton--card {
+    height: 461px;
+  }
+}
+
+@keyframes skeleton-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
 }
 
 .starter {

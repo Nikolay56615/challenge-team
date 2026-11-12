@@ -1,4 +1,4 @@
-// Сквозная проверка интерфейса по PLAN.md, 7.1 (E1–E9, E11).
+// Сквозная проверка интерфейса по PLAN.md, 7.1 (E1–E9, E11–E13).
 // Элементы ищутся по ролям и видимым подписям из design/ui-kit.md и PLAN.md, 5.7.
 //
 // Запуск из корня проекта при работающем сервисе с собранным интерфейсом:
@@ -475,6 +475,44 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const retry = await afterPost(page, () => page.getByRole('button', { name: 'Повторить' }).click());
     list = await cards(page);
     check('E8', `«Повторить» возвращает выдачу без повторного ввода (${width})`, list.length === 5 && list[0].title === T.M01 && retry.request().postDataJSON().task === taskBefore);
+
+    // E13: повторный запрос не размонтирует выдачу и не сбрасывает прокрутку
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.route('**/api/recommend', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await route.continue();
+    });
+    const refresh = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Отметить изученным' }).last().click();
+    await page.waitForTimeout(150);
+    const during = await page.evaluate(() => ({
+      cards: document.querySelectorAll('.card').length,
+      busy: document.querySelectorAll('.card[aria-busy="true"]').length,
+      skeletons: document.querySelectorAll('.skeleton').length,
+      scrollY: Math.round(window.scrollY),
+    }));
+    await refresh;
+    await page.waitForTimeout(100);
+    const after = await page.evaluate(() => ({ cards: document.querySelectorAll('.card').length, scrollY: Math.round(window.scrollY) }));
+    check('E13', `Повторный запрос сохраняет карточки и прокрутку (${width})`,
+      during.cards === 5 && during.busy === 5 && during.skeletons === 0 && during.scrollY > 0 &&
+      after.cards === 5 && Math.abs(after.scrollY - during.scrollY) <= 100, JSON.stringify({ during, after }));
+
+    // E13: скелетон ждёт 200 мс и повторяет габариты карточки
+    const slow = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).click();
+    await page.waitForTimeout(100);
+    const early = await page.locator('.skeleton').count();
+    await page.waitForTimeout(200);
+    const skeleton = await page.evaluate(() => ({
+      count: document.querySelectorAll('.skeleton').length,
+      height: Math.round(document.querySelector('.skeleton')?.getBoundingClientRect().height ?? 0),
+    }));
+    await slow;
+    await page.unroute('**/api/recommend');
+    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
+    check('E13', `Скелетон появляется через 200 мс и по габаритам карточки (${width})`,
+      early === 0 && skeleton.count === 5 && skeleton.height === (width === 390 ? 461 : 297), JSON.stringify({ early, skeleton }));
 
     check('E1', `Нет ошибок страницы в сценарии (${width})`, errors.filter((e) => !e.includes('net::ERR_FAILED') && !e.includes('Failed to fetch') && !e.includes('Failed to load resource')).length === 0, errors.join(' | ').slice(0, 300));
     await context.close();
