@@ -110,8 +110,8 @@ export function RecommendationPane({
   const filterOptions = outcome?.kind === 'compare'
     ? mergeFilterOptions(outcome.response.baseline.filter_options, outcome.response.personal.filter_options)
     : shown?.filter_options;
-  // Фильтры остаются на месте, пока идёт повторный запрос
-  const filters = filterOptions && !pending && !failure ? (
+  // Фильтры остаются на месте, пока идёт повторный запрос или пока не показан скелетон
+  const filters = filterOptions && !skeletonVisible && !failure ? (
     <ResultFilters options={filterOptions} applied={state.resultCall?.body.filters} onApply={onApplyFilters} />
   ) : null;
   const resultTopic = state.resultCall?.body.topic;
@@ -119,10 +119,10 @@ export function RecommendationPane({
   const topicItem = resultTopic ? resultItems?.find((item) => item.topics.includes(resultTopic)) : undefined;
   const topicLabel = topics.find((topic) => topic.value === resultTopic)?.label
     ?? (resultTopic && topicItem ? topicItem.topic_labels[topicItem.topics.indexOf(resultTopic)] : undefined);
-  if (pending) {
-    // Первые 200 мс экран не меняется: строка состояния ждёт, скелетона ещё нет
+  if (pending && skeletonVisible) {
+    // Запрос идёт дольше 200 мс: прежнее содержимое уступает место скелетону
     status = LOADING_STATUS;
-    statusHidden = !skeletonVisible;
+    statusHidden = false;
   } else if (failure) {
     banner = (
       <StateBanner
@@ -189,6 +189,13 @@ export function RecommendationPane({
     }
   }
 
+  // Первые 200 мс запрос идёт без скелетона: прежнее содержимое остаётся на экране,
+  // а строка состояния скрыто объявляет загрузку. Быстрый ответ меняет содержимое сразу.
+  if (pending && !skeletonVisible) {
+    status = LOADING_STATUS;
+    statusHidden = true;
+  }
+
   // Ответ на действие из области выдачи пришёл: если нажатый элемент исчез, фокус переходит
   // к видимому элементу — «Повторить», нужной карточке, заголовку представления или к строке состояния.
   useEffect(() => {
@@ -217,7 +224,7 @@ export function RecommendationPane({
     target?.focus({ preventScroll: goal !== 'submit' });
   });
   if (!active) return null;
-  const moreInComparison = catalog && !pending && outcome?.kind === 'compare'
+  const moreInComparison = catalog && !skeletonVisible && outcome?.kind === 'compare'
     ? Math.max(0, ...[outcome.response.baseline, outcome.response.personal].map((response) =>
       response.filter_options ? Math.min(MAX_LIMIT, response.total_candidates) - response.items.length : 0))
     : 0;

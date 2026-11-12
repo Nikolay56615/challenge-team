@@ -498,21 +498,26 @@ await runBrowserChecks('results.json', results, async (browser) => {
       during.cards === 5 && during.busy === 5 && during.skeletons === 0 && during.scrollY > 0 &&
       after.cards === 5 && Math.abs(after.scrollY - during.scrollY) <= 100, JSON.stringify({ during, after }));
 
-    // E13: скелетон ждёт 200 мс и повторяет габариты карточки
+    // E13: до скелетона экран не пустеет, скелетон ждёт 200 мс и повторяет габариты карточки
     const slow = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).click();
     await page.waitForTimeout(100);
-    const early = await page.locator('.skeleton').count();
+    const early = await page.evaluate(() => ({
+      cards: document.querySelectorAll('.card').length,
+      skeletons: document.querySelectorAll('.skeleton').length,
+    }));
     await page.waitForTimeout(200);
     const skeleton = await page.evaluate(() => ({
+      cards: document.querySelectorAll('.card').length,
       count: document.querySelectorAll('.skeleton').length,
       height: Math.round(document.querySelector('.skeleton')?.getBoundingClientRect().height ?? 0),
     }));
     await slow;
     await page.unroute('**/api/recommend');
     await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
-    check('E13', `Скелетон появляется через 200 мс и по габаритам карточки (${width})`,
-      early === 0 && skeleton.count === 5 && skeleton.height === (width === 390 ? 461 : 297), JSON.stringify({ early, skeleton }));
+    check('E13', `До скелетона остаётся прежняя выдача, затем скелетон по габаритам карточки (${width})`,
+      early.cards === 5 && early.skeletons === 0 && skeleton.cards === 0 &&
+      skeleton.count === 5 && skeleton.height === (width === 390 ? 461 : 297), JSON.stringify({ early, skeleton }));
 
     check('E1', `Нет ошибок страницы в сценарии (${width})`, errors.filter((e) => !e.includes('net::ERR_FAILED') && !e.includes('Failed to fetch') && !e.includes('Failed to load resource')).length === 0, errors.join(' | ').slice(0, 300));
     await context.close();
