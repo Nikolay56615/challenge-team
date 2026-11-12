@@ -1,4 +1,4 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, type Ref } from 'react';
 import type { MetaResponse } from '../api/types';
 import { charsGenitive, formatAvailableMaterials } from '../format';
 import { Button, Panel, TextAreaField } from '../kit';
@@ -6,6 +6,7 @@ import type { FormValues, RefinementValues } from '../state/useRecommend';
 import { RefinementFields } from './RefinementFields';
 
 export interface TaskFormProps {
+  headingRef?: Ref<HTMLHeadingElement>;
   meta: MetaResponse | null;
   metaFailed?: boolean;
   values: FormValues;
@@ -21,6 +22,7 @@ export interface TaskFormProps {
 
 /** Форма: задача, уточнения, «Подобрать материалы» и «Сбросить». Данные не очищаются при загрузке и ошибке. */
 export function TaskForm({
+  headingRef,
   meta,
   metaFailed = false,
   values,
@@ -44,7 +46,7 @@ export function TaskForm({
 
   return (
     <Panel labelledBy={headingId}>
-      <h1 id={headingId} className="h1">
+      <h1 id={headingId} ref={headingRef} className="h1" tabIndex={-1}>
         Подберём материалы под вашу задачу
       </h1>
       {catalog ? (

@@ -18,6 +18,7 @@ export interface ResultListProps {
   loading?: boolean;
   response?: RecommendResponse | null;
   topicLabel?: string;
+  limitHint?: string;
   filters?: ReactNode;
   onComplete?(item: Item): void;
   onMore?(): void;
@@ -41,6 +42,7 @@ export function ResultList({
   loading = false,
   response,
   topicLabel,
+  limitHint = 'Уточните задачу, чтобы сузить подборку.',
   filters,
   onComplete,
   onMore,
@@ -89,7 +91,7 @@ export function ResultList({
         </Button>
       ) : null}
       {showItems && items.length >= MAX_LIMIT && total > items.length ? (
-        <p className="note">Уточните задачу, чтобы сузить подборку.</p>
+        <p className="note">{limitHint}</p>
       ) : null}
     </>
   );

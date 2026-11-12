@@ -1,5 +1,5 @@
 // Состояние экрана: форма, история сеанса, жизненный цикл запроса (PLAN.md, 5.2–5.6).
-import { useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { ApiError, NETWORK_MESSAGE, compare, isAbortError, isTaskFieldError, recommend } from '../api/client';
 import type {
   CompareResponse,
@@ -49,15 +49,9 @@ export interface RequestFailure {
   network: boolean;
 }
 
-export interface RecommendState {
-  form: FormValues;
-  /** Тема, выбранная в уточнении; сбрасывается при изменении задачи, смене профиля и «Сбросить» */
-  topic: TopicCode | null;
-  /** Задача запроса, к которому выбрана тема: с другой задачей тема не отправляется */
-  topicTask: string | null;
-  history: HistoryEvent[];
-  profileId: string | null;
-  compare: boolean;
+export type Section = 'recommend' | 'catalog';
+
+interface ResultState {
   loading: boolean;
   outcome: Outcome | null;
   /** Запрос, по которому получен outcome: «Показать ещё», тема, «Отметить изученным» */
@@ -72,13 +66,7 @@ export interface RecommendState {
   newQuery: boolean;
 }
 
-const initialState: RecommendState = {
-  form: EMPTY_FORM,
-  topic: null,
-  topicTask: null,
-  history: [],
-  profileId: null,
-  compare: false,
+const initialState: ResultState = {
   loading: false,
   outcome: null,
   resultCall: null,
@@ -90,61 +78,17 @@ const initialState: RecommendState = {
 };
 
 type Action =
-  | { type: 'task'; value: string }
-  | { type: 'fields'; patch: Partial<RefinementValues> }
-  | { type: 'profile'; profile: Profile | null }
-  | { type: 'compare'; value: boolean }
-  | { type: 'topic'; value: TopicCode; task: string }
-  | { type: 'history'; history: HistoryEvent[] }
+  | { type: 'clearFieldError' }
   | { type: 'start'; call: Call; newQuery: boolean }
   | { type: 'success'; call: Call; outcome: Outcome }
   | { type: 'failure'; failure: RequestFailure | null; fieldError: string | null }
   | { type: 'hideClarification' }
   | { type: 'reset' };
 
-function reducer(state: RecommendState, action: Action): RecommendState {
+function reducer(state: ResultState, action: Action): ResultState {
   switch (action.type) {
-    case 'task':
-      return { ...state, form: { ...state.form, task: action.value }, topic: null, topicTask: null, fieldError: null };
-    case 'fields':
-      return { ...state, form: { ...state.form, ...action.patch } };
-    case 'profile': {
-      // Смена профиля начинает новый сеанс: выдача прежнего профиля, его тема и история сбрасываются.
-      // «Не выбран» оставляет введённые данные формы, но не историю профиля.
-      const profile = action.profile;
-      const fresh: RecommendState = {
-        ...state,
-        topic: null,
-        topicTask: null,
-        loading: false,
-        outcome: null,
-        resultCall: null,
-        lastCall: null,
-        failure: null,
-        fieldError: null,
-        clarificationHidden: false,
-        newQuery: false,
-      };
-      if (!profile) return { ...fresh, profileId: null, history: [] };
-      return {
-        ...fresh,
-        profileId: profile.id,
-        form: {
-          task: profile.task,
-          stage: profile.stage,
-          experience: profile.experience,
-          format_pref: profile.format_pref,
-          industry: profile.industry,
-        },
-        history: profile.history.map((event) => ({ ...event })),
-      };
-    }
-    case 'compare':
-      return { ...state, compare: action.value };
-    case 'topic':
-      return { ...state, topic: action.value, topicTask: action.task };
-    case 'history':
-      return { ...state, history: action.history };
+    case 'clearFieldError':
+      return { ...state, fieldError: null };
     case 'start':
       return {
         ...state,
@@ -165,7 +109,6 @@ function reducer(state: RecommendState, action: Action): RecommendState {
     case 'hideClarification':
       return { ...state, clarificationHidden: true };
     case 'reset':
-      // Начальный экран: форма, тема, история, профиль, сравнение и выдача
       return initialState;
   }
 }
@@ -185,7 +128,7 @@ export function appendComplete(history: readonly HistoryEvent[], materialId: str
   return next.length > HISTORY_LIMIT ? next.slice(next.length - HISTORY_LIMIT) : next;
 }
 
-export function useRecommend() {
+function useResult(active: boolean, history: HistoryEvent[]) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const controllerRef = useRef<AbortController | null>(null);
   // Номер последнего запроса: обновлять состояние может только он
@@ -199,7 +142,7 @@ export function useRecommend() {
     [],
   );
 
-  const run = (call: Call, newQuery = false) => {
+  const run = useCallback((call: Call, newQuery = false) => {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -224,7 +167,7 @@ export function useRecommend() {
       .finally(() => {
         if (controllerRef.current === controller) controllerRef.current = null;
       });
-  };
+  }, []);
 
   /** Отменяет запрос в работе: его ответ больше не меняет состояние */
   const cancel = () => {
@@ -233,81 +176,117 @@ export function useRecommend() {
     controllerRef.current = null;
   };
 
-  const bodyFromForm = (): RecommendRequest => ({
-    task: state.form.task,
-    stage: state.form.stage,
-    experience: state.form.experience,
-    format_pref: state.form.format_pref,
-    industry: state.form.industry,
-    // Тема выбрана для запроса с другой задачей: к новой задаче она не относится
-    topic: state.topicTask === state.form.task ? state.topic : null,
-    history: state.history.map((event) => ({ ...event })),
-    profile_id: state.profileId,
-    limit: DEFAULT_LIMIT,
-    method: 'personal',
-  });
+  useEffect(() => {
+    const call = state.resultCall;
+    // Каждый запрос хранит снимок истории. Скрытая выдача обновляется только при возвращении.
+    if (active && call && !state.loading && !state.fieldError && call.body.history !== history) {
+      run({ kind: call.kind, body: { ...call.body, history } });
+    }
+  }, [active, history, run, state.fieldError, state.loading, state.resultCall]);
 
-  const runFromForm = (body: RecommendRequest) => {
-    if (state.loading) return;
-    run({ kind: state.compare ? 'compare' : 'recommend', body }, true);
-  };
-
-  const actions = {
-    setTask: (value: string) => dispatch({ type: 'task', value }),
-    setRefinements: (patch: Partial<RefinementValues>) => dispatch({ type: 'fields', patch }),
-    /** Профиль заполняет форму и историю; «Не выбран» очищает историю. Прежняя выдача сбрасывается */
-    selectProfile: (profile: Profile | null) => {
-      cancel();
-      dispatch({ type: 'profile', profile });
-    },
-    setCompare: (value: boolean) => dispatch({ type: 'compare', value }),
-
-    /** «Подобрать материалы»: тело из формы, limit 5; при включённом сравнении — /api/compare */
-    submit: () => runFromForm(bodyFromForm()),
-
-    /** Просмотр темы использует уточнения и историю из формы, а текст задачи остаётся черновиком. */
-    browseTopic: (topic: TopicCode) => runFromForm({ ...bodyFromForm(), task: '', topic }),
-
-    applyFilters: (filters: MaterialFilters | null) => {
-      const base = state.resultCall;
-      if (base && !state.loading) run({ kind: base.kind, body: { ...base.body, filters, limit: DEFAULT_LIMIT } });
-    },
-
-    /** Выбор темы в уточнении: тот же запрос с полем topic; подборка по теме начинается с limit 5 */
-    chooseTopic: (topic: TopicCode) => {
-      const base = state.resultCall;
-      if (!base) return;
-      dispatch({ type: 'topic', value: topic, task: base.body.task });
-      run({ kind: base.kind, body: { ...base.body, topic, limit: DEFAULT_LIMIT } });
-    },
-
-    /** «Показать ещё»: тот же запрос с limit 10 */
-    showMore: () => {
-      const base = state.resultCall;
-      if (base) run({ kind: base.kind, body: { ...base.body, limit: MAX_LIMIT } });
-    },
-
-    /** «Отметить изученным»: событие в историю сеанса и повтор запроса с теми же параметрами */
-    markComplete: (materialId: string) => {
-      const history = appendComplete(state.history, materialId);
-      dispatch({ type: 'history', history });
-      const base = state.resultCall;
-      if (base) run({ kind: base.kind, body: { ...base.body, history } });
-    },
-
-    /** «Повторить»: точное тело последнего запроса */
-    retry: () => {
-      if (state.lastCall) run(state.lastCall);
-    },
-
-    hideClarification: () => dispatch({ type: 'hideClarification' }),
-
-    /** «Сбросить»: форма, тема, история сеанса, профиль, сравнение и выдача */
+  return {
+    state,
+    run,
     reset: () => {
       cancel();
       dispatch({ type: 'reset' });
     },
+    clearFieldError: () => dispatch({ type: 'clearFieldError' }),
+    hideClarification: () => dispatch({ type: 'hideClarification' }),
+  };
+}
+
+export function useRecommend(section: Section) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [history, setHistory] = useState<HistoryEvent[]>([]);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [compareMode, setCompare] = useState(false);
+  const [topic, setTopic] = useState<{ value: TopicCode; task: string } | null>(null);
+  const recommendation = useResult(section === 'recommend', history);
+  const catalog = useResult(section === 'catalog', history);
+
+  const bodyFromForm = (): RecommendRequest => ({
+    ...form,
+    topic: topic?.task === form.task ? topic.value : null,
+    history,
+    profile_id: profileId,
+    limit: DEFAULT_LIMIT,
+    method: 'personal',
+  });
+
+  const resultActions = ({ state, run, hideClarification }: ReturnType<typeof useResult>) => {
+    const rerun = (call: Call | null, patch?: Partial<RecommendRequest>) => {
+      if (call && !state.loading) run({ kind: call.kind, body: { ...call.body, history, ...patch } });
+    };
+    return {
+      applyFilters: (filters: MaterialFilters | null) => rerun(state.resultCall, { filters, limit: DEFAULT_LIMIT }),
+      showMore: () => rerun(state.resultCall, { limit: MAX_LIMIT }),
+      markComplete: (materialId: string) => {
+        if (!state.resultCall || state.loading) return;
+        const updated = appendComplete(history, materialId);
+        setHistory(updated);
+        rerun(state.resultCall, { history: updated });
+      },
+      retry: () => rerun(state.lastCall),
+      hideClarification,
+    };
   };
 
-  return { state, actions };
+  const runFromForm = (result: ReturnType<typeof useResult>, body: RecommendRequest) => {
+    if (!result.state.loading) result.run({ kind: compareMode ? 'compare' : 'recommend', body }, true);
+  };
+
+  const clearResults = () => {
+    setTopic(null);
+    recommendation.reset();
+    catalog.reset();
+  };
+
+  return {
+    form,
+    profileId,
+    compare: compareMode,
+    topic: topic?.value ?? null,
+    setCompare,
+    setTask: (task: string) => {
+      setForm((current) => ({ ...current, task }));
+      setTopic(null);
+      recommendation.clearFieldError();
+    },
+    setRefinements: (patch: Partial<RefinementValues>) => setForm((current) => ({ ...current, ...patch })),
+    selectProfile: (profile: Profile | null) => {
+      clearResults();
+      setProfileId(profile?.id ?? null);
+      setHistory(profile?.history ?? []);
+      if (profile) {
+        const { task, stage, experience, format_pref, industry } = profile;
+        setForm({ task, stage, experience, format_pref, industry });
+      }
+    },
+    reset: () => {
+      clearResults();
+      setForm(EMPTY_FORM);
+      setProfileId(null);
+      setHistory([]);
+      setCompare(false);
+    },
+    recommendation: {
+      state: recommendation.state,
+      actions: resultActions(recommendation),
+      submit: () => runFromForm(recommendation, bodyFromForm()),
+      chooseTopic: (value: TopicCode) => {
+        const call = recommendation.state.resultCall;
+        if (!call || recommendation.state.loading) return;
+        setTopic({ value, task: call.body.task });
+        recommendation.run({ kind: call.kind, body: { ...call.body, topic: value, limit: DEFAULT_LIMIT, history } });
+      },
+    },
+    catalog: {
+      state: catalog.state,
+      actions: resultActions(catalog),
+      browseTopic: (value: TopicCode) => runFromForm(catalog, { ...bodyFromForm(), task: '', topic: value }),
+    },
+  };
 }
+
+export type RecommendationResult = ReturnType<typeof useRecommend>['recommendation'];

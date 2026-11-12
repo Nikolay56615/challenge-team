@@ -5,7 +5,7 @@
 //   npm --prefix evaluation/e2e run check:a11y -- [адрес] [папка результатов]
 
 import { readFileSync } from 'node:fs';
-import { afterPost, base, chooseProfile, runBrowserChecks, submit } from './browser.mjs';
+import { afterPost, base, chooseProfile, runBrowserChecks, selectCatalogTopic, submit } from './browser.mjs';
 
 const axeSource = readFileSync(new URL(import.meta.resolve('axe-core/axe.min.js')), 'utf8');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -93,6 +93,12 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
     await page.getByRole('alert').waitFor({ timeout: 5000 });
     await audit(page, 'ошибка запроса', width);
     await page.unroute('**/api/recommend');
+    await page.getByRole('link', { name: 'Каталог', exact: true }).click();
+    await page.getByRole('heading', { name: 'Каталог', exact: true }).waitFor();
+    await audit(page, 'каталог, выбор темы', width);
+    await afterPost(page, () => selectCatalogTopic(page, width, 'marketing', 'Продвижение'));
+    await page.getByRole('heading', { name: 'Подборка по теме «Продвижение»' }).waitFor();
+    await audit(page, 'каталог, материалы темы', width);
     await context.close();
 
     const kit = await open(browser, width, '/kit.html');

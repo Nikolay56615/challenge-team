@@ -29,11 +29,24 @@ export async function afterPost(page, action, endpoint = '/api/recommend') {
     action(),
   ]);
   if (!response.ok()) throw new Error(`${endpoint} вернул HTTP ${response.status()}`);
-  // React возвращает исходную подпись кнопки после применения результата запроса.
-  await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
+  if (new URL(page.url()).hash === '#catalog') {
+    await page.getByText('Подбираем материалы… Обычно это занимает меньше секунды.', { exact: true })
+      .waitFor({ state: 'hidden' });
+  } else {
+    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
+  }
   return response;
 }
 
 export function submit(page, endpoint) {
   return afterPost(page, () => page.getByRole('button', { name: 'Подобрать материалы', exact: true }).click(), endpoint);
+}
+
+export async function selectCatalogTopic(page, width, value, label) {
+  if (width < 800) {
+    await page.getByLabel('Тема каталога', { exact: true }).selectOption(value);
+    await page.getByRole('button', { name: 'Показать материалы темы', exact: true }).click();
+  } else {
+    await page.getByRole('list', { name: 'Темы каталога' }).getByRole('button', { name: label, exact: true }).click();
+  }
 }
