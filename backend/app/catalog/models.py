@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .course_details import CourseDetails
+
+if TYPE_CHECKING:
+    from .text_search import TextIndex
 
 # Код материала: одно правило для загрузчика JSON и для истории в запросе (schemas.HistoryEventIn).
 # Материал с другим кодом нельзя было бы отметить изученным: запрос с такой историей получил бы 422.
@@ -89,6 +92,7 @@ class Catalog:
     version: str
     disabled_features: tuple[str, ...] = ()
     coverage: dict[str, Any] = field(default_factory=dict)
+    text_index: TextIndex | None = None
 
     @property
     def size(self) -> int:

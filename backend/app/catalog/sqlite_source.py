@@ -32,6 +32,7 @@ from .course_details import CourseDetails
 from .coverage import disabled_features, normalize_popularity, summarize
 from .mapping import CatalogMapping, load_mapping, norm_label
 from .models import Catalog, CatalogError, Material
+from .text_search import TextIndex
 
 log = logging.getLogger("app.catalog")
 
@@ -146,6 +147,7 @@ def load_sqlite_catalog(
         version=version,
         disabled_features=disabled_features(materials, signals_loaded=stats["signals_source"] == "loaded"),
         coverage=summarize(materials, **stats),
+        text_index=TextIndex(materials),
     )
 
 

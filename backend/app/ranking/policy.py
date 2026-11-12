@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from .. import vocab
 from ..catalog.lexicon import TOPIC_ORDER, ParsedTask, parse_task, title_matches_gaps
 from ..catalog.models import Catalog, Material
+from ..catalog.text_search import TextMatches
 from . import baseline, explain, personal
 from .base import Context, HistoryIndex, MaterialFilters, Profile, Scored
 
@@ -168,14 +169,35 @@ def _start_like(profile: Profile, stage_hint: str | None) -> bool:
     return profile.stage in {"idea", "start"} or (profile.stage is None and stage_hint == "start")
 
 
+def _rank_personal(candidates: list[Material], ctx: Context, matches: TextMatches) -> list[Scored]:
+    ranked = personal.rank(candidates, ctx)
+    if matches.titles or matches.descriptions:
+        # Стабильная сортировка сохраняет персональный порядок внутри групп.
+        ranked.sort(key=lambda item: -matches.priority(item.material.id))
+    return ranked
+
+
+def _personal_reasons(items: list[Scored], ctx: Context, matches: TextMatches) -> list[list[str]]:
+    reasons = []
+    for item in items:
+        ranking = explain.personal_reasons(item, ctx)
+        material_id = item.material.id
+        if material_id in matches.titles:
+            ranking = explain.text_match_reasons("в названии", ranking)
+        elif material_id in matches.descriptions:
+            ranking = explain.text_match_reasons("в кратком описании курса", ranking)
+        reasons.append(ranking)
+    return reasons
+
+
 def _signal_outcome(
-    catalog: Catalog, profile: Profile, parsed: ParsedTask, history: HistoryIndex, pool: list[Material]
+    catalog: Catalog, profile: Profile, parsed: ParsedTask, history: HistoryIndex, pool: list[Material],
+    matches: TextMatches,
 ) -> Outcome | None:
     """Задача называет понятие признака, но не тему («Какую CRM выбрать»): кандидаты — материалы с этим
     признаком из любых тем, без вклада темы. Понятия берутся из `parsed.concepts` — признаков, названных
     достаточно конкретно; широкие слова вроде «эффективно» материалы сами не отбирают. Если материалов
-    с понятием нет, возвращается None, и подбор отвечает статусом none: сообщение, выбор темы и
-    стартовая подборка."""
+    с понятием нет, возвращается None и проверяются совпадения по словам запроса."""
     disabled = frozenset(catalog.disabled_features)
     if "signal" in disabled or not parsed.concepts:
         return None
@@ -188,7 +210,7 @@ def _signal_outcome(
     # Вклад признака и причина считаются только по понятиям, отобравшим кандидатов
     focused = replace(parsed, signals=parsed.concepts)
     ctx = Context(profile=profile, parsed=focused, topics=(), history=history, disabled=disabled, catalog=catalog.materials)
-    ranked = personal.rank(candidates, ctx)
+    ranked = _rank_personal(candidates, ctx, matches)
     items = ranked[: profile.limit]
     shown_signals = {code for m in candidates for code, _ in m.signals}
     found = tuple(s for s in parsed.concepts if s in shown_signals)
@@ -201,10 +223,11 @@ def _signal_outcome(
         status="strong",
         detected_topics=(),
         items=items,
-        reasons=[explain.personal_reasons(i, ctx) for i in items],
+        reasons=_personal_reasons(items, ctx, matches),
         total_candidates=len(candidates),
         message=explain.signal_results_message(
-            signals=found, total=len(candidates), items=items, ctx=ctx, gaps=parsed.gaps, missing=missing
+            signals=found, total=len(candidates), items=items, ctx=ctx, gaps=parsed.gaps, missing=missing,
+            text_order=any(matches.priority(item.material.id) for item in items),
         ) if candidates else FILTERS_EMPTY_MESSAGE,
         clarification=None,
         route=route,
@@ -266,18 +289,20 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
     if not explicit and parsed.gaps and not parsed.concepts:
         return _title_match_outcome(catalog, profile, parsed, history, pool, method)
 
+    matches = catalog.text_index.match(profile.task) if method == "personal" and catalog.text_index else TextMatches()
+
     # Тема выведена из понятия признака, сама задача её не называет
     signal_only = parsed.topics_from_signals and not explicit
     if signal_only:
         if method == "personal":
-            outcome = _signal_outcome(catalog, profile, parsed, history, pool)
+            outcome = _signal_outcome(catalog, profile, parsed, history, pool, matches)
             if outcome is not None:
                 return outcome
-        # Подбор по теме признаков не видит; если материалов с понятием нет, ответ — статус none
-        # с сообщением, выбором темы и стартовой подборкой
+        # Без распознанной темы остаётся поиск по названиям или стартовая подборка.
         topics = ()
 
-    if not topics:
+    text_candidates = [m for m in pool if m.id in matches.titles] if not topics and matches.titles else []
+    if not topics and not text_candidates:
         if parsed.is_empty:
             return _starter_outcome(
                 method=method, status="cold", message=explain.COLD_MESSAGE,
@@ -294,7 +319,7 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
             by_level=levels_beyond_courses(catalog),
         )
 
-    candidates = [m for m in pool if set(m.topics) & set(topics)]
+    candidates = text_candidates or [m for m in pool if set(m.topics) & set(topics)]
     if not candidates:
         return _starter_outcome(
             method=method,
@@ -318,10 +343,10 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
         disabled=frozenset(catalog.disabled_features),
         catalog=catalog.materials,
     )
-    ranked = personal.rank(candidates, ctx) if method == "personal" else baseline.rank(candidates, ctx)
+    ranked = _rank_personal(candidates, ctx, matches) if method == "personal" else baseline.rank(candidates, ctx)
     items = ranked[: profile.limit]
 
-    if explicit:
+    if explicit or text_candidates:
         status = "strong"
     elif len(covered) >= 2 or parsed.gaps:
         status = "weak"
@@ -346,13 +371,16 @@ def recommend(catalog: Catalog, profile: Profile, method: str = "personal") -> O
 
     signal = next((i.matched_signal for i in items if i.matched_signal), None)
     message = FILTERS_EMPTY_MESSAGE
-    if candidates:
+    if candidates and text_candidates:
+        message = explain.title_results_message(method=method, total=len(candidates), items=items, ctx=ctx, text_order=True)
+    elif candidates:
         message = explain.results_message(
             method=method, topics=filtered_topics, total=len(candidates), items=items, ctx=ctx, signal=signal,
             missing=missing,
+            text_order=any(matches.priority(item.material.id) for item in items),
         )
     if method == "personal":
-        reasons = [explain.personal_reasons(i, ctx) for i in items]
+        reasons = _personal_reasons(items, ctx, matches)
     else:
         reasons = [explain.baseline_reasons(i) for i in items]
     return Outcome(

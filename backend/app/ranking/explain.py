@@ -216,6 +216,10 @@ def title_match_reasons(gaps: tuple[str, ...], ranking_reasons: list[str]) -> li
     return _fit([("title", title_reason), *[("ranking", reason) for reason in ranking_reasons]])
 
 
+def text_match_reasons(field: str, ranking_reasons: list[str]) -> list[str]:
+    return _fit([("text", f"Ключевые слова запроса совпали {field}"), *[("ranking", reason) for reason in ranking_reasons]])
+
+
 def next_step(material: Material) -> str:
     return material.next_step or vocab.NEXT_STEP_BY_FORMAT.get(material.format, "Откройте материал и отметьте главное")
 
@@ -337,6 +341,7 @@ def results_message(
     ctx: Context,
     signal: str | None,
     missing: tuple[str, ...] = (),
+    text_order: bool = False,
 ) -> str:
     """Строка состояния для `strong` и `weak`.
 
@@ -349,6 +354,8 @@ def results_message(
     head = f"Нашли {total} {word} {where}."
     if missing:
         head = f"{head} {no_materials_text(missing)}."
+    if text_order:
+        return f"{head} Сначала показываем совпадения по словам запроса."
     return _with_tail(head, _order_sentence(method=method, ctx=ctx, items=items, total=total, signal=signal))
 
 
@@ -364,6 +371,7 @@ def signal_results_message(
     ctx: Context,
     gaps: Sequence[str] = (),
     missing: Sequence[str] = (),
+    text_order: bool = False,
 ) -> str:
     """Строка состояния, когда задача называет понятие признака, но не тему: «Какую CRM выбрать».
 
@@ -376,12 +384,18 @@ def signal_results_message(
         head = f"{head} Материалов {_about(quoted([vocab.signal_label(s) for s in missing]))} пока нет."
     if gaps:
         head = f"Материалов о {gaps[0]} пока нет. {head}"
+    if text_order:
+        return f"{head} Сначала показываем совпадения по словам запроса."
     return _with_tail(head, _order_sentence(method="personal", ctx=ctx, items=items, total=total, signal=None))
 
 
-def title_results_message(*, method: str, total: int, items: Sequence[Scored], ctx: Context) -> str:
+def title_results_message(
+    *, method: str, total: int, items: Sequence[Scored], ctx: Context, text_order: bool = False
+) -> str:
     word = plural(total, "материал", "материала", "материалов")
     head = f"Нашли {total} {word} по совпадению в названии."
+    if text_order:
+        return head
     return _with_tail(head, _order_sentence(method=method, ctx=ctx, items=items, total=total, signal=None))
 
 
