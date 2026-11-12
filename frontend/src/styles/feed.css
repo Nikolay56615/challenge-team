@@ -18,6 +18,10 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5) 0;
+  /* Панель режимов стоит в той же колонке 1200 px, что и рабочая область */
+  width: 100%;
+  max-width: var(--shell-width);
+  margin-inline: auto;
 }
 
 /* Три вкладки входа: в ряд, пока хватает ширины; на узком экране — столбиком, чтобы подписи не обрезались
