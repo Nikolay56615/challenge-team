@@ -16,6 +16,8 @@ python -X utf8 scripts/import_alfa_backup.py --backup "C:/путь/alfa_course_h
 
 Карточки курсов получают короткое описание, сведения об аудитории и результаты обучения из полей каталога. В SQLite сохраняются только подготовленные тексты доступных курсов. Импорт сообщает число курсов с описанием и с раскрываемыми сведениями. Для прежней базы повторите импорт в новый каталог.
 
+Импорт добавляет в `catalog.sqlite3` краткие описания доступных открытых статей с разрешённой индексацией. Описание берётся из `Articles.Description`, а при пустом значении — из `DescriptionTag`. Тексты очищаются от HTML и используются для поиска. Текстовые блоки статей используются только в отдельной офлайн-проверке. [Протокол оценки](../evaluation/search-relevance.md#подбор-по-действию-и-объекту)
+
 В таблице записей на курсы остаются только псевдонимные ключи курсов для подсчёта популярности. Даты и идентификаторы пользователей используются в памяти отдельной офлайн-команды. Результат содержит только агрегаты. [Протокол оценки](../evaluation/track1-offline-courses.md#повторная-проверка-по-датам)
 
 ## Запуск с подготовленными базами
@@ -27,6 +29,26 @@ $env:LOCAL_DATA_DIR = (Resolve-Path -LiteralPath 'data/local/alfa-course').Path
 $env:DEMO_MODE = 'false'
 docker compose -f compose.yaml -f compose.data.yaml up --build
 ```
+
+Для локальной проверки ранжирования по задаче повторите импорт в новый каталог, укажите его в `LOCAL_DATA_DIR` и задайте `$env:CATALOG_RELEVANCE = 'task'` перед запуском с `compose.data.yaml`. Значение по умолчанию — `legacy`. Старые SQLite-базы открываются без миграции, при их использовании в режиме `task` индекс строится из имеющихся полей.
+
+### Глобальный поиск
+
+Для поиска по словам соберите отдельный индекс. Для гибридного поиска скачайте файлы `onnx/model.onnx` и `onnx/tokenizer.json` модели `intfloat/multilingual-e5-small` ревизии `ccc66d3` в локальную папку и установите зависимости из `backend/requirements-search.txt`. Модель в контейнере читает их с диска. [Файлы модели](https://huggingface.co/intfloat/multilingual-e5-small/tree/ccc66d3/onnx)
+
+```powershell
+$catalog = 'data/local/alfa-course-task'
+$model = 'data/local/e5-small'
+# С флагом --model-dir команда готовит оба канала. Для FTS5 достаточно опустить этот флаг.
+python -X utf8 scripts/build_search_index.py "$catalog/catalog.sqlite3" --model-dir $model
+$env:LOCAL_DATA_DIR = (Resolve-Path $catalog).Path
+$env:LOCAL_MODEL_DIR = (Resolve-Path $model).Path
+$env:CATALOG_BUILD_TARGET = 'semantic'
+$env:CATALOG_RELEVANCE = 'hybrid'
+docker compose -f compose.yaml -f compose.data.yaml up --build
+```
+
+Для режима `lexical` используйте сборочную цель `runtime`. По умолчанию индекс читается из папки `search` рядом с каталогом. Другой индекс можно указать через `CATALOG_SEARCH_DIR`. В `CATALOG_SEARCH_POLICY` передаётся путь внутри контейнера к файлу калибровки. Старый индекс сохраняйте в отдельной папке, а следующий собирайте через `--output-dir`. Поле `catalog.coverage.relevance` в `/api/health` показывает запрошенный и фактический режимы после загрузки. При отказе модели сервис использует FTS5 с подтверждённой политикой выпуска или возвращается к `legacy`. [Оценка и решение о выпуске](../evaluation/search-relevance.md#глобальный-и-гибридный-поиск)
 
 Сверьте источник `sqlite` и покрытие признаков в `/api/health`. Для выданного бэкапа ожидается 1 166 материалов до фильтрации доступности, 1 078 сформированных ссылок (`coverage.links_total`), 26 курсов с числом уроков и 4 с сертификатом (`coverage.fields_count`). Ссылка ведёт на публичную страницу, где платформа определяет доступ. Проверьте запросы «Как выбрать налоговый режим» и «Нужна лицензия на продажу алкоголя». [Скрипт проверки](../scripts/inspect_catalog.py) читает данные локально. Для интерпретации `IsPaid` как покупки нужно подтверждение оплаты.
 

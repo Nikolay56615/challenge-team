@@ -18,6 +18,7 @@ DATA_DIR = BACKEND_DIR / "data"
 DEFAULT_FRONTEND_DIST = BACKEND_DIR.parent / "frontend" / "dist"
 
 CATALOG_SOURCES = ("synthetic", "sqlite", "file")
+CATALOG_RELEVANCE_MODES = ("legacy", "task", "lexical", "hybrid")
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 FLAGS = {"true": True, "false": False, "1": True, "0": False, "yes": True, "no": False, "on": True, "off": False}
 
@@ -63,6 +64,10 @@ class Settings:
     max_task_length: int = 300
     log_level: str = "info"
     frontend_dist: Path = DEFAULT_FRONTEND_DIST
+    catalog_relevance: str = "legacy"
+    catalog_search_dir: Path | None = None
+    catalog_model_dir: Path | None = None
+    catalog_search_policy: Path | None = None
 
     def __post_init__(self) -> None:
         if self.log_level not in LOG_LEVELS:
@@ -80,4 +85,8 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         max_task_length=_int(env.get("MAX_TASK_LENGTH"), 300, "MAX_TASK_LENGTH", 1, 2000),
         log_level=_choice(env.get("LOG_LEVEL"), "info", "LOG_LEVEL", LOG_LEVELS),
         frontend_dist=_path(env.get("FRONTEND_DIST")) or DEFAULT_FRONTEND_DIST,
+        catalog_relevance=_choice(env.get("CATALOG_RELEVANCE"), "legacy", "CATALOG_RELEVANCE", CATALOG_RELEVANCE_MODES),
+        catalog_search_dir=_path(env.get("CATALOG_SEARCH_DIR")),
+        catalog_model_dir=_path(env.get("CATALOG_MODEL_DIR")),
+        catalog_search_policy=_path(env.get("CATALOG_SEARCH_POLICY")),
     )

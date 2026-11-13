@@ -14,12 +14,13 @@ from contextlib import closing
 from dataclasses import asdict
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
-from app.catalog.lexicon import parse_task
+from app.catalog.article_text import article_description, article_paragraphs
 from app.catalog.course_details import CourseDetails
+from app.catalog.lexicon import parse_task
 from app.catalog.mapping import norm_label
 from app.catalog.models import Catalog, CatalogError
 from app.catalog.sqlite_source import (
@@ -28,6 +29,7 @@ from app.catalog.sqlite_source import (
     OPTIONAL,
     PLATFORM_SECTIONS,
     REQUIRED,
+    SEARCH_TABLE,
     load_sqlite_catalog,
     platform_url,
 )
@@ -43,7 +45,7 @@ ENTITY_COLUMNS = ("StatusId", "IsDeleted", "IsClosed", "IsPublic", "Duration")
 EXTRA_COLUMNS = {
     **dict.fromkeys(ENTITY_TABLES.values(), ENTITY_COLUMNS),
     **{ENTITY_TABLES[fmt]: (*ENTITY_COLUMNS, "Url") for fmt in PLATFORM_SECTIONS},
-    "Articles": (*ENTITY_COLUMNS, "SubjectId", "Url"),
+    "Articles": (*ENTITY_COLUMNS, "SubjectId", "Url", "NoIndex", "Description", "DescriptionTag"),
     "Courses": (*ENTITY_COLUMNS, "TypeId", "Url", "LessonQuantity", "IsCertified", "Description"),
     "ContentSettings": ("StatusId", "IsDeleted"),
     "ContentSettingsTopics": ("Order",),
@@ -51,13 +53,17 @@ EXTRA_COLUMNS = {
     "ContentSettingsIndustries": ("Order",),
     "RecommendedItems": ("Order",),
 }
-INTEGER_COLUMNS = frozenset({"IsDeleted", "IsClosed", "IsPublic", "Order"})
-DETAIL_FIELDS = frozenset({"Url", "LessonQuantity", "IsCertified", "Description"})
+INTEGER_COLUMNS = frozenset({"IsDeleted", "IsClosed", "IsPublic", "NoIndex", "Order"})
+DETAIL_FIELDS = frozenset({"Url", "LessonQuantity", "IsCertified", "Description", "DescriptionTag"})
 COURSE_INFO_COLUMNS = {
     "CourseInfoTypes": ("Id", "Title", "IsDeleted"),
     "CourseInfoBindings": ("CourseId", "CourseInfoTypeId", "CourseTariffId", "Title", "Order"),
 }
 COURSE_SECTIONS = {"кому подойдет": "audiences", "что вы получите от обучения": "outcomes"}
+PARAGRAPH_COLUMNS = {
+    "Articles": ("Id", "IsPublic", "IsDeleted", "IsClosed", "NoIndex"),
+    "ArticleEmbedItems": ("ArticleId", "HtmlContent", "Order"),
+}
 
 
 class ImportErrorDetail(RuntimeError):
@@ -99,7 +105,8 @@ def read_backup(backup: Path) -> tuple[dict[str, tuple[str, ...]], dict[str, lis
 
 
 def read_backup_rows(
-    backup: Path, select_columns: Callable[[dict[str, set[str]]], dict[str, tuple[str, ...]]]
+    backup: Path, select_columns: Callable[[dict[str, set[str]]], dict[str, tuple[str, ...]]],
+    *, paragraph_articles: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, tuple[str, ...]], dict[str, list[list]]]:
     container = f"alfa-catalog-import-{uuid4().hex}"
     mounted = f"type=bind,source={backup},target=/backup.dump,readonly"
@@ -142,6 +149,18 @@ def read_backup_rows(
             stdin=toc_list,
         )
         queries = []
+        article_where = ""
+        if "ArticleEmbedItems" in columns:
+            candidates = docker(
+                [*exec_args, *psql],
+                "Не удалось проверить доступность статей",
+                stdin='SELECT "Id" FROM public."Articles" WHERE "IsPublic" IS TRUE AND "IsDeleted" IS FALSE '
+                      'AND "IsClosed" IS FALSE AND "NoIndex" IS FALSE;',
+            )
+            allowed = ", ".join(
+                f"'{UUID(ref)}'::uuid" for ref in candidates.splitlines() if pseudonym(ref) in paragraph_articles
+            )
+            article_where = f' WHERE "Type" = 0 AND "ArticleId" IN ({allowed})' if allowed else " WHERE FALSE"
         for table, names in columns.items():
             projection = ", ".join(f'"{name}"' for name in names)
             where = (
@@ -149,19 +168,43 @@ def read_backup_rows(
                 if table == "CourseUserBindings" and "IsDeleted" in schema[table]
                 else ""
             )
+            if table == "ArticleEmbedItems":
+                where = article_where
             queries.append(
                 f"SELECT json_build_array('{table}', "
                 f"COALESCE(json_agg(json_build_array({projection}) ORDER BY ctid), '[]'::json)) "
                 f'FROM public."{table}"{where};'
             )
         exported = docker([*exec_args, *psql], "Не удалось выгрузить поля каталога", stdin="\n".join(queries))
-        return columns, dict(json.loads(line) for line in exported.splitlines())
+        # Граница записей psql — LF. Unicode-разделители могут встречаться внутри JSON-строк.
+        return columns, dict(json.loads(line) for line in exported.split("\n") if line)
     finally:
         docker(["rm", "--force", container], "Не удалось удалить временный контейнер PostgreSQL")
 
 
 def pseudonym(value: str) -> str:
     return uuid5(NAMESPACE_URL, f"alfa-course-catalog:{value}").hex
+
+
+def read_article_paragraphs(backup: Path, catalog: Catalog) -> dict[str, tuple[str, ...]]:
+    def select(schema: dict[str, set[str]]) -> dict[str, tuple[str, ...]]:
+        for table, names in PARAGRAPH_COLUMNS.items():
+            required = set(names) | ({"Type"} if table == "ArticleEmbedItems" else set())
+            if not required <= schema.get(table, set()):
+                raise ImportErrorDetail(f"В бэкапе нет полей для чтения абзацев из {table}")
+        return PARAGRAPH_COLUMNS
+
+    allowed = frozenset(
+        material.id.removeprefix("article:") for material in catalog.materials.values()
+        if material.available and material.format == "article" and material.access == "open"
+    )
+    _, rows = read_backup_rows(backup.resolve(), select, paragraph_articles=allowed)
+    articles: dict[str, dict[str, str]] = defaultdict(dict)
+    for ref, html, _ in sorted(rows["ArticleEmbedItems"], key=lambda row: (row[2] is None, row[2])):
+        unique = articles[f"article:{pseudonym(ref)}"]
+        for paragraph in article_paragraphs(html):
+            unique.setdefault(norm_label(paragraph), paragraph)
+    return {key: tuple(unique.values()) for key, unique in articles.items() if unique}
 
 
 def course_sections(rows: dict[str, list[list]]) -> dict[tuple[str, str], list[str]]:
@@ -211,12 +254,17 @@ def write_catalog(directory: Path, columns: dict[str, tuple[str, ...]], rows: di
     sections = course_sections(rows)
     signals = []
     details = []
+    search_metadata = []
     with closing(sqlite3.connect(catalog_path)) as database, database:
         for material in staged.materials.values():
             fmt, ref = material.id.split(":", 1)
             if not material.available:
                 continue
             source = source_cards[fmt, ref]
+            if fmt == "article" and material.access == "open" and is_indexable_article(source):
+                description = article_description(source.get("Description")) or article_description(source.get("DescriptionTag"))
+                if description:
+                    search_metadata.append((ref, description))
             if title := source["Title"]:
                 database.execute(f'UPDATE "{ENTITY_TABLES[fmt]}" SET "Title" = ? WHERE "Id" = ?', (title, ref))
                 signals.extend((ref, fmt, code, 1) for code in parse_task(title).signals)
@@ -239,6 +287,10 @@ def write_catalog(directory: Path, columns: dict[str, tuple[str, ...]], rows: di
             'PRIMARY KEY ("MaterialId", "MaterialFormat")) WITHOUT ROWID'
         )
         database.executemany(f'INSERT INTO "{DETAILS_TABLE}" VALUES (?, ?, ?, ?, ?, ?)', details)
+        database.execute(
+            f'CREATE TABLE "{SEARCH_TABLE}" ("ArticleId" TEXT PRIMARY KEY, "Description" TEXT NOT NULL) WITHOUT ROWID'
+        )
+        database.executemany(f'INSERT INTO "{SEARCH_TABLE}" VALUES (?, ?)', search_metadata)
     with closing(sqlite3.connect(signals_path)) as database, database:
         database.execute(
             'CREATE TABLE "MaterialSignals" ('
@@ -251,6 +303,12 @@ def write_catalog(directory: Path, columns: dict[str, tuple[str, ...]], rows: di
     if catalog.coverage["signals_source"] != "loaded" or catalog.coverage["signal_links"]["loaded"] != len(signals):
         raise ImportErrorDetail("Проверка базы признаков не прошла")
     return catalog
+
+
+def is_indexable_article(source: dict) -> bool:
+    return source.get("IsPublic") is True and all(
+        source.get(flag) is False for flag in ("IsClosed", "IsDeleted", "NoIndex")
+    )
 
 
 def import_backup(backup: Path, output: Path) -> Catalog:

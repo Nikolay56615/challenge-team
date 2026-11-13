@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any
 from .course_details import CourseDetails
 
 if TYPE_CHECKING:
+    from .global_search import SearchIndex
+    from .task_search import TaskIndex
     from .text_search import TextIndex
 
 # Код материала: одно правило для загрузчика JSON и для истории в запросе (schemas.HistoryEventIn).
@@ -93,6 +95,9 @@ class Catalog:
     disabled_features: tuple[str, ...] = ()
     coverage: dict[str, Any] = field(default_factory=dict)
     text_index: TextIndex | None = None
+    task_index: TaskIndex | None = None
+    search_index: SearchIndex | None = None
+    search_fallback: SearchIndex | None = None
 
     @property
     def size(self) -> int:

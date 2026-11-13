@@ -29,9 +29,19 @@ def load_catalog(settings: Settings) -> Catalog:
             settings.catalog_path,
             signals_path=settings.catalog_signals_path,
             mapping_path=settings.catalog_mapping,
+            relevance="task" if settings.catalog_relevance == "task" else "legacy",
         )
+        if settings.catalog_relevance in {"lexical", "hybrid"}:
+            from .global_search import configure
+            from .sqlite_source import search_cards
+
+            configure(catalog, settings, search_cards(settings.catalog_path, catalog))
     else:  # pragma: no cover - значение проверено в config
         raise CatalogError(f"Неизвестный источник каталога: {settings.catalog_source}")
+    catalog.coverage.setdefault("relevance", {
+        "requested": settings.catalog_relevance,
+        "effective": "task" if catalog.task_index else "legacy",
+    })
     log.info(
         "catalog loaded source=%s version=%s size=%d disabled=%s",
         catalog.source,

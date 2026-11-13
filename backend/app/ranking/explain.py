@@ -220,6 +220,10 @@ def text_match_reasons(field: str, ranking_reasons: list[str]) -> list[str]:
     return _fit([("text", f"Ключевые слова запроса совпали {field}"), *[("ranking", reason) for reason in ranking_reasons]])
 
 
+def task_match_reasons(field: str, ranking_reasons: list[str]) -> list[str]:
+    return _fit([("text", f"Действие и объект задачи указаны {field}"), *[("ranking", reason) for reason in ranking_reasons]])
+
+
 def next_step(material: Material) -> str:
     return material.next_step or vocab.NEXT_STEP_BY_FORMAT.get(material.format, "Откройте материал и отметьте главное")
 
@@ -342,6 +346,7 @@ def results_message(
     signal: str | None,
     missing: tuple[str, ...] = (),
     text_order: bool = False,
+    task_order: bool = False,
 ) -> str:
     """Строка состояния для `strong` и `weak`.
 
@@ -354,6 +359,8 @@ def results_message(
     head = f"Нашли {total} {word} {where}."
     if missing:
         head = f"{head} {no_materials_text(missing)}."
+    if task_order:
+        return f"{head} Сначала показываем материалы, связанные с задачей."
     if text_order:
         return f"{head} Сначала показываем совпадения по словам запроса."
     return _with_tail(head, _order_sentence(method=method, ctx=ctx, items=items, total=total, signal=signal))
@@ -372,6 +379,7 @@ def signal_results_message(
     gaps: Sequence[str] = (),
     missing: Sequence[str] = (),
     text_order: bool = False,
+    task_order: bool = False,
 ) -> str:
     """Строка состояния, когда задача называет понятие признака, но не тему: «Какую CRM выбрать».
 
@@ -384,6 +392,8 @@ def signal_results_message(
         head = f"{head} Материалов {_about(quoted([vocab.signal_label(s) for s in missing]))} пока нет."
     if gaps:
         head = f"Материалов о {gaps[0]} пока нет. {head}"
+    if task_order:
+        return f"{head} Сначала показываем материалы, связанные с задачей."
     if text_order:
         return f"{head} Сначала показываем совпадения по словам запроса."
     return _with_tail(head, _order_sentence(method="personal", ctx=ctx, items=items, total=total, signal=None))

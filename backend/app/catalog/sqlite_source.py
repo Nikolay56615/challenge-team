@@ -28,10 +28,12 @@ from pathlib import Path
 from typing import Any
 
 from .. import vocab
+from .article_text import article_description
 from .course_details import CourseDetails
 from .coverage import disabled_features, normalize_popularity, summarize
 from .mapping import CatalogMapping, load_mapping, norm_label
 from .models import Catalog, CatalogError, Material
+from .task_search import TaskIndex
 from .text_search import TextIndex
 
 log = logging.getLogger("app.catalog")
@@ -81,6 +83,7 @@ COUNTED_TABLES: tuple[str, ...] = (
 SIGNALS_TABLE = "MaterialSignals"
 SIGNALS_COLUMNS = ("MaterialId", "MaterialFormat", "SignalCode", "MatchedTitle")
 DETAILS_TABLE = "MaterialDetails"
+SEARCH_TABLE = "ArticleSearchMetadata"
 DETAILS_COLUMNS = ("MaterialId", "MaterialFormat", "PlatformUrl", "LessonCount", "HasCertificate")
 PLATFORM_SECTIONS = {"article": "articles", "course": "courses", "document": "documents", "webinar": "webinars"}
 SLUG = re.compile(r"[a-z0-9_-]+")
@@ -116,7 +119,8 @@ def platform_url(fmt: str, slug: object) -> str | None:
 
 
 def load_sqlite_catalog(
-    db_path: Path, *, signals_path: Path | None = None, mapping_path: Path | None = None
+    db_path: Path, *, signals_path: Path | None = None, mapping_path: Path | None = None,
+    relevance: str = "legacy", passages: dict[str, tuple[str, ...]] | None = None,
 ) -> Catalog:
     mapping = load_mapping(mapping_path)
     path = Path(db_path)
@@ -125,6 +129,7 @@ def load_sqlite_catalog(
         reader = _Reader(db, mapping)
         reader.read()
         version = _version(path)
+        descriptions = _read_search_descriptions(db) if relevance in {"task", "metadata"} else {}
     if not reader.entries:
         raise CatalogError("Каталог пуст: в таблицах материалов нет записей")
     stats = reader.stats
@@ -148,7 +153,34 @@ def load_sqlite_catalog(
         disabled_features=disabled_features(materials, signals_loaded=stats["signals_source"] == "loaded"),
         coverage=summarize(materials, **stats),
         text_index=TextIndex(materials),
+        task_index=TaskIndex(materials, descriptions, metadata=relevance != "titles", passages=passages)
+        if relevance != "legacy" else None,
     )
+
+
+def _read_search_descriptions(db: _Database) -> dict[str, str]:
+    if not all(db.has(SEARCH_TABLE, column) for column in ("ArticleId", "Description")):
+        return {}
+    flags = ("IsPublic", "IsDeleted", "IsClosed", "NoIndex")
+    if not all(db.has("Articles", flag) for flag in flags):
+        return {}
+    sql = (
+        f"SELECT s.[ArticleId], s.[Description], a.[IsPublic], a.[IsDeleted], a.[IsClosed], a.[NoIndex] "
+        f"FROM [{SEARCH_TABLE}] s JOIN [Articles] a ON a.[Id] = s.[ArticleId]"
+    )
+    return {
+        f"article:{key}": text
+        for ref, value, public, deleted, closed, no_index in db.rows(SEARCH_TABLE, sql)
+        if (key := _ref(ref)) and _flag(public) is True and _flag(deleted) is False
+        and _flag(closed) is False and _flag(no_index) is False and (text := article_description(value))
+    }
+
+
+def search_cards(path: Path, catalog: Catalog):
+    from .global_search import cards_for
+
+    with closing(_Database(path, "каталога")) as db:
+        return cards_for(catalog, _read_search_descriptions(db))
 
 
 class _Database:

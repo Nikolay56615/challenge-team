@@ -62,6 +62,7 @@ def test_log_level_typo_stops_startup(value):
         ({"MAX_TASK_LENGTH": "abc"}, "MAX_TASK_LENGTH должен быть целым числом"),
         ({"MAX_TASK_LENGTH": "2001"}, "MAX_TASK_LENGTH должен быть в диапазоне 1–2000"),
         ({"CATALOG_SOURCE": "sqllite"}, "CATALOG_SOURCE должен быть одним из: synthetic, sqlite, file"),
+        ({"CATALOG_RELEVANCE": "other"}, "CATALOG_RELEVANCE должен быть одним из: legacy, task, lexical, hybrid"),
     ],
 )
 def test_other_invalid_values_name_the_variable(env, message):
@@ -73,6 +74,11 @@ def test_app_port_is_not_read_by_the_app():
     # В контейнере сервис всегда слушает 8000; APP_PORT — только порт на машине пользователя в compose
     assert "app_port" not in {f.name for f in dataclasses.fields(Settings)}
     assert load_settings({"APP_PORT": "not-a-port"}) == Settings()
+
+
+def test_task_relevance_is_opt_in():
+    assert load_settings({}).catalog_relevance == "legacy"
+    assert load_settings({"CATALOG_RELEVANCE": " Task "}).catalog_relevance == "task"
 
 
 @pytest.mark.parametrize(("name", "level"), [("warning", logging.WARNING), ("debug", logging.DEBUG), ("info", logging.INFO)])

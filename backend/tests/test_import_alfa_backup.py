@@ -11,7 +11,7 @@ import pytest
 
 from app.ranking.base import HistoryIndex
 from app.ranking.policy import eligible
-from app.catalog.sqlite_source import DETAILS_TABLE, load_sqlite_catalog, platform_url
+from app.catalog.sqlite_source import DETAILS_TABLE, SEARCH_TABLE, load_sqlite_catalog, platform_url
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 
@@ -35,8 +35,13 @@ def test_sqlite_export_keeps_catalog_links_and_only_available_titles(tmp_path):
     article_columns, article_rows = source["Articles"]
     first = list(article_rows[0])
     first[article_columns.index("Title")] = "Как выбрать налоговый режим для ИП"
-    source["Articles"] = ([*article_columns, "Content", "Url"], [
-        (*row, "закрытый текст", f"article_{index}") for index, row in enumerate([first, *article_rows[1:]])
+    flags = [article_columns.index(flag) for flag in ("IsDeleted", "IsPublic", "IsClosed")]
+    source["Articles"] = ([*article_columns, "Content", "Url", "NoIndex", "Description", "DescriptionTag"], [
+        (*[bool(value) if col in flags else value for col, value in enumerate(row)],
+         "закрытый текст", f"article_{index}", index == 4,
+         "" if index == 0 else "Описание скрытого материала",
+         "<p>Сравним налоговые режимы</p><script>закрытый текст</script>")
+        for index, row in enumerate([first, *article_rows[1:]])
     ])
     for table, slug in (("Documents", "document"), ("Webinars", "webinar"), ("Podcasts", "podcast")):
         names, original_rows = source[table]
@@ -104,10 +109,15 @@ def test_sqlite_export_keeps_catalog_links_and_only_available_titles(tmp_path):
 
     with closing(sqlite3.connect(tmp_path / CATALOG_FILE)) as database:
         table_names = {row[0] for row in database.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-        assert table_names == (columns.keys() - COURSE_INFO_COLUMNS.keys()) | {DETAILS_TABLE}
+        assert table_names == (columns.keys() - COURSE_INFO_COLUMNS.keys()) | {DETAILS_TABLE, SEARCH_TABLE}
         assert "Description" not in [row[1] for row in database.execute('PRAGMA table_info("Courses")')]
         assert [row[1] for row in database.execute('PRAGMA table_info("CourseUserBindings")')] == ["CourseId"]
-        assert {"Content", "Url"}.isdisjoint(row[1] for row in database.execute('PRAGMA table_info("Articles")'))
+        assert {"Content", "Url", "Description", "DescriptionTag"}.isdisjoint(
+            row[1] for row in database.execute('PRAGMA table_info("Articles")')
+        )
+        assert database.execute(f'SELECT * FROM "{SEARCH_TABLE}"').fetchall() == [
+            (pseudonym("A-101"), "Сравним налоговые режимы")
+        ]
         assert {row[0] for row in database.execute('SELECT "Id" FROM "Articles"')}.isdisjoint({"A-101", "A-103"})
         stored = {row[0] for row in database.execute(f'SELECT "MaterialId" FROM "{DETAILS_TABLE}"')}
         assert stored.isdisjoint({pseudonym("C-202"), pseudonym("A-103")})
@@ -142,8 +152,11 @@ def test_sqlite_export_keeps_catalog_links_and_only_available_titles(tmp_path):
 
     with closing(sqlite3.connect(tmp_path / CATALOG_FILE)) as database, database:
         database.execute(f'DROP TABLE "{DETAILS_TABLE}"')
-    legacy = load_sqlite_catalog(tmp_path / CATALOG_FILE).materials[course.id]
+        database.execute(f'DROP TABLE "{SEARCH_TABLE}"')
+    legacy_catalog = load_sqlite_catalog(tmp_path / CATALOG_FILE, relevance="task")
+    legacy = legacy_catalog.materials[course.id]
     assert legacy.url is None and legacy.lesson_count is None and legacy.has_certificate is None
+    assert legacy_catalog.task_index is not None
 
 
 @pytest.mark.parametrize("slug", [None, "", "../course", "//evil.example", "test?x=y", "test#x", "%2f", " тест", "UP"])

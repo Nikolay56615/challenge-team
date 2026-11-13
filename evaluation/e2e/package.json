@@ -5,7 +5,8 @@
   "scripts": {
     "install:browser": "playwright-core install chromium --only-shell",
     "check:ui": "node check_ui.mjs",
-    "check:a11y": "node check_a11y.mjs"
+    "check:a11y": "node check_a11y.mjs",
+    "check:task-search": "node check_task_search.mjs"
   },
   "devDependencies": {
     "axe-core": "4.14.0",

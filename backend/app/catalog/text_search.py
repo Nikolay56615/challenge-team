@@ -30,12 +30,14 @@ def _words(text: str) -> Iterator[str]:
         yield from token.split("-")
 
 
-def _keys(words: Iterable[str]) -> set[str]:
+def _stems(words: Iterable[str]) -> Iterator[str]:
     stemmer = snowballstemmer.stemmer("russian")
-    return {
-        f"={word}" if word in ABBREVIATIONS or word in QUALIFIERS else stemmer.stemWord(word)
-        for word in words
-    }
+    for word in words:
+        yield f"={word}" if word in ABBREVIATIONS or word in QUALIFIERS else stemmer.stemWord(word)
+
+
+def _keys(words: Iterable[str]) -> set[str]:
+    return set(_stems(words))
 
 
 def _intersection(index: dict[str, set[str]], keys: set[str]) -> frozenset[str]:

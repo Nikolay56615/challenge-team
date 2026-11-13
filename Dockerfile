@@ -29,3 +29,11 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
 # LOG_LEVEL задаёт и уровень uvicorn, регистр не важен. Неизвестное значение uvicorn получает как info,
 # а приложение при запуске отклоняет его с сообщением, где названа переменная.
 CMD ["sh", "-c", "level=$(printf '%s' \"${LOG_LEVEL:-info}\" | tr '[:upper:]' '[:lower:]'); case \"$level\" in debug|info|warning|error|critical) ;; *) level=info ;; esac; exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level \"$level\""]
+
+FROM runtime AS semantic
+USER root
+COPY backend/requirements-search.txt /tmp/requirements-search.txt
+RUN pip install -r /tmp/requirements-search.txt && rm /tmp/requirements-search.txt
+USER appuser
+
+FROM runtime AS default

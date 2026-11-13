@@ -124,12 +124,13 @@ npm --prefix evaluation/e2e run check:a11y
 | `CATALOG_PATH` | Путь к копии SQLite или к JSON в каноническом формате | пусто, с `compose.data.yaml` — `/data/catalog.sqlite3` |
 | `CATALOG_SIGNALS_PATH` | Необязательная база признаков из названий и описаний | пусто, с `compose.data.yaml` — `/data/catalog-signals.sqlite3` |
 | `CATALOG_MAPPING` | Файл соответствия для другой выгрузки, образец — `backend/data/mapping.example.yaml` | пусто |
+| `CATALOG_RELEVANCE` | `legacy`, `task`, `lexical` или `hybrid` для персонального подбора из SQLite | `legacy` |
 | `LOCAL_DATA_DIR` | Папка с выгрузкой на машине пользователя, нужна только для `compose.data.yaml` | пусто |
 | `DEMO_MODE` | Тестовые профили и режим сравнения: `true`, `false`, `1`, `0`, `yes`, `no`, `on` или `off` | `true` |
 | `MAX_TASK_LENGTH` | Предел длины задачи, от 1 до 2000 символов | `300` |
 | `LOG_LEVEL` | Уровень журнала приложения и uvicorn: `debug`, `info`, `warning`, `error` или `critical` | `info` |
 
-Для `CATALOG_SOURCE`, `DEMO_MODE` и `LOG_LEVEL` регистр не важен. Недопустимое значение этих переменных или `MAX_TASK_LENGTH` останавливает запуск с сообщением, где названа переменная.
+Для `CATALOG_SOURCE`, `CATALOG_RELEVANCE`, `DEMO_MODE` и `LOG_LEVEL` регистр не важен. Недопустимое значение этих переменных или `MAX_TASK_LENGTH` останавливает запуск с сообщением, где названа переменная.
 
 Приложение само не читает `.env`. С Docker переменные берутся из оболочки или из файла `.env` рядом с `compose.yaml`, образец — [env.example](env.example). Без Docker они задаются в оболочке. Журнал пишет код запроса, статус, число кандидатов и длительность, но не текст задачи.
 

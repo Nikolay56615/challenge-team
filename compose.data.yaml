@@ -7,10 +7,17 @@
 # В Linux контейнер читает файлы от uid 10001: права описаны в README, раздел «Своя выгрузка каталога».
 services:
   app:
+    build:
+      target: ${CATALOG_BUILD_TARGET:-runtime}
     environment:
       CATALOG_SOURCE: ${CATALOG_SOURCE:-sqlite}
       CATALOG_PATH: ${CATALOG_PATH:-/data/catalog.sqlite3}
       CATALOG_SIGNALS_PATH: ${CATALOG_SIGNALS_PATH:-/data/catalog-signals.sqlite3}
       CATALOG_MAPPING: ${CATALOG_MAPPING:-}
+      CATALOG_RELEVANCE: ${CATALOG_RELEVANCE:-legacy}
+      CATALOG_SEARCH_DIR: ${CATALOG_SEARCH_DIR:-}
+      CATALOG_SEARCH_POLICY: ${CATALOG_SEARCH_POLICY:-}
+      CATALOG_MODEL_DIR: /model
     volumes:
       - ${LOCAL_DATA_DIR:?Укажите LOCAL_DATA_DIR — папку с копией выгрузки}:/data:ro
+      - ${LOCAL_MODEL_DIR:-./backend/data}:/model:ro

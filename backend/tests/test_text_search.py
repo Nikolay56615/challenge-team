@@ -2,6 +2,7 @@ from dataclasses import replace
 
 from app.catalog.course_details import CourseDetails
 from app.catalog.models import Catalog, HistoryEvent, Material
+from app.catalog.task_search import TaskIndex
 from app.catalog.text_search import TextIndex
 from app.ranking.base import MaterialFilters, Profile
 from app.ranking.policy import recommend
@@ -77,3 +78,64 @@ def test_description_alone_does_not_open_global_search():
                  course_details=CourseDetails("Штатное расписание", (), ())),
     )
     assert recommend(catalog, Profile(task="Как составить штатное расписание")).status == "none"
+
+
+def test_task_intent_uses_title_synonyms_and_one_field_at_a_time():
+    catalog = indexed(
+        Material("ordinary", "Как наладить работу команды", "article", topics=("team",), popularity=1),
+        Material("intent", "Приём работника на работу", "article", topics=("team",)),
+        Material("leave", "Оформление отпуска сотрудника", "article", topics=("team",), popularity=0.9),
+        Material("split", "Кадровая работа", "course", topics=("team",), popularity=0.8,
+                 course_details=CourseDetails(None, ("Сотрудники",), ("Как оформить",))),
+        Material("description", "Первые шаги руководителя", "article", topics=("team",)),
+    )
+    catalog.task_index = TaskIndex(catalog.materials.values(), {"description": "Наём персонала"})
+    profile = Profile(task="Как оформить сотрудника", topic="team")
+    result = recommend(catalog, profile)
+    assert ids(result)[:2] == ["intent", "description"]
+    assert "Действие и объект задачи указаны в названии" in result.reasons[0]
+    assert "Действие и объект задачи указаны в описании статьи" in result.reasons[1]
+    assert "материалы, связанные с задачей" in result.message
+    assert ids(recommend(catalog, profile, "baseline"))[0] == "ordinary"
+    assert catalog.task_index.match("Как оформить отпуск сотрудника", ["intent"]) == {}
+    assert catalog.task_index.match("Нужно оформить", ["intent", "description"]) == {}
+
+
+def test_task_ranking_preserves_exact_results_scope_and_filters():
+    catalog = indexed(
+        Material("general", "Отчётность бизнеса", "article", topics=("taxes_law",), popularity=1),
+        Material("exact", "Декларация УСН для бухгалтерской отчётности", "document", topics=("taxes_law",)),
+        Material("description", "Календарь предпринимателя", "article", topics=("taxes_law",)),
+        Material("substring", "Декларация и отчётность УСНка", "article", topics=("taxes_law",), popularity=0.9),
+        Material("hidden", "Отчётность, декларация УСН", "article", topics=("taxes_law",), available=False),
+        Material("bought", "Годовая декларация УСН", "article", topics=("taxes_law",), access="paid"),
+        Material("outside", "Декларация УСН и бухгалтерская отчётность для бизнеса", "document", topics=("finance",)),
+    )
+    catalog.task_index = TaskIndex(catalog.materials.values(), {"description": "Годовая декларация УСН и отчётность"})
+    profile = Profile(task="Бухгалтерская отчётность и декларация УСН", topic="taxes_law",
+                      history=(HistoryEvent("bought", "purchase", 1),))
+    result = recommend(catalog, profile)
+    assert ids(result)[:2] == ["exact", "description"]
+    assert "Ключевые слова запроса совпали в описании статьи" in result.reasons[1]
+    assert result.total_candidates == 4
+    assert ids(recommend(catalog, replace(profile, limit=3))) == ids(result)[:3]
+    assert ids(recommend(catalog, replace(profile, topic="finance"))) == ["outside"]
+    filtered = recommend(catalog, replace(profile, filters=MaterialFilters(format="article", access="open")))
+    assert ids(filtered) == ["description", "general", "substring"]
+    assert recommend(catalog, Profile(task="Нужна виза")).status == "none"
+
+
+def test_paragraph_evidence_is_local_to_one_passage():
+    materials = [
+        Material("direct", "Советы руководителю", "article"),
+        Material("split", "Годовой обзор", "article"),
+        Material("closed", "Годовой курс", "article", access="paid"),
+    ]
+    index = TaskIndex(materials, passages={
+        "direct": ("Расскажем, как нанять работника",),
+        "split": ("Команда сотрудников", "Что нужно оформить"),
+        "closed": ("Как нанять сотрудника",),
+    })
+    matched = index.match("Оформить сотрудника", ["direct", "split", "closed"])
+    assert set(matched) == {"direct"}
+    assert matched["direct"].field == "в тексте статьи"
