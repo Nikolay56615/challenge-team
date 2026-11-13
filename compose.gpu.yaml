@@ -1,0 +1,21 @@
+services:
+  app:
+    image: track1-recommender-gpu:local
+    build:
+      target: gpu
+    environment:
+      CATALOG_RELEVANCE: ${CATALOG_RELEVANCE:-reranked}
+      CATALOG_RERANK_DIR: ${CATALOG_RERANK_DIR:-}
+      CATALOG_RERANK_POLICY: ${CATALOG_RERANK_POLICY:-}
+      CATALOG_RERANK_MODEL_DIR: /reranker
+      CATALOG_RERANK_ENCODER_DIR: ${CATALOG_RERANK_ENCODER_DIR:-}
+    volumes:
+      - ${LOCAL_RERANK_MODEL_DIR:?Укажите папку модели}:/reranker:ro
+      - ${LOCAL_RERANK_ENCODER_DIR:-./backend/data}:/encoder:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

@@ -339,12 +339,26 @@ def _search_outcome(
     matches: TextMatches, observe: CandidateObserver | None,
 ) -> Outcome | None:
     topics = (profile.topic,) if profile.topic else parsed.topics
-    scoped = {m.id for m in pool if not profile.topic or profile.topic in m.topics}
+    scoped_pool = [m for m in pool if not profile.topic or profile.topic in m.topics]
+    scoped = {m.id for m in scoped_pool}
+    filter_options = None
     for index in (catalog.search_index, catalog.search_fallback):
         if index is None:
             return None
         try:
-            hits = index.match(profile.task, scoped, matches.titles)
+            reranked = index.mode == "reranked"
+            if reranked:
+                filtered_pool, filter_options = _filter_candidates(scoped_pool, profile.filters, None)
+                constraints = parsed.gaps if not profile.topic and not parsed.concepts else ()
+                hits = index.match(profile.task, {m.id for m in filtered_pool}, matches.titles, constraints)
+                if len(filtered_pool) != len(scoped) and not hits:
+                    return Outcome("personal", "weak", topics, [], [], 0, FILTERS_EMPTY_MESSAGE, None, [],
+                                   filter_options)
+            else:
+                filter_options = None
+                if not profile.topic and parsed.gaps and not parsed.concepts:
+                    return _title_match_outcome(catalog, profile, parsed, history, pool, "personal", observe)
+                hits = index.match(profile.task, scoped, matches.titles)
             break
         except SearchUnavailable:
             continue
@@ -369,15 +383,22 @@ def _search_outcome(
         key = item.material.id
         hit = hits[key]
         exact = matches.priority(key) if key in matches.titles else 0
+        if reranked:
+            bonus = 0.015 * bool(exact) if not index.protect_exact else 0
+            relevance = round((hit.score + bonus) / 0.025)
+            return -exact if index.protect_exact and hit.strong else 0, False, -relevance
         score = 0.9 * hit.score / max_score + 0.1 * (1 - positions[key] / last)
         return -exact, not hit.strong, -score
 
     ranked.sort(key=order)
-    filtered, filter_options = _filter_candidates(candidates, profile.filters, None)
+    filtered, hit_options = _filter_candidates(candidates, profile.filters, None)
+    filter_options = filter_options or hit_options
     keys = {m.id for m in filtered}
     ranked = [item for item in ranked if item.material.id in keys]
-    strong = hits[ranked[0].material.id].strong if ranked else any(hit.strong for hit in hits.values())
-    if strong:
+    strong = hits[ranked[0].material.id].strong if ranked else any(
+        hit.strong for hit in hits.values()
+    )
+    if strong and not reranked:
         ranked = [item for item in ranked if hits[item.material.id].strong]
     if observe is not None:
         observe([item.material for item in ranked])
@@ -414,7 +435,9 @@ def recommend(
     explicit = profile.topic is not None
     topics: tuple[str, ...] = (profile.topic,) if explicit else parsed.topics
 
-    if not explicit and parsed.gaps and not parsed.concepts:
+    if not explicit and parsed.gaps and not parsed.concepts and (
+        method == "baseline" or not catalog.search_index or catalog.search_index.mode != "reranked"
+    ):
         return _title_match_outcome(catalog, profile, parsed, history, pool, method, observe)
 
     matches = catalog.text_index.match(profile.task) if method == "personal" and catalog.text_index else TextMatches()
@@ -422,6 +445,8 @@ def recommend(
         outcome = _search_outcome(catalog, profile, parsed, history, pool, matches, observe)
         if outcome is not None:
             return outcome
+    if not explicit and parsed.gaps and not parsed.concepts:
+        return _title_match_outcome(catalog, profile, parsed, history, pool, method, observe)
 
     # Тема выведена из понятия признака, сама задача её не называет
     signal_only = parsed.topics_from_signals and not explicit

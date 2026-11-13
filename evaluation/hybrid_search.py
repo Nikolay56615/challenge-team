@@ -71,12 +71,15 @@ def confidence_interval(cases, current, proposed):
     return [samples[50], samples[1949]]
 
 
-def review_pool(cases, runs, cards, second):
+def review_pool(cases, runs, cards, second, *, depth=10, candidate_pools=None, candidate_depth=50):
     rows = []
     for i, case in enumerate(cases):
         keys = set() if second else set(case.get("manual", []))
+        if candidate_pools and not second:
+            for values in candidate_pools.values():
+                keys.update(values[i][:candidate_depth])
         for results in runs.values():
-            keys.update(results[i][0][:5 if second else 10])
+            keys.update(results[i][0][:5 if second else depth])
         ordered = sorted(keys, key=lambda key: sha256(f"{case['task']}\0{key}".encode()).digest())
         rows.append({
             **{key: case[key] for key in ("task", "group", "split", "family")},

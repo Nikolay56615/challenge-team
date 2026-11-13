@@ -62,7 +62,7 @@ def test_log_level_typo_stops_startup(value):
         ({"MAX_TASK_LENGTH": "abc"}, "MAX_TASK_LENGTH должен быть целым числом"),
         ({"MAX_TASK_LENGTH": "2001"}, "MAX_TASK_LENGTH должен быть в диапазоне 1–2000"),
         ({"CATALOG_SOURCE": "sqllite"}, "CATALOG_SOURCE должен быть одним из: synthetic, sqlite, file"),
-        ({"CATALOG_RELEVANCE": "other"}, "CATALOG_RELEVANCE должен быть одним из: legacy, task, lexical, hybrid"),
+        ({"CATALOG_RELEVANCE": "other"}, "CATALOG_RELEVANCE должен быть одним из: legacy, task, lexical, hybrid, reranked"),
     ],
 )
 def test_other_invalid_values_name_the_variable(env, message):

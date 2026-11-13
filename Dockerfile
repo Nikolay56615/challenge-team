@@ -36,4 +36,17 @@ COPY backend/requirements-search.txt /tmp/requirements-search.txt
 RUN pip install -r /tmp/requirements-search.txt && rm /tmp/requirements-search.txt
 USER appuser
 
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime AS gpu
+WORKDIR /srv/app/backend
+COPY --from=runtime /srv/app /srv/app
+COPY backend/requirements-search.txt backend/requirements-gpu.txt /tmp/
+RUN pip install --no-cache-dir -r requirements.txt -r /tmp/requirements-search.txt -r /tmp/requirements-gpu.txt \
+    && useradd --system --uid 10001 --no-create-home appuser
+USER appuser
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 FRONTEND_DIST=/srv/app/frontend/dist \
+    HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OPENBLAS_NUM_THREADS=1
+HEALTHCHECK --interval=15s --timeout=3s --start-period=45s --retries=4 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2)"
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
 FROM runtime AS default

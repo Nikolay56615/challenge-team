@@ -124,7 +124,7 @@ npm --prefix evaluation/e2e run check:a11y
 | `CATALOG_PATH` | Путь к копии SQLite или к JSON в каноническом формате | пусто, с `compose.data.yaml` — `/data/catalog.sqlite3` |
 | `CATALOG_SIGNALS_PATH` | Необязательная база признаков из названий и описаний | пусто, с `compose.data.yaml` — `/data/catalog-signals.sqlite3` |
 | `CATALOG_MAPPING` | Файл соответствия для другой выгрузки, образец — `backend/data/mapping.example.yaml` | пусто |
-| `CATALOG_RELEVANCE` | `legacy`, `task`, `lexical` или `hybrid` для персонального подбора из SQLite | `legacy` |
+| `CATALOG_RELEVANCE` | `legacy`, `task`, `lexical`, `hybrid` или `reranked` для персонального подбора из SQLite | `legacy` |
 | `LOCAL_DATA_DIR` | Папка с выгрузкой на машине пользователя, нужна только для `compose.data.yaml` | пусто |
 | `DEMO_MODE` | Тестовые профили и режим сравнения: `true`, `false`, `1`, `0`, `yes`, `no`, `on` или `off` | `true` |
 | `MAX_TASK_LENGTH` | Предел длины задачи, от 1 до 2000 символов | `300` |

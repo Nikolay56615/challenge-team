@@ -18,7 +18,7 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
-from app.catalog.article_text import article_description, article_paragraphs
+from app.catalog.article_text import article_description, article_paragraphs, article_sections
 from app.catalog.course_details import CourseDetails
 from app.catalog.lexicon import parse_task
 from app.catalog.mapping import norm_label
@@ -186,7 +186,7 @@ def pseudonym(value: str) -> str:
     return uuid5(NAMESPACE_URL, f"alfa-course-catalog:{value}").hex
 
 
-def read_article_paragraphs(backup: Path, catalog: Catalog) -> dict[str, tuple[str, ...]]:
+def read_article_paragraphs(backup: Path, catalog: Catalog, *, sections: bool = False):
     def select(schema: dict[str, set[str]]) -> dict[str, tuple[str, ...]]:
         for table, names in PARAGRAPH_COLUMNS.items():
             required = set(names) | ({"Type"} if table == "ArticleEmbedItems" else set())
@@ -200,11 +200,35 @@ def read_article_paragraphs(backup: Path, catalog: Catalog) -> dict[str, tuple[s
     )
     _, rows = read_backup_rows(backup.resolve(), select, paragraph_articles=allowed)
     articles: dict[str, dict[str, str]] = defaultdict(dict)
+    headings: dict[str, str] = {}
     for ref, html, _ in sorted(rows["ArticleEmbedItems"], key=lambda row: (row[2] is None, row[2])):
         unique = articles[f"article:{pseudonym(ref)}"]
-        for paragraph in article_paragraphs(html):
-            unique.setdefault(norm_label(paragraph), paragraph)
+        if sections:
+            for heading, paragraph in article_sections(html, headings.get(ref, "")):
+                headings[ref] = heading
+                if paragraph:
+                    unique.setdefault(norm_label(paragraph), (heading, paragraph))
+        else:
+            for paragraph in article_paragraphs(html):
+                unique.setdefault(norm_label(paragraph), paragraph)
     return {key: tuple(unique.values()) for key, unique in articles.items() if unique}
+
+
+def read_public_descriptions(backup: Path, catalog: Catalog) -> dict[str, str]:
+    tables = {"Documents": "document", "Webinars": "webinar", "Podcasts": "podcast"}
+    required = ("Id", "Description", "DescriptionTag", "NoIndex")
+    _, rows = read_backup_rows(backup.resolve(), lambda schema: {
+        table: required for table in tables if set(required) <= schema.get(table, set())
+    })
+    descriptions = {}
+    for table, fmt in tables.items():
+        for ref, description, fallback, no_index in rows.get(table, ()):
+            key = f"{fmt}:{pseudonym(ref)}"
+            material = catalog.materials.get(key)
+            if material and material.available and material.access == "open" and no_index is False:
+                if text := article_description(description) or article_description(fallback):
+                    descriptions[key] = text
+    return descriptions
 
 
 def course_sections(rows: dict[str, list[list]]) -> dict[tuple[str, str], list[str]]:

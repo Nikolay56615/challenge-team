@@ -143,7 +143,7 @@ def configure(catalog, settings, cards: list[Card]) -> None:
         coverage["effective"] = catalog.search_index.mode
 
 
-def build(directory: Path, cards: list[Card], model: Path | None) -> None:
+def build(directory: Path, cards: list[Card], model: Path | None, *, encoder_kind: str = "e5") -> None:
     index = directory / "lexical.sqlite3"
     with closing(sqlite3.connect(index)) as db, db:
         db.execute("CREATE VIRTUAL TABLE search USING fts5(id UNINDEXED, title, description, details)")
@@ -153,13 +153,35 @@ def build(directory: Path, cards: list[Card], model: Path | None) -> None:
         ))
     manifest = {"schema": 3, "catalog": fingerprint(cards), "lexical": digest(index)}
     if model:
-        checksums = {name: digest(model / name) for name in MODEL_FILES}
-        encoder = Encoder(model)
+        checksums = model_checksums(model, encoder_kind)
+        encoder = make_encoder(model, encoder_kind)
+        import numpy as np
+
         batches = [encoder.encode([c.text for c in cards[i:i + 16]]) for i in range(0, len(cards), 16)]
         vectors = directory / "vectors.npy"
-        encoder.np.save(vectors, encoder.np.concatenate(batches), allow_pickle=False)
-        manifest.update(model=checksums, vectors=digest(vectors))
+        np.save(vectors, np.concatenate(batches), allow_pickle=False)
+        manifest.update(model=checksums, vectors=digest(vectors), encoder=encoder_kind)
     (directory / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def model_checksums(directory: Path, kind: str) -> dict[str, str]:
+    if kind == "e5":
+        return {name: digest(directory / name) for name in MODEL_FILES}
+    names = sorted(p.name for p in directory.iterdir()
+                   if p.suffix in {".json", ".safetensors", ".txt", ".model"})
+    if not {"config.json", "model.safetensors", "tokenizer.json"} <= set(names):
+        raise ValueError("incomplete model")
+    return {name: digest(directory / name) for name in names}
+
+
+def make_encoder(directory: Path, kind: str):
+    if kind == "e5":
+        return Encoder(directory)
+    if kind == "qwen-embedding":
+        from .neural_rank import LocalModel
+
+        return LocalModel(directory, kind)
+    raise ValueError("unsupported encoder")
 
 
 class SearchIndex:
@@ -181,14 +203,17 @@ class SearchIndex:
                     or manifest["lexical"] != digest(self.path)):
                 raise ValueError("index")
             if mode != "lexical":
+                kind = manifest.get("encoder", "e5")
                 vectors = directory / "vectors.npy"
                 if (model is None or manifest["vectors"] != digest(vectors)
-                        or manifest["model"] != {name: digest(model / name) for name in MODEL_FILES}):
+                        or manifest["model"] != model_checksums(model, kind)):
                     raise ValueError("model")
-                self.encoder = Encoder(model)
-                np = self.encoder.np
+                import numpy as np
+
+                self.encoder = make_encoder(model, kind)
                 self.vectors = np.load(vectors, allow_pickle=False)
-                if (self.vectors.shape != (len(cards), 384) or self.vectors.dtype != np.float32
+                dimension = {"e5": 384, "qwen-embedding": 1024}[kind]
+                if (self.vectors.shape != (len(cards), dimension) or self.vectors.dtype != np.float32
                         or not np.isfinite(self.vectors).all()):
                     raise ValueError("vectors")
         except Exception as error:

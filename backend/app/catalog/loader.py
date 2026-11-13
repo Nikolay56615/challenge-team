@@ -31,11 +31,17 @@ def load_catalog(settings: Settings) -> Catalog:
             mapping_path=settings.catalog_mapping,
             relevance="task" if settings.catalog_relevance == "task" else "legacy",
         )
-        if settings.catalog_relevance in {"lexical", "hybrid"}:
+        if settings.catalog_relevance in {"lexical", "hybrid", "reranked"}:
             from .global_search import configure
             from .sqlite_source import search_cards
 
-            configure(catalog, settings, search_cards(settings.catalog_path, catalog))
+            cards = search_cards(settings.catalog_path, catalog)
+            if settings.catalog_relevance == "reranked":
+                from .reranked_search import configure_reranked
+
+                configure_reranked(catalog, settings, cards)
+            else:
+                configure(catalog, settings, cards)
     else:  # pragma: no cover - значение проверено в config
         raise CatalogError(f"Неизвестный источник каталога: {settings.catalog_source}")
     catalog.coverage.setdefault("relevance", {

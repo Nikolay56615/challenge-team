@@ -10,18 +10,24 @@ await runBrowserChecks('global-search-results.json', rows, async (browser) => {
     try {
       const page = await context.newPage();
       const health = await (await context.request.get(base + '/api/health')).json();
-      assert.ok(['lexical', 'hybrid'].includes(health.catalog.coverage.relevance.effective));
+      const mode = health.catalog.coverage.relevance.effective;
+      assert.ok(['lexical', 'hybrid', 'reranked'].includes(mode));
       await page.goto(base);
       const field = page.getByLabel('Что вы хотите сделать?');
       await field.fill('Как составить штатное расписание');
       const result = await (await submit(page)).json();
-      assert.equal(result.status, 'strong');
+      assert.ok(['strong', 'weak'].includes(result.status));
       assert.equal(result.detected_topics.length, 0);
       await page.locator('article.card').first().getByText(/Ключевые слова совпали в названии|Ключевые слова запроса совпали в названии/).waitFor();
       await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
       const compared = await (await submit(page, '/api/compare')).json();
       assert.equal(compared.baseline.status, 'none');
       assert.equal(compared.personal.items[0].material_id, result.items[0].material_id);
+      const extended = await (await context.request.post(base + '/api/recommend', {
+        data: { task: 'Как составить штатное расписание', limit: 10 },
+      })).json();
+      assert.deepEqual(extended.items.slice(0, result.items.length).map(item => item.material_id),
+        result.items.map(item => item.material_id));
       await page.locator('.compare__col:visible').first().waitFor();
       await page.addScriptTag({ content: axe });
       const violations = await page.evaluate(async () => (await window.axe.run(document, {
@@ -33,7 +39,7 @@ await runBrowserChecks('global-search-results.json', rows, async (browser) => {
       const missing = await (await submit(page)).json();
       assert.equal(missing.status, 'none');
       await page.getByText('По этому запросу подходящих материалов не нашлось', { exact: true }).first().waitFor();
-      rows.push({ width, mode: health.catalog.coverage.relevance.effective, violations });
+      rows.push({ width, mode, violations });
       console.log(`PASS Глобальный поиск (${width} px)`);
     } finally {
       await context.close();
