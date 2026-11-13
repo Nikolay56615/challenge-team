@@ -52,13 +52,11 @@ export function TaskForm({
       <h1 id={headingId} ref={headingRef} tabIndex={-1} className="h1">
         Подберём материалы под вашу задачу
       </h1>
-      {meta?.catalog ? (
-        <p className="note">
-          {meta.catalog.source === 'synthetic'
-            ? 'Тестовый каталог'
-            : `Локальный каталог · ${formatAvailableMaterials(meta.catalog.available)}`}
-        </p>
-      ) : null}
+      <p className="note catalog-source">
+        {meta?.catalog.source === 'synthetic'
+          ? 'Тестовый каталог'
+          : meta ? `Локальный каталог · ${formatAvailableMaterials(meta.catalog.available)}` : null}
+      </p>
       <TextAreaField
         id={taskId}
         label="Что вы хотите сделать?"

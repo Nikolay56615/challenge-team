@@ -1043,6 +1043,10 @@ h3,
   text-underline-offset: .25em;
 }
 
+.catalog-source {
+  min-block-size: 1lh;
+}
+
 .catalog-topics__picker {
   display: grid;
   gap: var(--space-3);
