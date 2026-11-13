@@ -237,6 +237,24 @@ def load_tables(tmp_path: Path, tables: dict[str, Table], **kwargs):
     return load_sqlite_catalog(write_db(tmp_path / "variant.sqlite3", tables), **kwargs)
 
 
+def test_prepared_catalog_links_are_used_only_for_available_matching_materials(tmp_path):
+    tables = base_tables()
+    tables["MaterialDetails"] = (
+        ["MaterialId", "MaterialFormat", "PlatformUrl"],
+        [
+            ("A-101", "article", " https://example.org/articles/guide "),
+            ("A-101", "course", "https://example.org/courses/other"),
+            ("A-102", "article", "https://example.org/articles/hidden"),
+            ("C-201", "course", "javascript:alert(1)"),
+        ],
+    )
+    catalog = load_tables(tmp_path, tables)
+    assert catalog.materials["article:A-101"].url == "https://example.org/articles/guide"
+    assert catalog.materials["article:A-102"].url is None
+    assert catalog.materials["course:C-201"].url is None
+    assert catalog.coverage["links_total"] == 1
+
+
 @pytest.fixture
 def catalog_db(tmp_path: Path) -> Path:
     return write_db(tmp_path / "catalog.sqlite3", base_tables())

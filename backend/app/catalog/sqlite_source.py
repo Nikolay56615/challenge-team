@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import vocab
-from .coverage import disabled_features, normalize_popularity, summarize
+from .coverage import disabled_features, link_allowed, normalize_popularity, summarize
 from .mapping import CatalogMapping, load_mapping, norm_label
 from .models import Catalog, CatalogError, Material
 
@@ -213,6 +213,7 @@ class _Entry:
     fmt: str
     title: str
     duration: Any = None
+    url: str | None = None
     statuses: list[str | None] = field(default_factory=list)
     hidden: bool = False
     settings_type: str | None = None
@@ -259,6 +260,7 @@ class _Reader:
             if self.db.has(table)
         }
         self.read_entities()
+        self.read_links()
         self.read_settings()
         self.read_topics()
         self.read_stages()
@@ -309,6 +311,18 @@ class _Reader:
         self.stats["skipped_records"] = skipped
         self.stats["titles_missing"] = sum(untitled.values())
         self.stats["id_collisions"] = sum(1 for keys in self.index.values() if len(keys) > 1)
+
+    def read_links(self) -> None:
+        """Читает готовые адреса из необязательной таблицы локального импорта."""
+        table = "MaterialDetails"
+        if not all(self.db.has(table, column) for column in ("MaterialId", "MaterialFormat", "PlatformUrl")):
+            return
+        sql = "SELECT [MaterialId], [MaterialFormat], [PlatformUrl] FROM [MaterialDetails]"
+        for ref, fmt, value in self.db.rows(table, sql):
+            if (entry := self.entries.get(f"{fmt}:{ref}")) is not None and isinstance(value, str):
+                url = value.strip()
+                if link_allowed(url):
+                    entry.url = url
 
     def read_settings(self) -> None:
         table = "ContentSettings"
@@ -556,6 +570,7 @@ def _build(reader: _Reader, signals: dict[str, dict[str, int]]) -> list[Material
                 duration_minutes=minutes,
                 access=_access(entry, mapping, access_counts),
                 available=not reasons,
+                url=entry.url if not reasons else None,
                 popularity_raw=raw[key],
                 # Без записей и ссылок normalize_popularity даёт 0, как без источника. Равенства решает id
                 popularity=ranks.get(key, 0.0),
