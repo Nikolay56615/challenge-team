@@ -3,7 +3,7 @@ import type { InputHTMLAttributes } from 'react';
 export interface CheckboxProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'checked' | 'defaultChecked' | 'onChange' | 'children'> {
   checked: boolean;
-  onChange(checked: boolean): void;
+  onChange: (checked: boolean) => void;
   label: string;
   disabled?: boolean;
 }
@@ -17,7 +17,9 @@ export function Checkbox({ checked, onChange, label, disabled = false, ...rest }
         type="checkbox"
         checked={checked}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.checked)}
+        onChange={(event) => {
+          onChange(event.target.checked);
+        }}
       />
       <span>{label}</span>
     </label>

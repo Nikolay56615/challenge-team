@@ -11,7 +11,7 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onSelec
   /** id вкладок уникальны на странице: из них строятся id элементов */
   tabs: readonly TabItem[];
   selected: string;
-  onSelect(id: string): void;
+  onSelect: (id: string) => void;
 }
 
 const tabDomId = (id: string) => `${id}-tab`;
@@ -66,8 +66,12 @@ export function Tabs({ ariaLabel, tabs, selected, onSelect, className, ...rest }
             aria-selected={isSelected}
             aria-controls={panelDomId(tab.id)}
             tabIndex={isSelected ? 0 : -1}
-            onClick={() => onSelect(tab.id)}
-            onKeyDown={(event) => onKeyDown(event, index)}
+            onClick={() => {
+              onSelect(tab.id);
+            }}
+            onKeyDown={(event) => {
+              onKeyDown(event, index);
+            }}
           >
             {tab.label}
           </button>

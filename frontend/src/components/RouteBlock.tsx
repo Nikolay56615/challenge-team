@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { Route } from '../api/types';
+import { typo } from '../format';
 
 export interface RouteBlockProps {
   route: Route;
@@ -12,11 +13,11 @@ export function RouteBlock({ route }: RouteBlockProps) {
   return (
     <section className="route" aria-labelledby={headingId}>
       <h2 id={headingId} className="kv__label">
-        {route.title}
+        {typo(route.title)}
       </h2>
       <ol>
         {route.steps.map((step) => (
-          <li key={step.material_id}>{step.title}</li>
+          <li key={step.material_id}>{typo(step.title)}</li>
         ))}
       </ol>
     </section>

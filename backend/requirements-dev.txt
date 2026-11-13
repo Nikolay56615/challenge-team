@@ -1,3 +1,17 @@
+# Зависимости тестов и проверок бэкенда. CI ставит их из requirements-dev.lock с проверкой хешей (кандидат W06).
+# После правки пересоберите requirements-dev.lock командой из его заголовка.
 -r requirements.txt
 pytest==9.2.0
 httpx2==2.16.0
+hypothesis==6.170.15
+schemathesis==4.33.2
+# Линтер, проверка типов и покрытие ветвей (кандидат W09), настройки — в pyproject.toml.
+# types-PyYAML — заглушки типов PyYAML для mypy: сам PyYAML их не поставляет.
+ruff==0.17.4
+mypy==2.4.1
+types-PyYAML==6.0.12.20261111
+coverage==7.17.2
+pytest-cov==7.1.0
+# Аудит зависимостей и мутационное тестирование app/ranking/ в CI. mutmut 3 запускается только в Linux и macOS.
+pip-audit==2.10.1
+mutmut==3.8.1

@@ -27,9 +27,13 @@ export function useMeta() {
         failed: meta.status === 'rejected' && !prev.meta,
       }));
     });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [attempt]);
 
-  const reload = useCallback(() => setAttempt((n) => n + 1), []);
+  const reload = useCallback(() => {
+    setAttempt((n) => n + 1);
+  }, []);
   return { ...state, reload };
 }

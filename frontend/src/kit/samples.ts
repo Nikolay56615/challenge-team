@@ -12,6 +12,7 @@ import type {
   Route,
   TopicCode,
 } from '../api/types';
+import { plural } from '../format';
 
 type Material = Omit<Item, 'rank' | 'reasons' | 'flags' | 'score' | 'contributions'>;
 
@@ -362,9 +363,20 @@ export const FLAG_VIEWED: Flag = { code: 'viewed', label: 'Вы уже откр�
 export const FLAG_IN_PROGRESS: Flag = { code: 'in_progress', label: 'В процессе' };
 export const FLAG_COMPLETED: Flag = { code: 'completed', label: 'Пройдено' };
 
-export function at(m: Material, rank: number, reasons: string[], flags: Flag[] = []): Item {
-  return { ...m, rank, reasons, flags, score: 0, contributions: {} };
+/** Позиция выдачи. contributions — вклады признаков, как в ответе API: из них карточка строит пометки «Совпало» */
+export function at(
+  m: Material,
+  rank: number,
+  reasons: string[],
+  flags: Flag[] = [],
+  contributions: Record<string, number> = {},
+): Item {
+  return { ...m, rank, reasons, flags, score: 0, contributions };
 }
+
+// Вклады признаков витрины: те же сочетания, что у профилей P01, P02 и P11 на синтетическом каталоге
+const FIT_P01 = { topic: 3, stage: 2, level: 2, industry: 1, effort: 0.5 };
+const FIT_P02 = { topic: 3, signal: 2, stage: 2, level: 2, format: 1.5 };
 
 function option(value: TopicCode) {
   return { value, label: TOPIC_LABELS[value] ?? value };
@@ -384,38 +396,61 @@ function response(partial: Partial<RecommendResponse> & Pick<RecommendResponse, 
 }
 
 // ---------- карточки витрины ----------
-export const CARD_FREE = at(M01, 1, [
-  'Тема «Продвижение» совпадает с задачей',
-  'Подходит для стадии «недавно начали» и сферы «кафе и рестораны»',
-  'Займёт около 15 минут',
-]);
-export const CARD_PAID_COURSE = at(M02, 2, [
-  'Тема «Продвижение» совпадает с задачей',
-  'Подходит для стадии «работаю и расту» и уровня «уверенно разбираюсь»',
-  'Формат «Курс» — как вы просили',
-]);
-export const CARD_PAID_NO_LINK = at(M05, 3, [
-  'Подходит для стадии «работаю и расту»',
-  'На шаг проще вашего уровня — подойдёт для повторения',
-]);
-export const CARD_VIEWED = at(M07, 4, ['Подходит для стадии «недавно начали»', 'Займёт около 12 минут'], [FLAG_VIEWED]);
+export const CARD_FREE = at(
+  M01,
+  1,
+  ['Тема «Продвижение» совпадает с задачей', 'Подходит для стадии «недавно начали» и сферы «кафе и рестораны»', 'Займёт около 15 минут'],
+  [],
+  FIT_P01,
+);
+export const CARD_PAID_COURSE = at(
+  M02,
+  2,
+  [
+    'Тема «Продвижение» совпадает с задачей',
+    'Подходит для стадии «работаю и расту» и уровня «уверенно разбираюсь»',
+    'Формат «Курс» — как вы просили',
+  ],
+  [],
+  FIT_P02,
+);
+export const CARD_PAID_NO_LINK = at(
+  M05,
+  3,
+  ['Подходит для стадии «работаю и расту»', 'На шаг проще вашего уровня — подойдёт для повторения'],
+  [],
+  { topic: 3, signal: 2, stage: 2, level: 1, format: 1.5 },
+);
+export const CARD_VIEWED = at(M07, 4, ['Подходит для стадии «недавно начали»', 'Займёт около 12 минут'], [FLAG_VIEWED], {
+  topic: 3,
+  stage: 2,
+  viewed: -1.5,
+});
 export const CARD_IN_PROGRESS = at(
   M08,
   5,
   ['Вы начали этот курс — продолжите с текущего урока', 'Подходит для стадии «недавно начали»'],
   [FLAG_IN_PROGRESS],
+  { topic: 3, stage: 2, level: 2, in_progress: 2 },
 );
 export const CARD_COMPLETED = at(M03, 6, ['Тема «Продвижение» совпадает с задачей'], [FLAG_COMPLETED]);
-export const CARD_TOPIC = at(S02, 2, [
-  'Тема «Продажи» совпадает с задачей',
-  'Один из самых востребованных материалов по теме',
-]);
+export const CARD_TOPIC = at(
+  S02,
+  2,
+  ['Тема «Продажи» совпадает с задачей', 'Один из самых востребованных материалов по теме'],
+  [],
+  { topic: 3 },
+);
 export const CARD_PAID_MATERIAL = at(X02, 2, [
   'Тема «Продвижение» совпадает с задачей',
   'Формат «Вебинар» — как вы просили',
 ]);
 export const CARD_SUBSCRIPTION = at(X01, 3, ['Подходит для стадии «работаю и расту»', 'Займёт около 40 минут']);
-export const CARD_COMPACT = at(M06, 3, ['Подходит для стадии «работаю и расту»', 'Займёт около 30 минут']);
+export const CARD_COMPACT = at(M06, 3, ['Подходит для стадии «работаю и расту»', 'Займёт около 30 минут'], [], {
+  topic: 3,
+  signal: 2,
+  stage: 2,
+});
 export const CARD_COMPACT_FLAG = at(M01, 4, ['Совпадает тема «Продвижение»'], [FLAG_VIEWED]);
 
 // ---------- ответы API ----------
@@ -469,7 +504,7 @@ export const WEAK: RecommendResponse = response({
 
 const STARTER_REASONS = (topic: string, minutes: number) => [
   `Стартовый материал по теме «${topic}»`,
-  `Займёт около ${minutes} минут`,
+  `Займёт около ${String(minutes)} ${plural(minutes, { one: 'минуты', few: 'минут', many: 'минут', other: 'минуты' })}`,
 ];
 
 const TOPIC_OPTIONS = [option('start'), option('taxes_law'), option('finance'), option('marketing'), option('sales'), option('operations')];
@@ -573,9 +608,47 @@ export const COMPARE_NO_TOPIC: CompareResponse = {
   diff: { changed_positions: 2, compared_positions: 2 },
 };
 
+/**
+ * Сравнение при пустой задаче и истории профиля, как у P11: подбор по теме отвечает cold со стартовой
+ * подборкой, персональный подбирает по истории со статусом weak (docs/plan.md, раздел 9, решение 2026-11-11).
+ * Фразы причин и сообщение — вымышленные примеры в форме ответа API.
+ */
+export const COMPARE_HISTORY: CompareResponse = {
+  baseline: response({ status: 'cold', method: 'baseline', message: COLD.message, clarification: COLD.clarification, items: STARTER }),
+  personal: response({
+    status: 'weak',
+    detected_topics: ['marketing'],
+    message:
+      'Нашли 8 материалов по теме «Продвижение», знакомой по вашей истории, и 1 курс другой темы: его выбирали слушатели вашего курса. Показываем 3 с учётом истории.',
+    items: [
+      at(M03, 1, ['Продолжает материал «Чек-лист: первые шаги в продвижении» из вашей истории', 'Тема из вашей истории: «Продвижение»'], [], {
+        continuation: 1.5,
+        history_topic: 1,
+      }),
+      at(M02, 2, ['Тема из вашей истории: «Продвижение»', 'Этот курс выбрали 12 из 40 слушателей курса «Старт продвижения за 7 дней» из вашей истории'], [], {
+        history_topic: 1,
+        co_enrollment: 0.9,
+      }),
+      at(S03, 3, ['Этот курс выбрали 16 из 40 слушателей курса «Старт продвижения за 7 дней» из вашей истории'], [], {
+        co_enrollment: 1.2,
+      }),
+    ],
+    total_candidates: 9,
+  }),
+  diff: { changed_positions: 3, compared_positions: 3 },
+};
+
+/** Задача ровно на предел поля, 300 символов: подсказка под полем называет предел (ИИ-5) */
+export const LIMIT_TASK = (
+  'Хочу начать продвигать свою кофейню рядом с университетом: выбрать первый канал рекламы, посчитать бюджет ' +
+  'на месяц, подготовить меню для студентов и понять, как проверить результат через две недели. Опыта в рекламе нет, ' +
+  'помогает один бариста, а на продвижение есть пара вечеров в неделю и небольшой бюджет на первые объявления.'
+)
+  .padEnd(300, '.')
+  .slice(0, 300);
+
 // ---------- справочники и профили ----------
 export const META: MetaResponse = {
-  catalog: { source: 'synthetic', available: 23 },
   topics: [option('start'), option('taxes_law'), option('finance'), option('marketing'), option('sales'), option('operations')],
   stages: [
     { value: 'idea', label: 'Только планирую' },

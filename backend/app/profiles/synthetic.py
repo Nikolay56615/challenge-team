@@ -1,8 +1,9 @@
-"""Синтетические тестовые профили для демо-режима (PLAN.md, 2.6)."""
+"""Синтетические тестовые профили для демо-режима (docs/plan.md, 2.6)."""
 
 from __future__ import annotations
 
 import json
+from collections.abc import Collection
 from pathlib import Path
 
 from .. import vocab
@@ -12,7 +13,7 @@ from ..config import DATA_DIR
 PROFILES_PATH = DATA_DIR / "profiles.synthetic.json"
 
 
-def _optional(value: object, allowed: dict) -> str | None:
+def _optional(value: object, allowed: Collection[str]) -> str | None:
     return value if isinstance(value, str) and value in allowed else None
 
 

@@ -1,12 +1,16 @@
-// Сквозная проверка интерфейса по PLAN.md, 7.1 (E1–E9, E11–E13).
-// Элементы ищутся по ролям и видимым подписям из design/ui-kit.md и PLAN.md, 5.7.
+// Сквозная проверка интерфейса по docs/plan.md, 7.1 (E1–E9, E11). Проверки WCAG 2.2 по всем состояниям — в check_wcag.mjs.
+// Кандидаты D09 — пометки «Совпало», «уровень» только при точном совпадении, длина строки 65ch, кнопка
+// на первом экране 390×844; D10 — задержка скелетонов при замедленном ответе, прежнее содержимое до неё на месте.
+// evaluation/track1-heuristic-review.md, ИИ-5 — сообщение у предела поля задачи и его снятие при смене значения.
+// Тексты сравниваются без неразрывных пробелов типографа.
+// Элементы ищутся по ролям и видимым подписям из docs/ui-kit.md и docs/plan.md, 5.7.
 //
 // Запуск из корня проекта при работающем сервисе с собранным интерфейсом:
 //   npm --prefix evaluation/e2e run check:ui -- [адрес] [папка результатов]
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterPost, base, chooseProfile, outDir, runBrowserChecks, selectCatalogTopic, submit } from './browser.mjs';
+import { afterPost, base, chooseProfile, demoPanelOverflow, outDir, runBrowserChecks, submit, TASK_LABEL } from './browser.mjs';
 
 const results = [];
 const check = (id, name, ok, note = '') => {
@@ -14,7 +18,7 @@ const check = (id, name, ok, note = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${id} ${name}${note ? ' — ' + note : ''}`);
 };
 
-async function open(browser, width, prepare) {
+async function open(browser, width) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU' });
   const page = await context.newPage();
   const errors = [];
@@ -22,7 +26,6 @@ async function open(browser, width, prepare) {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  if (prepare) await prepare(page);
   await page.goto(base + '/');
   await page.getByRole('button', { name: 'Подобрать материалы' }).waitFor();
   return { page, context, errors };
@@ -30,262 +33,79 @@ async function open(browser, width, prepare) {
 
 const shot = (page, name) => page.screenshot({ path: join(outDir, `${name}.png`), fullPage: true });
 
+/** Текст карточек без неразрывных пробелов типографа (D09): сравнение идёт с обычными строками */
 async function cards(page, scope) {
   const root = scope || page;
-  return root.locator('article.card').evaluateAll((els) =>
-    els.map((el) => ({
+  return root.locator('article.card').evaluateAll((els) => {
+    const plain = (text) => (text || '').replace(/\u00a0/g, ' ');
+    return els.map((el) => ({
       label: el.getAttribute('aria-label'),
-      title: (el.querySelector('h3')?.textContent || '').trim(),
-      text: el.textContent || '',
-      links: Array.from(el.querySelectorAll('a')).map((a) => ({ text: (a.textContent || '').trim(), href: a.href, rel: a.rel })),
-      buttons: Array.from(el.querySelectorAll('button')).map((b) => (b.textContent || '').trim()),
-    })),
-  );
+      title: plain(el.querySelector('h3')?.textContent).trim(),
+      text: plain(el.textContent),
+      links: Array.from(el.querySelectorAll('a')).map((a) => ({ text: plain(a.textContent).trim(), href: a.href, rel: a.rel })),
+      buttons: Array.from(el.querySelectorAll('button')).map((b) => plain(b.textContent).trim()),
+      matched: Array.from(el.querySelectorAll('.match__chip')).map((chip) => plain(chip.textContent).trim()),
+    }));
+  });
 }
 
 const compareColumn = (page, name) =>
   page.locator('.compare__col').filter({ has: page.getByRole('heading', { name, exact: true }) });
 
-async function comparisonTitles(page, width, name) {
+async function comparisonCards(page, width, name) {
   if (width < 800) await page.getByRole('tab', { name, exact: true }).click();
   const column = compareColumn(page, name);
   await column.waitFor();
-  return (await cards(page, column)).map((card) => card.title);
+  return cards(page, column);
 }
 
-async function checkTopicNavigation(browser, width) {
-  const { page, context } = await open(browser, width);
-  try {
-    await chooseProfile(page, 'P02');
-    const nav = page.getByRole('navigation', { name: 'Разделы' });
-    const openCatalog = nav.getByRole('link', { name: 'Каталог', exact: true });
-    const openRecommend = nav.getByRole('link', { name: 'Подбор', exact: true });
-    const task = page.getByLabel('Что вы хотите сделать?');
-    const submitted = [];
-    page.on('request', (request) => {
-      if (request.method() === 'POST') submitted.push(request);
-    });
+async function comparisonTitles(page, width, name) {
+  return (await comparisonCards(page, width, name)).map((card) => card.title);
+}
 
-    const original = await submit(page);
-    const originalBody = original.request().postDataJSON();
-    const originalCards = (await cards(page)).map((card) => card.title);
-    const draft = 'Какую CRM выбрать';
-    await task.fill(draft);
-    await openCatalog.focus();
-    await page.keyboard.press('Enter');
-    await page.waitForFunction(() => document.activeElement?.matches('h1') && document.activeElement.textContent === 'Каталог');
-    check('E5', `Каталог открывается с клавиатуры, форма остаётся в «Подборе» (${width})`,
-      new URL(page.url()).hash === '#catalog' && (await openCatalog.getAttribute('aria-current')) === 'page' &&
-      !(await task.isVisible()) && submitted.length === 1);
-
-    const picker = page.getByLabel('Тема каталога', { exact: true });
-    const list = page.getByRole('list', { name: 'Темы каталога' });
-    if (width < 800) {
-      await picker.focus();
-      await page.keyboard.press('Home');
-      for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
-      check('E5', `На узком экране выбор темы ждёт подтверждения (${width})`,
-        (await picker.inputValue()) === 'marketing' && submitted.length === 1 && !(await list.isVisible()));
-      await page.keyboard.press('Tab');
-    } else {
-      await list.getByRole('button', { name: 'Продвижение', exact: true }).focus();
-      check('E5', `На широком экране сразу видны все темы (${width})`,
-        (await list.getByRole('button').count()) === 6 && !(await picker.isVisible()));
-    }
-    const opened = await afterPost(page, () => page.keyboard.press('Enter'));
-    const topicBody = opened.request().postDataJSON();
-    const topicHeading = page.getByRole('heading', { name: 'Подборка по теме «Продвижение»', exact: true });
-    await page.waitForFunction(() => document.activeElement?.textContent === 'Подборка по теме «Продвижение»');
-    check('E5', `Тема использует уточнения и историю сеанса (${width})`,
-      topicBody.task === '' && topicBody.topic === 'marketing' && topicBody.limit === 5 &&
-      topicBody.stage === 'growth' && topicBody.format_pref === 'course' && topicBody.history.length === 3 &&
-      (await page.getByText('Показано 5 из 8 материалов', { exact: true }).isVisible()));
-    const more = await afterPost(page, () => page.getByRole('button', { name: 'Показать ещё 3' }).click());
-    const beforeBack = submitted.length;
-    await page.goBack();
-    await page.waitForFunction(() => document.activeElement?.textContent === 'Подберём материалы под вашу задачу');
-    check('E5', `«Назад» восстанавливает задачу и прежние карточки (${width})`,
-      (await task.inputValue()) === draft && submitted.length === beforeBack &&
-      JSON.stringify((await cards(page)).map((card) => card.title)) === JSON.stringify(originalCards));
-    await page.goForward();
-    await page.waitForFunction(() => document.activeElement?.matches('h1') && document.activeElement.textContent === 'Каталог');
-    check('E5', `«Вперёд» восстанавливает раскрытый список темы (${width})`,
-      submitted.length === beforeBack && (await topicHeading.isVisible()) &&
-      (await page.getByText('Показано 8 из 8 материалов', { exact: true }).isVisible()) &&
-      more.request().postDataJSON().limit === 10);
-    await shot(page, `catalog-${width}`);
-
-    const filters = page.getByRole('group', { name: 'Фильтры выдачи' });
-    const format = filters.getByLabel('Формат', { exact: true });
-    await format.selectOption('template');
-    await afterPost(page, () => filters.getByRole('button', { name: 'Применить фильтры' }).click());
-    await openRecommend.click();
-    await task.waitFor();
-    await openCatalog.click();
-    await page.getByRole('heading', { name: 'Каталог', exact: true }).waitFor();
-    await format.waitFor();
-    check('E5', `Фильтр каталога переживает переходы (${width})`,
-      (await format.inputValue()) === 'template' && (await cards(page)).length === 2);
-
-    const studied = await afterPost(page, () => page.getByRole('button', { name: 'Отметить изученным' }).first().click());
-    const studiedBody = studied.request().postDataJSON();
-    const refreshed = await afterPost(page, () => openRecommend.click());
-    const refreshedBody = refreshed.request().postDataJSON();
-    check('E11', `Изучение обновляет каталог сразу, а подбор при возврате (${width})`,
-      studiedBody.topic === 'marketing' && studiedBody.filters.format === 'template' &&
-      studiedBody.history.at(-1)?.event === 'complete' &&
-      refreshedBody.task === originalBody.task && refreshedBody.topic === originalBody.topic &&
-      refreshedBody.limit === originalBody.limit && JSON.stringify(refreshedBody.history) === JSON.stringify(studiedBody.history) &&
-      (await task.inputValue()) === draft);
-
-    await openCatalog.click();
-    let failedBody;
-    await page.route('**/api/recommend', (route) => {
-      failedBody = route.request().postDataJSON();
-      return route.abort('failed');
-    });
-    await selectCatalogTopic(page, width, 'sales', 'Продажи');
-    await page.getByRole('alert').waitFor();
-    await page.unroute('**/api/recommend');
-    const retry = await afterPost(page, () => page.getByRole('button', { name: 'Повторить', exact: true }).click());
-    check('E8', `Новая тема сбрасывает фильтры, повтор сохраняет параметры (${width})`,
-      JSON.stringify(retry.request().postDataJSON()) === JSON.stringify(failedBody) &&
-      failedBody.topic === 'sales' && failedBody.limit === 5 && !failedBody.filters);
-
-    await openRecommend.click();
-    const compareToggle = page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' });
-    await compareToggle.check();
-    await openCatalog.click();
-    const compared = await afterPost(page, () => selectCatalogTopic(page, width, 'marketing', 'Продвижение'), '/api/compare');
-    const comparison = await compared.json();
-    check('E4', `Режим сравнения действует в каталоге (${width})`,
-      [comparison.baseline, comparison.personal].every((outcome) => outcome.detected_topics.join() === 'marketing') &&
-      (await page.getByRole('heading', { name: 'Сравнение по теме «Продвижение»' }).isVisible()));
-    await openRecommend.click();
-    await compareToggle.uncheck();
-
-    await page.route('**/api/recommend', async (route) => {
-      const response = await route.fetch();
-      const data = await response.json();
-      if (data.status === 'none' && data.clarification) {
-        data.clarification.options.push(
-          { value: 'strategy', label: 'Стратегия' },
-          { value: 'tech', label: 'Технологии и ИИ' },
-          { value: 'marketplaces', label: 'Маркетплейсы' },
-        );
+/**
+ * D09: ширина текстовых блоков карточки против 65ch их шрифта и наибольшее число знаков в одной строке.
+ * Строки считаются по прямоугольникам символов: символы с одной вертикальной позицией — одна строка.
+ */
+function lineLength(page) {
+  return page.evaluate(() => {
+    const blocks = Array.from(document.querySelectorAll('article.card .kv__value, article.card .card__benefit'));
+    const probe = document.createElement('span');
+    // CSSOM, а не атрибут style: CSP приложения запрещает встроенные стили
+    Object.assign(probe.style, { position: 'absolute', visibility: 'hidden', width: '65ch' });
+    const over = [];
+    let limit = 0;
+    let widest = 0;
+    let chars = 0;
+    const range = document.createRange();
+    for (const el of blocks) {
+      el.append(probe);
+      limit = probe.getBoundingClientRect().width;
+      probe.remove();
+      const width = el.getBoundingClientRect().width;
+      widest = Math.max(widest, width);
+      if (width > limit + 1) over.push(Math.round(width));
+      const text = el.firstChild;
+      if (text?.nodeType !== Node.TEXT_NODE) continue;
+      const lines = new Map();
+      for (let i = 0; i < text.data.length; i++) {
+        range.setStart(text, i);
+        range.setEnd(text, i + 1);
+        const top = Math.round(range.getBoundingClientRect().top);
+        lines.set(top, (lines.get(top) || 0) + 1);
       }
-      await route.fulfill({ response, json: data });
-    });
-    await chooseProfile(page, 'P04');
-    await submit(page);
-    const fallback = page.getByRole('region', { name: /материалов пока нет/ });
-    const fallbackPicker = fallback.getByLabel('Тема', { exact: true });
-    const requestsBefore = submitted.length;
-    await fallbackPicker.selectOption('sales');
-    const waited = submitted.length === requestsBefore;
-    const chosen = await afterPost(page, () => fallback.getByRole('button', { name: 'Показать материалы темы' }).click());
-    const chosenData = await chosen.json();
-    check('E7', `В пустой выдаче длинный список тем ждёт подтверждения (${width})`,
-      waited && chosen.request().postDataJSON().topic === 'sales' && chosenData.status === 'strong' &&
-      (await page.getByRole('heading', { name: 'Подборка по теме «Продажи»' }).isVisible()));
-
-    const direct = await context.newPage();
-    await direct.route('**/api/meta', (route) => route.abort('failed'));
-    await direct.goto(base + '/#catalog');
-    await direct.getByRole('alert').filter({ hasText: 'Не удалось загрузить темы каталога' }).waitFor();
-    await direct.unroute('**/api/meta');
-    await direct.getByRole('button', { name: 'Повторить', exact: true }).click();
-    await (width < 800
-      ? direct.getByLabel('Тема каталога', { exact: true })
-      : direct.getByRole('list', { name: 'Темы каталога' })).waitFor();
-    check('E8', `Прямая ссылка открывает каталог, повтор восстанавливает темы (${width})`,
-      (await direct.getByRole('link', { name: 'Каталог' }).getAttribute('aria-current')) === 'page' &&
-      (await direct.getByRole('alert').count()) === 0);
-  } finally {
-    await context.close();
-  }
-}
-
-async function checkResultFilters(browser, width) {
-  const { page, context } = await open(browser, width);
-  try {
-    await chooseProfile(page, 'P05');
-    await submit(page);
-    const filters = page.getByRole('group', { name: 'Фильтры выдачи' });
-    const format = filters.getByLabel('Формат', { exact: true });
-    const access = filters.getByLabel('Доступ', { exact: true });
-    const apply = filters.getByRole('button', { name: 'Применить фильтры' });
-    const reset = filters.getByRole('button', { name: 'Сбросить фильтры' });
-    await access.focus();
-    await page.keyboard.press('Home');
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Tab');
-    const onApply = await apply.evaluate((element) => element === document.activeElement);
-    const applied = await afterPost(page, () => page.keyboard.press('Enter'));
-    const appliedBody = applied.request().postDataJSON();
-    const appliedData = await applied.json();
-    await page.waitForFunction(() => document.activeElement?.textContent === 'Показано 5 из 8 материалов');
-    check('E12', `Клавиатура применяет доступ, счётчик и фокус обновляются (${width})`,
-      onApply && appliedBody.filters.access === 'open' && appliedData.total_candidates === 8 &&
-      appliedData.items.every((item) => item.access === 'open'));
-
-    const more = await afterPost(page, () => page.getByRole('button', { name: 'Показать ещё 3' }).click());
-    const complete = page.locator('article.card').first().getByRole('button', { name: 'Отметить изученным' });
-    const studied = await afterPost(page, () => complete.click());
-    const studiedBody = studied.request().postDataJSON();
-    check('E12', `Раскрытие и отметка сохраняют фильтр (${width})`,
-      more.request().postDataJSON().filters.access === 'open' && (await more.json()).items.length === 8 &&
-      studiedBody.filters.access === 'open' && studiedBody.history.at(-1)?.event === 'complete' &&
-      (await page.getByRole('heading', { name: 'Показано 8 из 8 материалов' }).isVisible()));
-
-    await format.selectOption('template');
-    let failedBody;
-    await page.route('**/api/recommend', (route) => {
-      failedBody = route.request().postDataJSON();
-      return route.abort('failed');
-    });
-    await apply.click();
-    await page.getByRole('alert').waitFor();
-    await page.unroute('**/api/recommend');
-    const retried = await afterPost(page, () => page.getByRole('button', { name: 'Повторить' }).click());
-    const topic = page.getByRole('group', { name: 'Тема', exact: true });
-    const clarified = await afterPost(page, () => topic.getByText('Продажи', { exact: true }).click());
-    check('E12', `Повтор и уточнение сохраняют оба фильтра (${width})`,
-      JSON.stringify(retried.request().postDataJSON()) === JSON.stringify(failedBody) &&
-      clarified.request().postDataJSON().filters.format === 'template' &&
-      clarified.request().postDataJSON().filters.access === 'open' &&
-      clarified.request().postDataJSON().topic === 'sales');
-
-    await access.selectOption('paid');
-    await afterPost(page, () => apply.click());
-    const empty = page.getByRole('paragraph').filter({ hasText: /^По выбранным фильтрам материалов нет$/ });
-    check('E12', `Пустая выдача показывает сообщение и сброс (${width})`,
-      await empty.isVisible() && await reset.isEnabled() && (await cards(page)).length === 0 &&
-      (await page.getByText('Стартовая подборка', { exact: true }).count()) === 0);
-    await shot(page, `filters-empty-${width}`);
-    await reset.focus();
-    const cleared = await afterPost(page, () => page.keyboard.press('Enter'));
-    await page.waitForFunction(() => document.activeElement?.textContent === 'Подборка по теме «Продажи»');
-    check('E12', `Сброс с клавиатуры восстанавливает выдачу и фокус (${width})`,
-      cleared.request().postDataJSON().filters === null && (await cleared.json()).total_candidates === 4);
-
-    await chooseProfile(page, 'P02');
-    await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
-    await submit(page, '/api/compare');
-    await format.selectOption('course');
-    const compared = await afterPost(page, () => apply.click(), '/api/compare');
-    const comparison = await compared.json();
-    for (const name of ['Подбор по теме', 'Персональный подбор']) {
-      check('E12', `В сравнении видны только курсы метода «${name}» (${width})`,
-        (await comparisonTitles(page, width, name)).length === 2);
+      chars = Math.max(chars, ...lines.values());
     }
-    check('E12', `Формат применяется к обоим методам (${width})`,
-      await filters.count() === 1 && [comparison.baseline, comparison.personal].every((method) =>
-        method.total_candidates === 2 && method.items.every((item) => item.format === 'course')));
-  } finally {
-    await context.close();
-  }
+    const card = document.querySelector('article.card')?.getBoundingClientRect().width || 0;
+    return { blocks: blocks.length, over, limit: Math.round(limit), widest: Math.round(widest), chars, card: Math.round(card) };
+  });
 }
+
+/** Строка состояния без неразрывных пробелов типографа */
+const statusText = async (page) => ((await page.locator('p.status-line').textContent()) || '').replace(/\u00a0/g, ' ');
+
+/** Опыт из формы и уровень материала при точном совпадении (docs/plan.md, 3.2) */
+const LEVEL_OF = { none: 'intro', some: 'practical', experienced: 'advanced' };
 
 const T = {
   M01: 'Чек-лист: первые шаги в продвижении',
@@ -303,7 +123,6 @@ await runBrowserChecks('results.json', results, async (browser) => {
   {
     const health = await fetch(base + '/api/health').then((r) => r.status).catch(() => 0);
     const { page, context, errors } = await open(browser, 1120);
-    await page.getByText('Тестовый каталог', { exact: true }).waitFor();
     check('E1', 'Интерфейс открывается, /api/health отвечает', health === 200 && (await page.locator('h1').count()) === 1, `health ${health}`);
     await shot(page, 'initial-1120');
     check('E1', 'Нет ошибок в консоли при загрузке', errors.length === 0, errors.join(' | '));
@@ -316,7 +135,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
 
     // E2: P01
     await chooseProfile(page, 'P01');
-    await submit(page);
+    const p01 = await submit(page);
     let list = await cards(page);
     const singleP01 = list.map((c) => c.title);
     const top3 = singleP01.slice(0, 3);
@@ -327,10 +146,44 @@ await runBrowserChecks('results.json', results, async (browser) => {
       !c.text.includes('Формат «') && !c.text.includes('Займёт около'));
     check('E2', `P01: причины со стадией, без повтора бейджей (${width})`, reasonsOk);
     check('E2', `P01: у M01 названа сфера (${width})`, list[0].text.includes('кафе и рестораны'));
-    check('E2', `P01: карточки показывают доступные действия (${width})`,
-      list.every((c) => c.links.length ? c.text.includes('Следующий шаг') : c.buttons.includes('Скопировать название')));
+    check('E2', `P01: у карточек есть следующий шаг и действие (${width})`, list.every((c) => c.text.includes('Следующий шаг') && (c.links.length || c.buttons.length)));
     check('E2', `P01: маршрут на первую неделю (${width})`, (await page.getByText('Маршрут на первую неделю').count()) > 0);
     check('E2', `Карточки озвучиваются как «Позиция N» (${width})`, list.every((c, i) => c.label === `Позиция ${i + 1}`));
+    // D09: пометки «Совпало» из contributions — у M01 тема, стадия, уровень и сфера, без усилия и без чисел
+    check('D09', `P01: у M01 пометки «Совпало»: тема, стадия, уровень, сфера (${width})`,
+      JSON.stringify(list[0].matched) === JSON.stringify(['тема', 'стадия', 'уровень', 'сфера']) &&
+        list.every((c) => c.matched.length >= 1 && c.matched.length <= 4 && c.matched.every((m) => !/\d/.test(m))),
+      list.map((c) => c.matched.join(' · ')).join(' / '));
+    // D09: вклад уровня дают и точное совпадение, и смежный уровень (docs/plan.md, 3.2). «уровень» в «Совпало» — только
+    // при точном: у смежного причина говорит «на шаг глубже» или «проще». В тройке P01 смежный — шаблон M03
+    const p01Items = (await p01.json()).items;
+    const target = LEVEL_OF[p01.request().postDataJSON().experience];
+    const levelRows = p01Items
+      .map((item, index) => ({ id: item.material_id, exact: item.level === target, level: item.contributions.level ?? 0, chip: list[index]?.matched.includes('уровень') }))
+      .filter((row) => row.level > 0);
+    check('D09', `P01: «уровень» только при точном совпадении уровня, у смежного M03 пометки нет (${width})`,
+      levelRows.some((row) => row.id === 'M03' && !row.exact) && levelRows.every((row) => row.chip === row.exact),
+      levelRows.map((row) => `${row.id} ${row.exact ? 'точный' : 'смежный'}: ${row.chip ? 'есть' : 'нет'}`).join(', '));
+    const chips = await page.evaluate(() => {
+      const lists = Array.from(document.querySelectorAll('article.card ul.match__list'));
+      const named = lists.filter((ul) => document.getElementById(ul.getAttribute('aria-labelledby') || '')?.textContent === 'Совпало');
+      const items = Array.from(document.querySelectorAll('.match__chip'));
+      return {
+        lists: lists.length,
+        named: named.length,
+        focusable: items.filter((li) => li.tabIndex >= 0 || li.querySelector('a, button, input')).length,
+        maxHeight: Math.max(...items.map((li) => li.getBoundingClientRect().height)),
+      };
+    });
+    check('D09', `Пометки — статичный список с подписью «Совпало», не цели нажатия (${width})`,
+      chips.lists === list.length && chips.named === chips.lists && chips.focusable === 0 && chips.maxHeight < 44,
+      `списков ${chips.lists} из ${list.length}, с подписью ${chips.named}, фокусируемых пометок ${chips.focusable}, высота до ${Math.round(chips.maxHeight)} px`);
+    if (width >= 800) {
+      const measure = await lineLength(page);
+      check('D09', 'Текстовые блоки карточки не шире 65ch на 1120 px', measure.blocks > 0 && measure.over.length === 0,
+        `блоков ${measure.blocks}, 65ch = ${measure.limit} px, самый широкий блок ${measure.widest} px, в строке до ${measure.chars} знаков` +
+          (measure.over.length ? `, шире: ${measure.over.join(', ')}` : ''));
+    }
     await shot(page, `p01${tag}`);
 
     // E11: «Отметить изученным» на первой карточке
@@ -349,10 +202,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const m02 = list[0];
     check('E3', `P02: первым курс M02 с пользой и переходом (${width})`, m02.title === T.M02 && m02.text.includes('Воронка') && m02.links.some((l) => l.text.includes('Открыть страницу курса')));
     const m05 = list.find((c) => c.title === T.M05);
-    check('E3', `P02: у M05 есть копирование и примечание вместо перехода (${width})`,
-      m05 && m05.links.length === 0 && m05.buttons.includes('Скопировать название') &&
-      m05.text.includes('Ссылка на платформу не передана') && !m05.text.includes('Следующий шаг') &&
-      (await page.getByText('У материалов в этой подборке нет ссылок на платформу.', { exact: true }).count()) === 0);
+    check('E3', `P02: у M05 нет перехода и есть примечание (${width})`, m05 && m05.links.length === 0 && m05.text.includes('Ссылка на платформу не передана'));
     check('E3', `P02: пометки истории видны (${width})`, list.some((c) => c.text.includes('Вы уже открывали')));
     const external = list.flatMap((c) => c.links);
     check('E3', `Внешние ссылки с rel noopener noreferrer (${width})`, external.every((l) => l.rel.includes('noopener') && l.rel.includes('noreferrer')));
@@ -377,9 +227,17 @@ await runBrowserChecks('results.json', results, async (browser) => {
       }
       check('E4', 'Сравнение: вкладки на узком экране переключаются стрелками', hasTabs && switched);
     }
-    const baselineP02 = await comparisonTitles(page, width, 'Подбор по теме');
-    const personalP02 = await comparisonTitles(page, width, 'Персональный подбор');
+    const baselineCardsP02 = await comparisonCards(page, width, 'Подбор по теме');
+    const personalCardsP02 = await comparisonCards(page, width, 'Персональный подбор');
+    const baselineP02 = baselineCardsP02.map((c) => c.title);
+    const personalP02 = personalCardsP02.map((c) => c.title);
+    // D09: подбор по теме ничего из профиля не учитывает — пометок «Совпало» у него нет
+    check('D09', `Сравнение P02: «Совпало» только у персонального подбора (${width})`,
+      baselineCardsP02.every((c) => c.matched.length === 0) && personalCardsP02.every((c) => c.matched.length > 0),
+      `подбор по теме: ${baselineCardsP02.map((c) => c.matched.length).join(', ')}; персональный: ${personalCardsP02.map((c) => c.matched.join(' · ')).join(' / ')}`);
     await shot(page, `compare-p02${tag}`);
+    const demoOverflow = await demoPanelOverflow(page);
+    check('E4', `Демо-панель не выходит за край панели и окна (${width})`, demoOverflow?.length === 0, (demoOverflow ?? ['панель не найдена']).slice(0, 3).join('; '));
     await chooseProfile(page, 'P01');
     await submit(page, '/api/compare');
     const baselineP01 = await comparisonTitles(page, width, 'Подбор по теме');
@@ -390,7 +248,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
       JSON.stringify(personalP01) === JSON.stringify(singleP01) && JSON.stringify(personalP02) === JSON.stringify(singleP02));
 
     // E4: задача без темы. Подбор по теме показывает своё сообщение и стартовую подборку, позиции не сравниваются
-    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
     await page.getByLabel('Что вы хотите сделать?').fill('Какую CRM выбрать');
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
     await submit(page, '/api/compare');
@@ -404,14 +262,28 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const starterGroup = baselineCol.getByRole('group', { name: 'Стартовая подборка' });
     const starterCards = (await starterGroup.count()) === 1 ? await cards(page, starterGroup) : [];
     check('E4', `Без темы: подбор по теме показывает своё сообщение и стартовую подборку (${width})`, (await baselineNote.isVisible()) && (await starterGroup.isVisible()) && starterCards.length === 5 && (await baselineCol.getByText('порядок одинаков').count()) === 0, `карточек ${starterCards.length}`);
-    const compareStatus = (await page.locator('p.status-line').textContent()) || '';
+    const compareStatus = ((await page.locator('p.status-line').textContent()) || '').replace(/\u00a0/g, ' ');
     check('E4', `Без темы: строка состояния не называет изменённые позиции (${width})`, compareStatus === 'Сравнение готово. Подбор по теме не нашёл материалов по запросу.' && (await page.getByText('Изменились позиции').count()) === 0, compareStatus);
     check('E4', `Без темы: нет горизонтальной прокрутки (${width})`, !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
     await shot(page, `compare-no-topic${tag}`);
+
+    // Пустая задача и история профиля (P11): подбор по теме — стартовая подборка, персональный — подбор по истории.
+    // Строка состояния не говорит «не нашёл материалов по запросу»: запроса нет
+    await chooseProfile(page, 'P11');
+    await submit(page, '/api/compare');
+    const historyStatus = await statusText(page);
+    const historyCards = await comparisonCards(page, width, 'Персональный подбор');
+    check('E4', `P11 без задачи: строка состояния называет стартовую подборку и подбор по истории (${width})`,
+      historyStatus === 'Сравнение готово. Без задачи подбор по теме показывает стартовую подборку, персональный — подбор по истории.' &&
+        (await page.getByText('Изменились позиции').count()) === 0,
+      historyStatus);
+    check('D09', `P11: пометки «Совпало» подбора по истории (${width})`,
+      historyCards.length > 0 && historyCards.every((c) => c.matched.length > 0 && c.matched.every((m) => ['продолжение', 'тема истории', 'похожие курсы'].includes(m))),
+      historyCards.map((c) => c.matched.join(' · ')).join(' / '));
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
     // E5: пустая форма
-    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
     check('E5', `«Сбросить» очищает задачу (${width})`, (await page.getByLabel('Что вы хотите сделать?').inputValue()) === '');
     await submit(page);
     const coldHeading = await page.getByRole('heading', { name: 'С чего хотите начать?' }).count();
@@ -436,12 +308,6 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const gap = await page.getByRole('heading', { name: /материалов пока нет/ }).count();
     check('E7', `P04: сообщение о пробеле, темы и стартовая подборка (${width})`, gap > 0 && (await page.getByRole('radio').count()) >= 3 && (await cards(page)).length >= 3);
     await shot(page, `p04${tag}`);
-    const starterList = page.getByRole('region', { name: 'Стартовая подборка' });
-    const beforeExpand = await starterList.getByText('Показано 3 из 5 материалов', { exact: true }).isVisible();
-    await starterList.getByRole('button', { name: 'Показать все 5' }).click();
-    await starterList.getByText('Показано 5 из 5 материалов', { exact: true }).waitFor();
-    check('E7', `P04: счётчик стартовой подборки обновляется при раскрытии (${width})`,
-      beforeExpand && (await cards(page, starterList)).length === 5);
 
     // E7: P07 — узкий запрос, переход от стартовой подборки к выбранной теме.
     await chooseProfile(page, 'P07');
@@ -476,188 +342,19 @@ await runBrowserChecks('results.json', results, async (browser) => {
     list = await cards(page);
     check('E8', `«Повторить» возвращает выдачу без повторного ввода (${width})`, list.length === 5 && list[0].title === T.M01 && retry.request().postDataJSON().task === taskBefore);
 
-    // E13: повторный запрос не размонтирует выдачу и не сбрасывает прокрутку
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await page.route('**/api/recommend', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      await route.continue();
-    });
-    const refresh = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Отметить изученным' }).last().click();
-    await page.waitForTimeout(150);
-    const during = await page.evaluate(() => ({
-      cards: document.querySelectorAll('.card').length,
-      busy: document.querySelectorAll('.card[aria-busy="true"]').length,
-      skeletons: document.querySelectorAll('.skeleton').length,
-      scrollY: Math.round(window.scrollY),
-    }));
-    await refresh;
-    await page.waitForTimeout(100);
-    const after = await page.evaluate(() => ({ cards: document.querySelectorAll('.card').length, scrollY: Math.round(window.scrollY) }));
-    check('E13', `Повторный запрос сохраняет карточки и прокрутку (${width})`,
-      during.cards === 5 && during.busy === 5 && during.skeletons === 0 && during.scrollY > 0 &&
-      after.cards === 5 && Math.abs(after.scrollY - during.scrollY) <= 100, JSON.stringify({ during, after }));
-
-    // E13: до скелетона экран не пустеет, скелетон ждёт 200 мс и повторяет габариты карточки
-    const slow = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).click();
-    await page.waitForTimeout(100);
-    const early = await page.evaluate(() => ({
-      cards: document.querySelectorAll('.card').length,
-      skeletons: document.querySelectorAll('.skeleton').length,
-      fieldDisabled: document.querySelector('textarea')?.disabled,
-      buttonText: document.querySelector('.actions .btn--primary')?.textContent?.trim(),
-    }));
-    await page.waitForTimeout(200);
-    const skeleton = await page.evaluate(() => ({
-      cards: document.querySelectorAll('.card').length,
-      count: document.querySelectorAll('.skeleton').length,
-      height: Math.round(document.querySelector('.skeleton')?.getBoundingClientRect().height ?? 0),
-      fieldDisabled: document.querySelector('textarea')?.disabled,
-      buttonText: document.querySelector('.actions .btn--primary')?.textContent?.trim(),
-    }));
-    await slow;
-    await page.unroute('**/api/recommend');
-    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
-    const late = await page.evaluate(() => ({
-      fieldDisabled: document.querySelector('textarea')?.disabled,
-      buttonText: document.querySelector('.actions .btn--primary')?.textContent?.trim(),
-    }));
-    check('E13', `До скелетона остаётся прежняя выдача и активная форма, затем загрузка по габаритам карточки (${width})`,
-      early.cards === 5 && early.skeletons === 0 && early.fieldDisabled === false &&
-      early.buttonText === 'Подобрать материалы' && skeleton.cards === 0 &&
-      skeleton.count === 5 && skeleton.height === (width === 390 ? 461 : 297) &&
-      skeleton.fieldDisabled === true && skeleton.buttonText === 'Подбираем…' &&
-      late.fieldDisabled === false && late.buttonText === 'Подобрать материалы',
-      JSON.stringify({ early, skeleton, late }));
-
     check('E1', `Нет ошибок страницы в сценарии (${width})`, errors.filter((e) => !e.includes('net::ERR_FAILED') && !e.includes('Failed to fetch') && !e.includes('Failed to load resource')).length === 0, errors.join(' | ').slice(0, 300));
     await context.close();
   }
 
-  for (const width of [390, 1120]) {
-    let withCourse = false;
-    const courseUrl = 'https://kurs.alfabank.ru/courses/test-course/';
-    const { page, context } = await open(browser, width, async (page) => {
-      await page.route('**/api/meta', async (route) => {
-        const response = await route.fetch();
-        const meta = await response.json();
-        const source = width === 390 ? 'sqlite' : 'file';
-        await route.fulfill({ response, json: { ...meta, catalog: { source, available: 1086 } } });
-      });
-      await page.route('**/api/recommend', async (route) => {
-        const response = await route.fetch();
-        const result = await response.json();
-        const items = result.items.map((item, index) => ({
-          ...item, url: null, link_allowed: false,
-          topic_labels: index === 0 ? ['Налоги и законы', 'Продажи', 'Продвижение'] : item.topic_labels,
-          ...(withCourse && index === 0 ? {
-            format: 'course', format_label: 'Курс', access: 'paid', access_label: 'Платно', is_paid: true,
-            duration_minutes: 60, lesson_count: 22, has_certificate: true, url: courseUrl, link_allowed: true,
-            short_benefit: 'Прежняя краткая польза',
-            course_details: {
-              description: 'Практика планирования бюджета',
-              audiences: ['Владельцам магазинов'],
-              outcomes: ['Составить бюджет'],
-            },
-          } : {}),
-        }));
-        await route.fulfill({ response, json: { ...result, status: 'strong', clarification: null, items } });
-      });
-      await page.addInitScript(() => {
-        Object.defineProperty(navigator, 'clipboard', {
-          value: {
-            writeText: async (title) => {
-              if (window.failClipboard) throw new Error('Clipboard denied');
-              window.copiedTitle = title;
-            },
-          },
-        });
-      });
-    });
-    await page.getByText(/Локальный каталог · 1\s086 доступных материалов/).waitFor();
-    await page.getByLabel('Что вы хотите сделать?').fill('Хочу больше клиентов');
-    await submit(page);
-    const items = page.locator('article.card');
-    const first = items.first();
-    check('E2', `Сводка и одно пояснение для выдачи без ссылок (${width})`,
-      (await page.getByRole('heading', { name: 'Показано 5 из 12 материалов' }).isVisible()) &&
-      (await page.getByText('У материалов в этой подборке нет ссылок на платформу.', { exact: true }).count()) === 1 &&
-      (await page.getByText('Ссылка на платформу не передана', { exact: true }).count()) === 0 &&
-      (await page.getByText('Следующий шаг', { exact: true }).count()) === 0);
-    check('E2', `Карточка показывает первые две темы в порядке API (${width})`,
-      JSON.stringify(await first.locator('.badge--topic').allTextContents()) === JSON.stringify(['Налоги и законы', 'Продажи']));
-
-    const copy = first.getByRole('button', { name: 'Скопировать название' });
-    await copy.focus();
-    await page.keyboard.press('Enter');
-    await first.getByRole('status').getByText('Название скопировано').waitFor();
-    const title = await first.getByRole('heading').textContent();
-    check('E9', `Копирование с клавиатуры сохраняет фокус (${width})`,
-      await copy.evaluate((button, title) => button === document.activeElement && window.copiedTitle === title, title));
-    await page.evaluate(() => { window.failClipboard = true; });
-    await page.keyboard.press('Enter');
-    const manualCopy = first.getByRole('status').getByText('Выделите название материала и скопируйте его вручную.');
-    await manualCopy.waitFor();
-    check('E9', `При отказе буфера обмена видна ручная инструкция (${width})`, await manualCopy.isVisible());
-
-    await afterPost(page, () => page.getByRole('button', { name: 'Показать ещё 5' }).click());
-    await page.waitForFunction(() => document.activeElement === document.querySelectorAll('article.card')[5]);
-    check('E9', `Раскрытие обновляет счётчик и переносит фокус к первой новой карточке (${width})`,
-      (await page.getByRole('heading', { name: 'Показано 10 из 12 материалов' }).isVisible()) &&
-      (await page.getByText('Уточните задачу, чтобы сузить подборку.', { exact: true }).isVisible()) &&
-      (await items.count()) === 10);
-
-    withCourse = true;
-    await context.route(courseUrl, (route) => route.fulfill({
-      contentType: 'text/html; charset=utf-8', body: '<title>Тестовая страница курса</title>',
-    }));
-    await submit(page);
-    const link = first.getByRole('link', { name: 'Открыть страницу курса' });
-    const disclosure = first.locator('summary').filter({ hasText: 'Подробнее о курсе' });
-    const outcome = first.getByText('Составить бюджет', { exact: true });
-    check('E9', `Описание видно сразу, а подробности свёрнуты (${width})`,
-      await first.getByText('Практика планирования бюджета.', { exact: true }).isVisible() &&
-      (await first.getByText('Прежняя краткая польза.', { exact: true }).count()) === 0 &&
-      !(await outcome.isVisible()) && await link.isVisible());
-    await disclosure.focus();
-    await page.keyboard.press('Enter');
-    await outcome.waitFor();
-    check('E9', `Enter раскрывает сведения о курсе и сохраняет фокус (${width})`,
-      await first.getByText('Владельцам магазинов', { exact: true }).isVisible() &&
-      await disclosure.evaluate((el) => document.activeElement === el) && await link.isVisible());
-    await page.keyboard.press('Space');
-    await outcome.waitFor({ state: 'hidden' });
-    check('E9', `Пробел сворачивает подробности, переход остаётся видимым (${width})`,
-      await disclosure.evaluate((el) => document.activeElement === el) && await link.isVisible());
-    check('E9', `Курс показывает длительность, число уроков и сертификат (${width})`,
-      await first.getByText('60 мин', { exact: true }).isVisible() &&
-      await first.getByText('22 урока', { exact: true }).isVisible() &&
-      await first.getByText('Сертификат', { exact: true }).isVisible());
-    check('E9', `В смешанной выдаче карточка без ссылки предлагает копирование (${width})`,
-      await items.nth(1).getByRole('button', { name: 'Скопировать название' }).isVisible() &&
-      await items.nth(1).getByText('Ссылка на платформу не передана').isVisible() &&
-      await first.getByText('Следующий шаг', { exact: true }).isVisible() &&
-      (await page.getByText('У материалов в этой подборке нет ссылок на платформу.').count()) === 0);
-    await link.focus();
-    const [tab] = await Promise.all([context.waitForEvent('page'), page.keyboard.press('Enter')]);
-    await tab.waitForURL(courseUrl);
-    await tab.waitForLoadState();
-    const titleOfTab = await tab.title();
-    check('E9', `Enter открывает ссылку курса в новой вкладке (${width})`,
-      titleOfTab === 'Тестовая страница курса' && (await link.getAttribute('rel'))?.includes('noopener'),
-      titleOfTab);
-    await tab.close();
-    await context.close();
-  }
-
-  for (const width of [390, 1120]) await checkTopicNavigation(browser, width);
-  for (const width of [390, 1120]) await checkResultFilters(browser, width);
-
   // E5: все вводные материалы уже изучены, но тема остаётся доступной.
   {
     const { page, context } = await open(browser, 390);
-    const catalog = JSON.parse(readFileSync(new URL('../../backend/data/catalog.synthetic.json', import.meta.url), 'utf8'));
+    const appRoot = new URL('../../app/', import.meta.url);
+    const repoRoot = new URL('../../', import.meta.url);
+    const catalogPath = 'backend/data/catalog.synthetic.json';
+    const workspaceCatalog = new URL(catalogPath, appRoot);
+    const catalogUrl = existsSync(workspaceCatalog) ? workspaceCatalog : new URL(catalogPath, repoRoot);
+    const catalog = JSON.parse(readFileSync(catalogUrl, 'utf8'));
     const history = catalog.materials.map(({ id }, index) => ({ material_id: id, event: 'complete', seq: index + 1 }));
     await page.route('**/api/recommend', (route) => {
       const body = route.request().postDataJSON();
@@ -671,6 +368,186 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const chosen = await afterPost(page, () => topicGroup.getByText('Продвижение', { exact: true }).click());
     check('E5', 'Выбор темы возвращает карточки', (await chosen.json()).status === 'strong' &&
       chosen.request().postDataJSON().topic === 'marketing' && (await cards(page)).length > 0);
+    await context.close();
+  }
+
+  // D09: главное действие на первом экране телефона 390×844 без прокрутки
+  {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ru-RU' });
+    const page = await context.newPage();
+    await page.goto(base + '/');
+    const button = page.getByRole('button', { name: 'Подобрать материалы', exact: true });
+    await button.waitFor();
+    const box = await button.boundingBox();
+    const scrollY = await page.evaluate(() => window.scrollY);
+    check('D09', 'Кнопка «Подобрать материалы» видна без прокрутки на 390×844', box && scrollY === 0 && box.y >= 0 && box.y + box.height <= 844,
+      box ? `кнопка ${Math.round(box.y)}–${Math.round(box.y + box.height)} px при высоте окна 844, прокрутка ${scrollY}` : 'кнопка не найдена');
+    await shot(page, 'first-screen-390x844');
+    await context.close();
+  }
+
+  // D09: на 1440 px колонка выдачи достигает 760 px, и предел 65ch ограничивает строку причины
+  {
+    const { page, context } = await open(browser, 1440);
+    await chooseProfile(page, 'P01');
+    await submit(page);
+    const measure = await lineLength(page);
+    check('D09', 'Текстовые блоки карточки упираются в 65ch на 1440 px', measure.blocks > 0 && measure.over.length === 0 && measure.card - 40 > measure.limit && measure.widest >= measure.limit - 1,
+      `блоков ${measure.blocks}, 65ch = ${measure.limit} px, карточка ${measure.card} px, самый широкий блок ${measure.widest} px, в строке до ${measure.chars} знаков`);
+    await shot(page, 'p01-1440');
+    await context.close();
+  }
+
+  // D10: строка состояния сразу, скелетоны — только если ответ дольше 400 мс. До скелетонов прежнее
+  // содержимое остаётся на месте, неактивное (inert), и колонка не схлопывается
+  {
+    const { page, context } = await open(browser, 1120);
+    await chooseProfile(page, 'P01');
+    /** Журнал страницы при каждой мутации: высота колонки, карточки, вводная панель, скелетоны, обёртки Stale */
+    const watch = () => page.evaluate(() => {
+      const log = (window.__hold = []);
+      const snap = () => {
+        const stale = Array.from(document.querySelectorAll('.stale'));
+        log.push({
+          height: Math.round(document.querySelector('.layout__content').getBoundingClientRect().height),
+          cards: document.querySelectorAll('article.card').length,
+          intro: Array.from(document.querySelectorAll('h2')).some((h) => h.textContent === 'Что вы получите'),
+          skeletons: document.querySelectorAll('.skeleton').length,
+          stale: stale.length,
+          inert: stale.every((el) => el.inert),
+        });
+      };
+      snap();
+      new MutationObserver(snap).observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    const held = () => page.evaluate(() => window.__hold);
+    await watch();
+    // Отметки времени ставит страница: щелчок, первая строка «Подбираем…», первый скелетон и их число
+    await page.evaluate(() => {
+      const log = (window.__d10 = { click: null, status: null, skeleton: null, count: 0 });
+      document.addEventListener('click', () => {
+        Object.assign(log, { click: performance.now(), status: null, skeleton: null, count: 0 });
+      }, true);
+      new MutationObserver(() => {
+        if (log.click === null) return;
+        const now = performance.now() - log.click;
+        if (log.status === null && (document.querySelector('p.status-line')?.textContent || '').startsWith('Подбираем')) log.status = now;
+        const count = document.querySelectorAll('.skeleton').length;
+        if (count > 0 && log.skeleton === null) log.skeleton = now;
+        log.count = Math.max(log.count, count);
+      }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+    const button = page.getByRole('button', { name: 'Подобрать материалы', exact: true });
+    const started = Date.now();
+    await submit(page);
+    const fastMs = Date.now() - started;
+    const fast = await page.evaluate(() => ({ ...window.__d10 }));
+    check('D10', 'Быстрый ответ: строка состояния сразу, скелетоны не появились',
+      fast.status !== null && fast.status < 100 && fast.skeleton === null && fast.count === 0,
+      `ответ за ${fastMs} мс, строка через ${Math.round(fast.status ?? -1)} мс, скелетонов ${fast.count}`);
+    const introLog = await held();
+    check('D10', 'Быстрый ответ с начального экрана: вводная панель остаётся неактивной до карточек, колонка не пустеет',
+      introLog.every((e) => e.intro || e.cards > 0) && introLog.some((e) => e.stale > 0 && e.intro) && introLog.every((e) => e.inert && e.skeletons === 0),
+      `мутаций ${introLog.length}, с обёрткой Stale ${introLog.filter((e) => e.stale).length}, без панели и карточек ${introLog.filter((e) => !e.intro && !e.cards).length}`);
+
+    // Повтор из выдачи с ответом за 250 мс: карточки на месте, высота колонки не падает
+    const before = await page.evaluate(() => Math.round(document.querySelector('.layout__content').getBoundingClientRect().height));
+    await page.route('**/api/recommend', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await route.continue();
+    });
+    await watch();
+    await afterPost(page, () => page.locator('article.card').first().getByRole('button', { name: 'Отметить изученным' }).click());
+    await page.unroute('**/api/recommend');
+    const repeatLog = await held();
+    const lowest = Math.min(...repeatLog.map((e) => e.height));
+    check('D10', 'Ответ за 250 мс на «Отметить изученным»: прежние карточки на месте и неактивны, колонка не схлопывается',
+      repeatLog.every((e) => e.cards >= 5 && e.skeletons === 0 && e.inert) && repeatLog.some((e) => e.stale > 0) && lowest >= before - 1,
+      `высота до запроса ${before} px, наименьшая ${lowest} px, наименьшее число карточек ${Math.min(...repeatLog.map((e) => e.cards))}`);
+    // Замедленный ответ: сеть держит запрос 1500 мс
+    await page.route('**/api/recommend', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+    const task = page.getByLabel(TASK_LABEL);
+    const response = afterPost(page, async () => {
+      await button.click();
+      const early = await page.locator('.actions .btn--primary').evaluate((el) => ({
+        busy: el.dataset.busy,
+        blocked: el.getAttribute('aria-disabled'),
+        text: el.textContent,
+        fieldDisabled: document.querySelector('textarea')?.disabled,
+      }));
+      check('D10', 'До скелетонов форма сохраняет обычный вид, повторная отправка заблокирована',
+        early.busy === 'false' && early.blocked === 'true' && early.text === 'Подобрать материалы' && early.fieldDisabled === false,
+        JSON.stringify(early));
+      const busy = page.getByRole('button', { name: 'Подбираем…', exact: true });
+      await busy.waitFor();
+      check('D10', 'После задержки поля блокируются вместе с появлением скелетонов',
+        await task.isDisabled() && (await page.locator('.skeleton').count()) === 3);
+    });
+    await response;
+    const slow = await page.evaluate(() => ({ ...window.__d10 }));
+    await page.unroute('**/api/recommend');
+    check('D10', 'Медленный ответ: строка состояния сразу, три скелетона через 300–600 мс',
+      slow.status !== null && slow.status < 100 && slow.skeleton !== null && slow.skeleton >= 300 && slow.skeleton <= 600 && slow.count === 3,
+      `строка через ${Math.round(slow.status ?? -1)} мс, скелетоны через ${Math.round(slow.skeleton ?? -1)} мс, скелетонов ${slow.count}`);
+    check('D10', 'После ответа скелетонов нет, карточки на месте', (await page.locator('.skeleton').count()) === 0 && (await cards(page)).length === 5);
+    await context.close();
+  }
+
+  // ИИ-5: поле задачи у предела сообщает о нём, а не обрезает вставку молча
+  {
+    const context = await browser.newContext({ viewport: { width: 390, height: 900 }, locale: 'ru-RU' });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(base).origin });
+    const page = await context.newPage();
+    await page.goto(base + '/');
+    const field = page.getByLabel('Что вы хотите сделать?');
+    await field.waitFor();
+    const state = () => field.evaluate((el) => {
+      const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+      const hint = ids.map((id) => document.getElementById(id)).find((d) => d?.classList.contains('field__hint'));
+      const live = el.closest('.field')?.querySelector('[role="status"]');
+      const plain = (text) => (text || '').replace(/\u00a0/g, ' ').trim();
+      return { length: el.value.length, hint: plain(hint?.textContent), live: plain(live?.textContent), invalid: el.getAttribute('aria-invalid') };
+    });
+    await field.fill('а'.repeat(290));
+    await page.evaluate(() => navigator.clipboard.writeText('б'.repeat(30)));
+    await field.press('End');
+    await field.press('Control+V');
+    const pasted = await state();
+    const cutText = 'Вставка длиннее на 20 символов, её конец не поместился. Поле вмещает 300 символов.';
+    check('ИИ-5', 'Вставка сверх предела: подсказка и живая область называют, сколько не поместилось',
+      pasted.length === 300 && pasted.hint === cutText && pasted.live === cutText && pasted.invalid === null, JSON.stringify(pasted));
+    await field.press('Backspace');
+    const below = await state();
+    check('ИИ-5', 'Ниже предела: снова счётчик, сообщение снято', below.length === 299 && below.hint === '299 из 300 символов' && below.live === '', JSON.stringify(below));
+    await field.press('Space');
+    const typed = await state();
+    check('ИИ-5', 'Набор до предела: «Это предел. Поле вмещает 300 символов.»',
+      typed.length === 300 && typed.hint === 'Это предел. Поле вмещает 300 символов.' && typed.live === typed.hint, JSON.stringify(typed));
+    await field.press('Space');
+    const over = await state();
+    check('ИИ-5', 'Сверх предела при наборе поле не растёт, сообщение остаётся',
+      over.length === 300 && over.hint === 'Это предел. Поле вмещает 300 символов.' && over.live === over.hint, JSON.stringify(over));
+
+    // Сообщение о вставке относится к значению, которое она дала: «Сбросить» и выбор профиля его снимают
+    const defaultHint = 'До 300 символов. Можно своими словами, без терминов';
+    await field.fill('а'.repeat(290));
+    await field.press('End');
+    await field.press('Control+V');
+    const again = await state();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
+    const reset = await state();
+    check('ИИ-5', '«Сбросить» после обрезанной вставки: подсказка по умолчанию, живая область пуста',
+      again.hint === cutText && reset.length === 0 && reset.hint === defaultHint && reset.live === '', JSON.stringify({ again: again.hint, reset }));
+    await field.fill('а'.repeat(290));
+    await field.press('End');
+    await field.press('Control+V');
+    await chooseProfile(page, 'P01');
+    const profile = await state();
+    check('ИИ-5', 'Выбор профиля после обрезанной вставки: счётчик задачи профиля, сообщения нет',
+      profile.length > 0 && profile.length < 300 && profile.hint === `${profile.length} из 300 символов` && profile.live === '', JSON.stringify(profile));
     await context.close();
   }
 
@@ -724,6 +601,18 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     check('E9', 'Нет горизонтальной прокрутки на 390 px', !overflow);
     await shot(page, 'keyboard-390');
+    await context.close();
+  }
+
+  // E9: 320 px (WCAG 2.2, 1.4.10) с самой длинной подписью профиля. Полный проход на 320 px — в check_wcag.mjs
+  {
+    const { page, context } = await open(browser, 320);
+    await chooseProfile(page, 'P01');
+    const demoOverflow = await demoPanelOverflow(page);
+    check('E9', 'Демо-панель с профилем P01 не выходит за край на 320 px', demoOverflow?.length === 0, (demoOverflow ?? ['панель не найдена']).slice(0, 3).join('; '));
+    await submit(page);
+    check('E9', 'Нет горизонтальной прокрутки на 320 px', !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
+    await shot(page, 'p01-320');
     await context.close();
   }
 });

@@ -1,4 +1,4 @@
-"""Каталог из локальной SQLite-копии выгрузки (PLAN.md, 2.1–2.4, 2.8).
+"""Каталог из локальной SQLite-копии выгрузки (docs/plan.md, 2.1–2.4, 2.8).
 
 Обе базы открываются только на чтение. Материалы — статьи, курсы, документы, вебинары и подкасты,
 `id` = `{формат}:{Id}`. Метаданные приходят из `ContentSettings` по `EntityId`. Источник и цель
@@ -7,6 +7,9 @@
 
 Доступность: однозначная запись `ContentSettings` и статус «Опубликовано» в ней и в таблице
 сущности; флаги скрывают материал там, где они есть: `IsDeleted = 1`, `IsClosed = 1`, `IsPublic = 0`.
+Приватный тип доступа (`hidden_access_titles`, в копии «Закрытый») в `ContentSettings` или в таблице
+статьи или курса тоже скрывает материал (docs/plan.md, раздел 10). Тип доступа статьи и курса сверяется
+с `ContentSettings`, при расхождении действует более строгий.
 Каталог без доступных материалов не загружается. Популярность — ранг внутри формата; без записей
 и ссылок она равна 0, как у форматов без источника, и равенства решает `id`. Необязательная таблица
 (рубрики, теги, отрасли, связи, записи на курсы), которой нет или в которой не хватает столбцов,
@@ -17,18 +20,16 @@
 from __future__ import annotations
 
 import logging
-import re
 import sqlite3
 from collections import Counter, defaultdict
 from collections.abc import Callable
 from contextlib import closing, suppress
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .. import vocab
-from .course_details import CourseDetails
 from .coverage import disabled_features, normalize_popularity, summarize
 from .mapping import CatalogMapping, load_mapping, norm_label
 from .models import Catalog, CatalogError, Material
@@ -79,16 +80,14 @@ COUNTED_TABLES: tuple[str, ...] = (
 
 SIGNALS_TABLE = "MaterialSignals"
 SIGNALS_COLUMNS = ("MaterialId", "MaterialFormat", "SignalCode", "MatchedTitle")
-DETAILS_TABLE = "MaterialDetails"
-DETAILS_COLUMNS = ("MaterialId", "MaterialFormat", "PlatformUrl", "LessonCount", "HasCertificate")
-PLATFORM_SECTIONS = {"article": "articles", "course": "courses", "document": "documents", "webinar": "webinars"}
-SLUG = re.compile(r"[a-z0-9_-]+")
 
-# Источник популярности (PLAN.md, 2.2): записи на курсы, входящие редакционные ссылки
+# Источник популярности (docs/plan.md, 2.2): записи на курсы, входящие редакционные ссылки
 BY_ENROLLMENTS = frozenset({"course"})
 BY_INCOMING_LINKS = frozenset({"article", "document"})
 
 ACCESS_RANK = {"open": 0, "subscription": 1, "paid": 2}
+# Форматы, у которых тип доступа есть и в таблице сущности (`TypeId`): он сверяется с ContentSettings
+OWN_ACCESS_FORMATS = frozenset({"article", "course"})
 
 # Поле -> есть ли сведения у материала; для сводки по форматам
 FIELD_CHECKS: dict[str, Callable[[Material], bool]] = {
@@ -98,20 +97,9 @@ FIELD_CHECKS: dict[str, Callable[[Material], bool]] = {
     "level": lambda m: m.level is not None,
     "industries": lambda m: bool(m.industries),
     "duration": lambda m: m.duration_minutes is not None,
-    "lesson_count": lambda m: m.lesson_count is not None,
-    "certificate": lambda m: m.has_certificate is True,
-    "course_description": lambda m: bool(m.course_details and m.course_details.description),
-    "course_sections": lambda m: bool(m.course_details and (m.course_details.audiences or m.course_details.outcomes)),
     "popularity": lambda m: m.popularity_raw > 0,
     "recommended_next": lambda m: bool(m.recommended_next),
 }
-
-
-def platform_url(fmt: str, slug: object) -> str | None:
-    section = PLATFORM_SECTIONS.get(fmt)
-    if section and isinstance(slug, str) and SLUG.fullmatch(slug):
-        return f"https://kurs.alfabank.ru/{section}/{slug}/"
-    return None
 
 
 def load_sqlite_catalog(
@@ -132,7 +120,8 @@ def load_sqlite_catalog(
     if not any(m.available for m in materials):
         raise CatalogError(
             "В каталоге нет доступных материалов: без статуса из published_statuses — {status}, "
-            "скрыто флагами — {flags}, без записи ContentSettings — {no_settings}. "
+            "скрыто флагами — {flags}, без записи ContentSettings — {no_settings}, "
+            "скрыто приватным типом доступа — {private}. "
             "Проверьте published_statuses в файле соответствия".format(**stats["unavailable_by_reason"])
         )
     stats["fields_count"] = {name: sum(1 for m in materials if check(m)) for name, check in FIELD_CHECKS.items()}
@@ -224,14 +213,10 @@ class _Entry:
     fmt: str
     title: str
     duration: Any = None
-    url: str | None = None
-    lesson_count: int | None = None
-    has_certificate: bool | None = None
-    course_details: CourseDetails | None = None
     statuses: list[str | None] = field(default_factory=list)
     hidden: bool = False
     settings_type: str | None = None
-    course_type: str | None = None
+    own_type: str | None = None  # тип доступа в таблице статьи или курса
     subject: str | None = None
     has_settings: bool = False
     topics: list[str] = field(default_factory=list)
@@ -274,7 +259,6 @@ class _Reader:
             if self.db.has(table)
         }
         self.read_entities()
-        self.read_details()
         self.read_settings()
         self.read_topics()
         self.read_stages()
@@ -296,7 +280,7 @@ class _Reader:
                 "IsClosed",
                 "IsPublic",
                 "Duration",
-                "TypeId" if fmt == "course" else None,  # тип доступа курса сверяется с ContentSettings
+                "TypeId" if fmt in OWN_ACCESS_FORMATS else None,  # тип доступа сверяется с ContentSettings
                 "SubjectId" if fmt == "article" else None,
             )
             columns = ", ".join(self.db.pick(table, column) for column in optional)
@@ -318,32 +302,13 @@ class _Reader:
                 if has_status:
                     entry.statuses.append(self.statuses.get(_ref(status) or ""))
                 entry.hidden = _flag(deleted) is True or _flag(closed) is True or _flag(public) is False
-                entry.course_type = self.course_types.get(_ref(type_id) or "")
+                entry.own_type = self.course_types.get(_ref(type_id) or "")
                 entry.subject = _ref(subject)
                 self.entries[key] = entry
                 self.index[ref].append(key)
         self.stats["skipped_records"] = skipped
         self.stats["titles_missing"] = sum(untitled.values())
         self.stats["id_collisions"] = sum(1 for keys in self.index.values() if len(keys) > 1)
-
-    def read_details(self) -> None:
-        table = DETAILS_TABLE
-        if not all(self.db.has(table, column) for column in DETAILS_COLUMNS):
-            return
-        columns = ", ".join(f"[{column}]" for column in DETAILS_COLUMNS)
-        details_column = self.db.pick(table, "CourseDetails")
-        sql = f"SELECT {columns}, {details_column} FROM [{table}]"
-        for ref, fmt, url, lessons, certificate, details in self.db.rows(table, sql):
-            entry = self.entries.get(f"{fmt}:{ref}")
-            if entry is None:
-                continue
-            if isinstance(url, str) and (canonical := platform_url(fmt, url.rstrip("/").rsplit("/", 1)[-1])):
-                if url == canonical:
-                    entry.url = canonical
-            if fmt == "course":
-                entry.lesson_count = lessons if type(lessons) is int and lessons > 0 else None
-                entry.has_certificate = _flag(certificate)
-                entry.course_details = CourseDetails.from_json(details)
 
     def read_settings(self) -> None:
         table = "ContentSettings"
@@ -514,7 +479,7 @@ def _read_signals(
 ) -> dict[str, dict[str, int]]:
     """Признаки из второй базы: сила 2 при совпадении в названии, иначе 1.
 
-    Без файла или при ошибке чтения признак отключается, а каталог загружается (PLAN.md, 7.2, S6).
+    Без файла или при ошибке чтения признак отключается, а каталог загружается (docs/plan.md, 7.2, S6).
     """
     found: dict[str, dict[str, int]] = defaultdict(dict)
     counts: Counter[str] = Counter()
@@ -570,7 +535,12 @@ def _build(reader: _Reader, signals: dict[str, dict[str, int]]) -> list[Material
         blank = entry.duration is None or (isinstance(entry.duration, str) and not entry.duration.strip())
         durations["parsed" if minutes is not None else "missing" if blank else "unparsed"] += 1
         published = bool(entry.statuses) and all(mapping.is_published(status) for status in entry.statuses)
-        failed = {"status": not published, "flags": entry.hidden, "no_settings": not entry.has_settings}
+        failed = {
+            "status": not published,
+            "flags": entry.hidden,
+            "no_settings": not entry.has_settings,
+            "private": _private(entry, mapping),
+        }
         reasons = [reason for reason, value in failed.items() if value]
         unavailable.update(reasons)
         materials.append(
@@ -590,29 +560,39 @@ def _build(reader: _Reader, signals: dict[str, dict[str, int]]) -> list[Material
                 # Без записей и ссылок normalize_popularity даёт 0, как без источника. Равенства решает id
                 popularity=ranks.get(key, 0.0),
                 recommended_next=tuple(entry.next_items),
-                url=entry.url if not reasons else None,
-                lesson_count=entry.lesson_count if not reasons else None,
-                has_certificate=entry.has_certificate if not reasons else None,
-                course_details=entry.course_details if not reasons else None,
             )
         )
     stats["duration_parse"] = {key: durations[key] for key in ("parsed", "unparsed", "missing")}
     stats["access_mapping"] = {key: access_counts[key] for key in ("unknown", "conflicts")}
     # Причины недоступности; материал может попасть в несколько
-    stats["unavailable_by_reason"] = {key: unavailable[key] for key in ("status", "flags", "no_settings")}
+    stats["unavailable_by_reason"] = {key: unavailable[key] for key in ("status", "flags", "no_settings", "private")}
     return materials
 
 
+def _private(entry: _Entry, mapping: CatalogMapping) -> bool:
+    """Приватный тип доступа в ContentSettings или в таблице статьи или курса: материал скрыт.
+
+    Приватный тип строже платного, поэтому при расхождении с другим типом он побеждает. Недоступный
+    материал не попадает ни в ранжирование, ни в стартовую подборку, ни в переходы по связям.
+    """
+    return mapping.is_hidden_access(entry.settings_type) or mapping.is_hidden_access(entry.own_type)
+
+
 def _access(entry: _Entry, mapping: CatalogMapping, counts: Counter[str]) -> str:
-    """Доступ из ContentSettings.TypeId; у курсов сверяется с Courses.TypeId, при расхождении — строже."""
+    """Доступ из ContentSettings.TypeId; у статей и курсов сверяется с их TypeId, при расхождении — строже.
+
+    Приватный тип в ContentSettings не считается неизвестным: материал скрыт (`_private`), а код
+    доступа, как у неизвестного типа, самый строгий.
+    """
     access = mapping.access(entry.settings_type)
     if access is None:
-        counts["unknown"] += 1
+        if not mapping.is_hidden_access(entry.settings_type):
+            counts["unknown"] += 1
         return "paid"  # неизвестный доступ трактуется осторожно: как платный
-    course = mapping.access(entry.course_type)
-    if course is not None and course != access:
+    own = mapping.access(entry.own_type)
+    if own is not None and own != access:
         counts["conflicts"] += 1
-        return max(access, course, key=lambda code: ACCESS_RANK.get(code, len(ACCESS_RANK)))
+        return max(access, own, key=lambda code: ACCESS_RANK.get(code, len(ACCESS_RANK)))
     return access
 
 
@@ -622,7 +602,7 @@ def _version(path: Path) -> str:
         info = path.stat()
     except OSError as exc:
         raise CatalogError(f"База каталога не читается: {path.name}") from exc
-    day = datetime.fromtimestamp(info.st_mtime, tz=timezone.utc).date().isoformat()
+    day = datetime.fromtimestamp(info.st_mtime, tz=UTC).date().isoformat()
     return f"sqlite-{info.st_size}-{day}"
 
 

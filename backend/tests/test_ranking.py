@@ -1,4 +1,4 @@
-"""Порядок выдачи на синтетическом каталоге (PLAN.md, 2.7) и свойства выдачи (PLAN.md, 2.8)."""
+"""Порядок выдачи на синтетическом каталоге (docs/plan.md, 2.7) и свойства выдачи (docs/plan.md, 2.8)."""
 
 from __future__ import annotations
 
@@ -115,7 +115,8 @@ def test_p07_gives_starter_and_topic_choice_when_no_title_matches(run, method):
 
 def test_narrow_request_requires_all_title_matches_and_personal_searches_across_topics():
     catalog = catalog_from_payloads({"materials": [
-        {"id": "X01", "title": "Как получить лицензию на продажу алкоголя", "format": "article", "topics": ["taxes_law"]},
+        {"id": "X01", "title": "Как получить лицензию на продажу алкоголя", "format": "article",
+         "topics": ["taxes_law"]},
         {"id": "X02", "title": "Лицензия на ПО", "format": "article", "topics": ["sales"]},
         {"id": "X03", "title": "Продажа алкоголя", "format": "article", "topics": ["sales"]},
     ]})
@@ -134,7 +135,8 @@ def test_narrow_request_applies_catalog_eligibility(method, exclusion):
     catalog = catalog_from_payloads({"materials": [
         {"id": "X01", "title": "Как получить лицензию на продажу алкоголя", "format": "article", "topics": ["sales"],
          "available": exclusion != "unavailable"},
-        {"id": "X02", "title": "Продажа алкоголя и порядок получения лицензии", "format": "article", "topics": ["sales"]},
+        {"id": "X02", "title": "Продажа алкоголя и порядок получения лицензии", "format": "article",
+         "topics": ["sales"]},
     ]})
     history = (HistoryEvent("X01", "purchase", 1),) if exclusion == "purchased" else ()
     outcome = recommend(catalog, Profile(task=NARROW_TASK, history=history), method)
@@ -257,8 +259,10 @@ def test_topics_remain_selectable_without_free_starter_materials(task, status, m
 
     assert outcome.status == status
     assert outcome.items == [] and outcome.total_candidates == 0
-    assert "стартов" not in outcome.clarification["text"] and "Ниже" not in outcome.clarification["text"]
-    topic, = [option["value"] for option in outcome.clarification["options"]]
+    clarification = outcome.clarification
+    assert clarification is not None
+    assert "стартов" not in clarification["text"] and "Ниже" not in clarification["text"]
+    topic, = [option["value"] for option in clarification["options"]]
     assert topic == "sales"
     result = recommend(catalog, Profile(task=task, topic=topic), method)
     assert result.status == "strong" and ids(result) == ["Z1"]
@@ -274,6 +278,7 @@ def test_topics_remain_selectable_after_completing_all_starter_materials():
 
     assert outcome.status == "cold"
     assert outcome.items == [] and outcome.total_candidates == 0
+    assert outcome.clarification is not None
     topic, = [option["value"] for option in outcome.clarification["options"]]
     assert topic == "sales"
     result = recommend(catalog, Profile(topic=topic, history=history))
@@ -311,6 +316,7 @@ def test_weak_status_and_options_use_only_topics_with_materials():
     assert outcome.message.startswith(
         "Нашли 12 материалов по темам «Продвижение» и «Продажи». По теме «Налоги и законы» материалов пока нет."
     )
+    assert outcome.clarification is not None
     options = [o["value"] for o in outcome.clarification["options"]]
     assert options == ["marketing", "sales"]
     assert outcome.clarification["text"].endswith("Пока показываем материалы по обеим темам.")
@@ -369,7 +375,9 @@ def test_status_line_names_what_was_taken_from_the_task(catalog):
 
 def test_format_hint_is_explained_without_a_false_cause(catalog):
     outcome = recommend(catalog, Profile(task="Нужен шаблон для продвижения"), "personal")
-    assert outcome.message.endswith("Уточнения не заполнены, поэтому порядок учитывает описание задачи: формат «шаблон».")
+    assert outcome.message.endswith(
+        "Уточнения не заполнены, поэтому порядок учитывает описание задачи: формат «шаблон»."
+    )
 
 
 def test_popularity_wording_stays_for_p05(run):
@@ -410,7 +418,7 @@ def test_purchase_of_an_unavailable_copy_hides_the_available_one():
 
 
 def starter_catalog(*extra: dict) -> Catalog:
-    """Каталог, где уровень размечен только у курсов, как в копии (PLAN.md, 3.4)."""
+    """Каталог, где уровень размечен только у курсов, как в копии (docs/plan.md, 3.4)."""
     rows = [
         {"id": "C1", "title": "Курс для начинающих", "format": "course", "topics": ["marketing"], "level": "intro",
          "popularity": 5},
@@ -452,9 +460,10 @@ def test_signal_only_task_takes_candidates_with_the_signal_from_any_topic(catalo
     # Признак «Прибыль и рентабельность» есть у L03, M02, M06 и S04 — в разных темах, но не в финансах
     assert sorted(ids(outcome)) == ["L03", "M02", "M06", "S04"]
     assert outcome.message.startswith("Нашли 4 материала на тему «Прибыль и рентабельность».")
-    for item, reasons in zip(outcome.items, outcome.reasons):
+    for item, reasons in zip(outcome.items, outcome.reasons, strict=True):
         assert "topic" not in item.contributions
-        assert "Материал о теме «Прибыль и рентабельность»" in reasons
+        # Фраза D01 цитирует слово задачи так, как его написал пользователь
+        assert "В задаче вы назвали «юнит-экономику» — материал о теме «Прибыль и рентабельность»" in reasons
         assert not any("совпадает с задачей" in r for r in reasons)
 
 
@@ -463,13 +472,18 @@ def test_signal_only_task_shows_only_materials_with_the_signal(catalog):
     assert outcome.status == "strong" and ids(outcome) == ["S02", "S03"]
     assert outcome.message == "Нашли 2 материала на тему «Работа с CRM и клиентской базой». Стадия и опыт не указаны."
     assert outcome.clarification is None
+    assert all(
+        reasons[0] == "В задаче вы назвали «CRM» — материал о теме «Работа с CRM и клиентской базой»"
+        for reasons in outcome.reasons
+    )
 
 
 def test_signal_only_task_without_such_materials_is_an_honest_gap(catalog):
     outcome = recommend(catalog, Profile(task="Регистрация товарного знака"), "personal")
     assert outcome.status == "none" and outcome.detected_topics == ()
     assert outcome.message == "По запросу «Регистрация товарного знака» материалов пока нет"
-    assert [option["value"] for option in outcome.clarification["options"][:2]] == ["start", "taxes_law"]
+    # Первой предлагается тема понятия: товарный знак относится к «Налогам и законам»
+    assert outcome.clarification is not None and outcome.clarification["options"][0]["value"] == "taxes_law"
     assert all(item.starter_topic for item in outcome.items)
 
 

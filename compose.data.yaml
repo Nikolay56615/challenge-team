@@ -1,7 +1,7 @@
 # Наложение для своей выгрузки каталога: папка LOCAL_DATA_DIR монтируется в /data только на чтение.
-# bash:       LOCAL_DATA_DIR=<папка> docker compose -f compose.yaml -f compose.data.yaml up --build
-# PowerShell: $env:LOCAL_DATA_DIR = "<папка>"; docker compose -f compose.yaml -f compose.data.yaml up --build
-# По умолчанию источник sqlite: catalog.sqlite3 и необязательная catalog-signals.sqlite3 из этой папки.
+# Папка задаётся строкой LOCAL_DATA_DIR=<папка> в .env, запуск: docker compose -f compose.yaml -f compose.data.yaml up --build
+# По умолчанию источник sqlite: catalog.sqlite3, необязательные catalog-signals.sqlite3 и course-pairs.json
+# (пары совместных записей для «похожих курсов») из этой папки. Без файла пар признак отключён, каталог работает.
 # JSON в каноническом формате: CATALOG_SOURCE=file и CATALOG_PATH=/data/<файл>.json.
 # Свой файл соответствия: CATALOG_MAPPING=/data/<файл>. Пути указываются внутри контейнера.
 # В Linux контейнер читает файлы от uid 10001: права описаны в README, раздел «Своя выгрузка каталога».
@@ -12,5 +12,6 @@ services:
       CATALOG_PATH: ${CATALOG_PATH:-/data/catalog.sqlite3}
       CATALOG_SIGNALS_PATH: ${CATALOG_SIGNALS_PATH:-/data/catalog-signals.sqlite3}
       CATALOG_MAPPING: ${CATALOG_MAPPING:-}
+      CATALOG_PAIRS_PATH: ${CATALOG_PAIRS_PATH:-/data/course-pairs.json}
     volumes:
       - ${LOCAL_DATA_DIR:?Укажите LOCAL_DATA_DIR — папку с копией выгрузки}:/data:ro

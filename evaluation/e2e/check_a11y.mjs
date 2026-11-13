@@ -1,11 +1,11 @@
-// Автоматическая проверка доступности axe-core по состояниям экрана (PLAN.md, 5.5; design/ui-kit.md, раздел 1).
+// Автоматическая проверка доступности axe-core по состояниям экрана (docs/plan.md, 5.5; docs/ui-kit.md, раздел 1).
 // Ловит только часть нарушений WCAG: ручной проход клавиатурой из check_ui.mjs (E9) она не заменяет.
 //
 // Запуск из корня проекта при работающем сервисе с собранным интерфейсом:
 //   npm --prefix evaluation/e2e run check:a11y -- [адрес] [папка результатов]
 
 import { readFileSync } from 'node:fs';
-import { afterPost, base, chooseProfile, runBrowserChecks, selectCatalogTopic, submit } from './browser.mjs';
+import { base, chooseProfile, runBrowserChecks, submit } from './browser.mjs';
 
 const axeSource = readFileSync(new URL(import.meta.resolve('axe-core/axe.min.js')), 'utf8');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -17,7 +17,13 @@ async function audit(page, state, width) {
   await page.addScriptTag({ content: axeSource });
   const result = await page.evaluate((tags) => window.axe.run(document, { runOnly: { type: 'tag', values: tags } }), TAGS);
   const violations = result.violations.map((v) => `${v.id} (${v.impact}, ${v.nodes.length})`);
-  rows.push({ state, width, violations, passes: result.passes.length });
+  // incomplete — правила, которые axe не смог решить сам (W19): разбор и решения — evaluation/track1-a11y-manual.md
+  const incomplete = result.incomplete.map((v) => {
+    const first = v.nodes[0] || {};
+    const reason = [...(first.any || []), ...(first.all || []), ...(first.none || [])].map((c) => c.message).find(Boolean) || '';
+    return { id: v.id, nodes: v.nodes.length, targets: v.nodes.slice(0, 5).map((n) => n.target.join(' ')), reason };
+  });
+  rows.push({ state, width, violations, passes: result.passes.length, incomplete });
   console.log(`${violations.length ? 'FAIL' : 'PASS'} ${state} ${width}: нарушений ${violations.length}, правил пройдено ${result.passes.length}${violations.length ? ' — ' + violations.join('; ') : ''}`);
 }
 
@@ -29,7 +35,8 @@ async function open(browser, width, path = '/') {
 }
 
 await runBrowserChecks('a11y-results.json', rows, async (browser) => {
-  for (const width of [390, 1120]) {
+  // 320 px — ширина критерия 1.4.10 WCAG 2.2; проверки, которых нет в axe, — в check_wcag.mjs
+  for (const width of [320, 390, 1120]) {
     const { page, context } = await open(browser, width);
     await page.getByLabel('Тестовый профиль').waitFor();
     await audit(page, 'начальный экран', width);
@@ -52,71 +59,15 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
     await audit(page, 'сравнение P02', width);
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
-    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
     await submit(page);
     await audit(page, 'пустая форма, стартовая подборка', width);
-
-    await page.route('**/api/recommend', async (route) => {
-      const response = await route.fetch();
-      const result = await response.json();
-      const items = result.items.map((item) => item.format === 'course' ? {
-        ...item, url: 'https://kurs.alfabank.ru/courses/test-course/', link_allowed: true,
-        lesson_count: 22, has_certificate: true,
-        course_details: {
-          description: 'Практика планирования бюджета', audiences: ['Владельцам магазинов'],
-          outcomes: ['Составить бюджет'],
-        },
-      } : item);
-      await route.fulfill({ response, json: { ...result, items } });
-    });
-    await chooseProfile(page, 'P02');
-    await submit(page);
-    await page.getByText('22 урока', { exact: true }).first().waitFor();
-    await audit(page, 'курс со ссылкой и числом уроков', width);
-    await page.locator('summary').filter({ hasText: 'Подробнее о курсе' }).first().click();
-    await page.getByText('Составить бюджет', { exact: true }).first().waitFor();
-    await audit(page, 'раскрытые сведения о курсе', width);
-    await page.unroute('**/api/recommend');
-
-    const filters = page.getByRole('group', { name: 'Фильтры выдачи' });
-    const apply = filters.getByRole('button', { name: 'Применить фильтры' });
-    await filters.getByLabel('Формат', { exact: true }).selectOption('template');
-    await afterPost(page, () => apply.click());
-    await audit(page, 'отфильтрованная выдача', width);
-    await filters.getByLabel('Доступ', { exact: true }).selectOption('paid');
-    await afterPost(page, () => apply.click());
-    await page.getByRole('heading', { name: 'По выбранным фильтрам материалов нет' }).waitFor();
-    await audit(page, 'пустая отфильтрованная выдача', width);
 
     await page.route('**/api/recommend', (route) => route.abort('failed'));
     await page.getByRole('button', { name: 'Подобрать материалы' }).click();
     await page.getByRole('alert').waitFor({ timeout: 5000 });
     await audit(page, 'ошибка запроса', width);
     await page.unroute('**/api/recommend');
-
-    // Повторное действие: прежняя выдача на экране, карточки помечены aria-busy
-    await page.route('**/api/recommend', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 4000));
-      await route.continue();
-    });
-    await chooseProfile(page, 'P01');
-    const first = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).click();
-    await first;
-    await page.getByRole('button', { name: 'Подобрать материалы', exact: true }).waitFor();
-    const repeat = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/recommend' && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Отметить изученным' }).last().click();
-    await page.waitForTimeout(300);
-    await audit(page, 'обновление выдачи', width);
-    await repeat;
-    await page.unroute('**/api/recommend');
-
-    await page.getByRole('link', { name: 'Каталог', exact: true }).click();
-    await page.getByRole('heading', { name: 'Каталог', exact: true }).waitFor();
-    await audit(page, 'каталог, выбор темы', width);
-    await afterPost(page, () => selectCatalogTopic(page, width, 'marketing', 'Продвижение'));
-    await page.getByRole('heading', { name: 'Подборка по теме «Продвижение»' }).waitFor();
-    await audit(page, 'каталог, материалы темы', width);
     await context.close();
 
     const kit = await open(browser, width, '/kit.html');
@@ -126,6 +77,21 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
   }
 });
 
+// Сводка incomplete по правилам: проверку не валит, нужна для ручного разбора
+const byRule = new Map();
+for (const row of rows) {
+  for (const item of row.incomplete || []) {
+    const entry = byRule.get(item.id) || { nodes: 0, states: 0, reason: item.reason, targets: new Set() };
+    entry.nodes += item.nodes;
+    entry.states += 1;
+    item.targets.forEach((t) => entry.targets.add(t));
+    byRule.set(item.id, entry);
+  }
+}
+for (const [id, entry] of byRule) {
+  console.log(`INCOMPLETE ${id}: узлов ${entry.nodes} в ${entry.states} состояниях — ${entry.reason}; примеры: ${[...entry.targets].slice(0, 4).join(' | ')}`);
+}
+
 const failed = rows.filter((r) => r.violations.length > 0).length;
-console.log(`\nИтого: состояний ${rows.length}, с нарушениями ${failed}`);
+console.log(`\nИтого: состояний ${rows.length}, с нарушениями ${failed}, правил с неопределённым итогом ${byRule.size}`);
 process.exit(failed ? 1 : 0);

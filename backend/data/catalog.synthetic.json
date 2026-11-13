@@ -37,7 +37,7 @@
       "topics": ["marketing"], "signals": ["ad_campaign", "ad_budget"], "stage": ["start", "growth"], "level": "practical",
       "industries": ["ecom"], "duration_minutes": 90, "access": "paid",
       "url": null, "short_benefit": "Настройка первой кампании и чтение статистики без агентства",
-      "popularity": 700, "recommended_next": ["M06"], "next_step": "Запись откроется на платформе после подключения каталога"
+      "popularity": 700, "recommended_next": ["M06"], "next_step": "Посмотрите запись и выпишите одну настройку для своей кампании"
     },
     {
       "id": "M06", "title": "Шаблон: расчёт стоимости привлечения клиента", "format": "template",

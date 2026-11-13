@@ -1,4 +1,4 @@
-// Вызовы API (PLAN.md, 4.4). Ответы и ошибки приводятся к типам контракта из ./types.
+// Вызовы API (docs/plan.md, 4.4). Ответы и ошибки приводятся к типам контракта из ./types.
 import type {
   ApiErrorBody,
   CompareResponse,
@@ -73,10 +73,13 @@ function httpError(status: number, data: unknown): ApiError {
 async function request(method: 'GET' | 'POST', path: string, body: unknown, signal?: AbortSignal): Promise<unknown> {
   // Свой контроллер: отмена вызывающим и таймаут различаются
   const controller = new AbortController();
-  const forwardAbort = () => controller.abort(signal?.reason);
+  const forwardAbort = () => {
+    controller.abort(signal?.reason);
+  };
   if (signal?.aborted) controller.abort(signal.reason);
   else signal?.addEventListener('abort', forwardAbort, { once: true });
-  let timedOut = false;
+  // Флаг ставит таймер в замыкании. Без «as boolean» TypeScript сузил бы тип до false и счёл проверки ниже лишними
+  let timedOut = false as boolean;
   const timer = setTimeout(() => {
     timedOut = true;
     controller.abort();
@@ -88,7 +91,9 @@ async function request(method: 'GET' | 'POST', path: string, body: unknown, sign
       response = await fetch(path, {
         method,
         headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        // Для fetch null и отсутствие тела равнозначны. При exactOptionalPropertyTypes
+        // RequestInit.body не принимает undefined
+        body: body === undefined ? null : JSON.stringify(body),
         credentials: 'same-origin',
         signal: controller.signal,
       });

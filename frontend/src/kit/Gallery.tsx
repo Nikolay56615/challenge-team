@@ -1,7 +1,7 @@
-// Витрина UI-кита: каждый компонент во всех вариантах и состояниях (design/ui-kit.md, раздел 6).
+// Витрина UI-кита: каждый компонент во всех вариантах и состояниях (docs/ui-kit.md, раздел 6).
 // Параметр ?only=<id> показывает один раздел, например ?only=screen-cards.
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { CompareView, type CompareTab } from '../components/CompareView';
+import { CompareView, compareStatus, type CompareTab } from '../components/CompareView';
 import { DemoPanel } from '../components/DemoPanel';
 import { EmptyState, STARTER_VISIBLE } from '../components/EmptyState';
 import { IntroPanel } from '../components/IntroPanel';
@@ -23,11 +23,13 @@ import {
   Disclosure,
   KeyValue,
   Layout,
+  MatchChips,
   Panel,
   RankMarker,
   Screen,
   SelectField,
   Skeleton,
+  SKELETON_DELAY_MS,
   StatusLine,
   TabPanel,
   Tabs,
@@ -44,7 +46,9 @@ function show(id: string): boolean {
   return !ONLY || ONLY === id || id.startsWith(`${ONLY}-`) || ONLY.startsWith(`${id}-`);
 }
 
-const noop = () => {};
+const noop = () => {
+  // Витрина показывает состояния без действий: обработчик ничего не делает
+};
 
 const COLOR_TOKENS = [
   '--color-ink',
@@ -71,7 +75,6 @@ const COLOR_TOKENS = [
   '--color-flag-ink',
   '--color-err-bg',
   '--color-err-ink',
-  '--color-err-line',
   '--color-skeleton-a',
   '--color-skeleton-b',
   '--color-focus',
@@ -86,6 +89,8 @@ function useTokenValues(): Record<string, string> {
   const [values, setValues] = useState<Record<string, string>>({});
   useEffect(() => {
     const style = getComputedStyle(document.documentElement);
+    // Значения приходят из CSSOM, внешнего для React источника, один раз после монтирования; подписки нет
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- чтение стилей документа после монтирования
     setValues(Object.fromEntries(ALL_TOKENS.map((name) => [name, style.getPropertyValue(name).trim()])));
   }, []);
   return values;
@@ -171,7 +176,9 @@ function ChipGroupDemo() {
           name="kit-stage-a"
           options={S.META.stages}
           value={stage}
-          onChange={(value) => setStage(value)}
+          onChange={(value) => {
+            setStage(value);
+          }}
         />
       </Variant>
       <Variant label="Выбран: повторное нажатие снимает выбор">
@@ -181,7 +188,9 @@ function ChipGroupDemo() {
           name="kit-stage-b"
           options={S.META.stages}
           value={selected}
-          onChange={(value) => setSelected(value)}
+          onChange={(value) => {
+            setSelected(value);
+          }}
         />
       </Variant>
       <Variant label="disabled">
@@ -202,7 +211,9 @@ function ChipGroupDemo() {
           name="kit-topic"
           options={S.COLD.clarification?.options ?? []}
           value={topic}
-          onChange={(value) => setTopic(value)}
+          onChange={(value) => {
+            setTopic(value);
+          }}
           allowDeselect={false}
           activation="manual"
         />
@@ -214,6 +225,8 @@ function ChipGroupDemo() {
 function TextAreaDemo() {
   const [empty, setEmpty] = useState('');
   const [filled, setFilled] = useState(S.PROFILES[0]?.task ?? '');
+  const [limit, setLimit] = useState(S.LIMIT_TASK);
+  const [paste, setPaste] = useState(S.LIMIT_TASK.slice(0, 290));
   return (
     <>
       <TextAreaField
@@ -242,6 +255,14 @@ function TextAreaDemo() {
         maxLength={300}
         error="Запрос длиннее 300 символов"
       />
+      <TextAreaField id="kit-task-limit" label="У предела: 300 из 300 символов" value={limit} onChange={setLimit} maxLength={300} />
+      <TextAreaField
+        id="kit-task-paste"
+        label="Вставка длиннее остатка: вставьте сюда текст длиннее 10 символов"
+        value={paste}
+        onChange={setPaste}
+        maxLength={300}
+      />
     </>
   );
 }
@@ -258,7 +279,9 @@ function SelectDemo() {
         label="Сфера бизнеса"
         optional
         value={industry}
-        onChange={(value) => setIndustry(value)}
+        onChange={(value) => {
+          setIndustry(value);
+        }}
         options={S.META.industries}
         emptyLabel="Не указана"
       />
@@ -267,7 +290,9 @@ function SelectDemo() {
         label="Сфера бизнеса: выбрано"
         optional
         value={chosen}
-        onChange={(value) => setChosen(value)}
+        onChange={(value) => {
+          setChosen(value);
+        }}
         options={S.META.industries}
         emptyLabel="Не указана"
       />
@@ -349,8 +374,12 @@ function ScreenDemo() {
               maxLength={S.META.max_task_length}
               error={null}
               loading={false}
-              onTaskChange={(task) => setValues((prev) => ({ ...prev, task }))}
-              onRefinementsChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
+              onTaskChange={(task) => {
+                setValues((prev) => ({ ...prev, task }));
+              }}
+              onRefinementsChange={(patch) => {
+                setValues((prev) => ({ ...prev, ...patch }));
+              }}
               onSubmit={noop}
               onReset={() => {
                 setValues(EMPTY_FORM);
@@ -401,6 +430,15 @@ function LoadingDemo() {
   );
 }
 
+/** Загрузка до истечения задержки скелетонов: строка состояния сразу, прежняя выдача на месте, неактивная (D10) */
+function StaleDemo() {
+  return (
+    <FrameBody>
+      <ResultList status={LOADING_STATUS} stale response={S.STRONG} showTopics={false} onComplete={noop} onMore={noop} />
+    </FrameBody>
+  );
+}
+
 /** Слабое совпадение в контексте: баннер с темами, строка состояния, смешанная выдача с бейджами тем */
 function WeakDemo() {
   const [topic, setTopic] = useState<TopicCode | null>(null);
@@ -416,7 +454,7 @@ function WeakDemo() {
           onDismiss={noop}
         />
       ) : null}
-      <ResultList status={S.WEAK.message} response={S.WEAK} onComplete={noop} onMore={noop} />
+      <ResultList status={S.WEAK.message} response={S.WEAK} showTopics onComplete={noop} onMore={noop} />
     </FrameBody>
   );
 }
@@ -437,7 +475,9 @@ function EmptyDemo({ response }: { response: RecommendResponse }) {
         onChooseTopic={setTopic}
         onComplete={noop}
         expanded={expanded}
-        onExpand={() => setExpanded(true)}
+        onExpand={() => {
+          setExpanded(true);
+        }}
         focusIndex={STARTER_VISIBLE}
         cardRef={cardRef}
       />
@@ -445,11 +485,15 @@ function EmptyDemo({ response }: { response: RecommendResponse }) {
   );
 }
 
-/** Сравнение: на узком экране сначала открыта вкладка initialTab */
+/**
+ * Сравнение: на узком экране сначала открыта вкладка initialTab. Над представлением — текст строки состояния:
+ * в приложении она скрыта и итог сравнения слышен только с экранным диктором.
+ */
 function CompareDemo({ response, initialTab = 'personal' }: { response: CompareResponse; initialTab?: CompareTab }) {
   const [tab, setTab] = useState<CompareTab>(initialTab);
   return (
     <FrameBody>
+      <p className="hint">Строка состояния для экранного диктора: «{compareStatus(response)}»</p>
       <CompareView response={response} onComplete={noop} tab={tab} onTabChange={setTab} />
     </FrameBody>
   );
@@ -519,7 +563,7 @@ export function Gallery() {
       <Section id="base" title="3. Базовые компоненты">
         <div className="kit-grid">
           <Specimen id="base-button" title="Button">
-            <Variant label="primary, secondary, outline, link">
+            <Variant label="primary, secondary, outline, link: ссылка-кнопка в цвете текста с подчёркиванием">
               <div className="kit-row">
                 <Button variant="primary">Подобрать материалы</Button>
                 <Button variant="secondary">Показать ещё 3</Button>
@@ -667,7 +711,7 @@ export function Gallery() {
                 </>
               }
             >
-              Информационный: role=&quot;status&quot;, фокус не переносится.
+              Информационный: role=&quot;status&quot;, нейтральная поверхность, светлая рамка и акцентная полоса слева. Фокус не переносится.
             </Banner>
             <Banner
               tone="error"
@@ -678,7 +722,7 @@ export function Gallery() {
                 </Button>
               }
             >
-              Ошибка: role=&quot;alert&quot;.
+              Ошибка: role=&quot;alert&quot;, строка роли «Ошибка» над заголовком, сплошная рамка 2 px цвета ошибки.
             </Banner>
           </Specimen>
 
@@ -707,9 +751,43 @@ export function Gallery() {
             </Disclosure>
           </Specimen>
 
-          <Specimen id="base-skeleton" title="Skeleton, StatusLine">
+          <Specimen
+            id="base-skeleton"
+            title="Skeleton, StatusLine"
+            note={`Строка состояния появляется сразу. Скелетоны экрана — через ${String(SKELETON_DELAY_MS)} мс после начала загрузки: быстрый ответ приходит без мелькания заглушек.`}
+          >
             <StatusLine>{LOADING_STATUS}</StatusLine>
-            <Skeleton count={2} />
+            <Variant label="delay = 0: сразу, как на витрине загрузки">
+              <Skeleton count={1} />
+            </Variant>
+            <Variant
+              label={`delay = ${String(SKELETON_DELAY_MS)}: появился через ${String(SKELETON_DELAY_MS)} мс после открытия витрины`}
+            >
+              <Skeleton count={1} delay={SKELETON_DELAY_MS} />
+            </Variant>
+          </Specimen>
+
+          <Specimen
+            id="base-match"
+            title="MatchChips"
+            note="Пометки «Совпало» под причиной: подписи признаков с положительным вкладом из contributions, без чисел, не больше четырёх. Статичные: без рамки, наведения и высоты 44 px. Галочка только рядом с текстом."
+          >
+            <Variant label="Задача и уточнения, P01">
+              <MatchChips items={['тема', 'стадия', 'уровень', 'сфера']} />
+            </Variant>
+            <Variant label="Понятие из задачи, P02">
+              <MatchChips items={['тема', 'суть задачи', 'стадия', 'уровень']} />
+            </Variant>
+            <Variant label="Смежный уровень, P01 и M03: вклад уровня есть, но причина говорит «на шаг глубже» — «уровень» не ставится">
+              <MatchChips items={['тема', 'стадия']} />
+            </Variant>
+            <Variant label="История без задачи, P11">
+              <MatchChips items={['продолжение', 'тема истории', 'похожие курсы']} />
+            </Variant>
+            <Variant label="Пустой список: компонент ничего не выводит, как у подбора по теме и стартовой подборки">
+              <MatchChips items={[]} />
+              <span className="note">Пометок нет</span>
+            </Variant>
           </Specimen>
 
           <Specimen id="base-tag" title="Tag, TopBar" note="Screen и Layout — в разделе 4, «Экран целиком».">
@@ -735,8 +813,20 @@ export function Gallery() {
           {() => <ScreenDemo />}
         </Frames>
 
-        <Frames id="screen-loading" title="Загрузка" note="Поля заблокированы, кнопка «Подбираем…», строка состояния и три скелетона.">
+        <Frames
+          id="screen-loading"
+          title="Загрузка"
+          note="Поля заблокированы, кнопка «Подбираем…», строка состояния и три скелетона. На экране строка состояния появляется сразу, скелетоны — через 400 мс; на витрине они показаны сразу."
+        >
           {() => <LoadingDemo />}
+        </Frames>
+
+        <Frames
+          id="screen-stale"
+          title="Загрузка до скелетонов: Stale"
+          note="Первые 400 мс загрузки: строка состояния уже видна, прежняя выдача остаётся на месте, приглушена и неактивна — inert убирает её из обхода Tab и дерева доступности. Быстрый ответ сменяет её без мелькания заглушек и без схлопывания колонки, медленный — скелетонами."
+        >
+          {() => <StaleDemo />}
         </Frames>
 
         <Frames id="screen-cards" title="MaterialCard">
@@ -758,10 +848,10 @@ export function Gallery() {
               <p className="hint">«Пройдено»: кнопки «Отметить изученным» нет</p>
               <MaterialCard item={S.CARD_COMPLETED} onComplete={noop} />
               <p className="hint">Смешанная выдача: бейдж темы</p>
-              <MaterialCard item={S.CARD_TOPIC} onComplete={noop} />
+              <MaterialCard item={S.CARD_TOPIC} showTopics onComplete={noop} />
               <p className="hint">Компактные карточки: сравнение и стартовая подборка</p>
               <MaterialCard item={S.CARD_COMPACT} compact onComplete={noop} />
-              <MaterialCard item={S.CARD_COMPACT_FLAG} compact onComplete={noop} />
+              <MaterialCard item={S.CARD_COMPACT_FLAG} compact showTopics onComplete={noop} />
               <p className="hint">RouteBlock</p>
               <RouteBlock route={S.ROUTE} />
             </FrameBody>
@@ -822,6 +912,14 @@ export function Gallery() {
           note="Ширина контейнера .screen: до 800 px — вкладки, от 800 px — две колонки. Профиль P02."
         >
           {() => <CompareDemo response={S.COMPARE} />}
+        </Frames>
+
+        <Frames
+          id="screen-history-compare"
+          title="CompareView: без задачи, подбор по истории"
+          note="Пустая задача и история профиля, как у P11. Подбор по теме показывает стартовую подборку, персональный подбирает по истории со статусом weak: пометки «Совпало» называют продолжение, тему истории и похожие курсы. «Изменились позиции» не выводится."
+        >
+          {() => <CompareDemo response={S.COMPARE_HISTORY} />}
         </Frames>
 
         <Frames

@@ -5,9 +5,9 @@ import { Checkbox, Panel, SelectField } from '../kit';
 export interface DemoPanelProps {
   profiles: readonly Profile[];
   profileId: string | null;
-  onSelectProfile(id: string | null): void;
+  onSelectProfile: (id: string | null) => void;
   compare: boolean;
-  onCompareChange(value: boolean): void;
+  onCompareChange: (value: boolean) => void;
   disabled?: boolean;
 }
 
@@ -37,7 +37,7 @@ export function DemoPanel({ profiles, profileId, onSelectProfile, compare, onCom
         compact
         disabled={disabled}
       />
-      <Checkbox checked={compare} onChange={onCompareChange} label="Сравнить с подбором по теме" disabled={disabled} />
+      <Checkbox checked={compare} onChange={onCompareChange} label="Сравнить с&nbsp;подбором по теме" disabled={disabled} />
     </Panel>
   );
 }

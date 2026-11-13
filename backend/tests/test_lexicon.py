@@ -1,9 +1,9 @@
-"""Разбор задачи словарём запроса (catalog/lexicon.py; PLAN.md, 3.1–3.5).
+"""Разбор задачи словарём запроса (catalog/lexicon.py; docs/plan.md, 3.1–3.5).
 
 Каждая строка таблицы фиксирует полный разбор: темы, признаки и понятия, сферу, слова-пробелы и
 подсказки стадии, уровня и формата. Понятия по умолчанию совпадают с признаками; строка называет их
 отдельно, когда широкое слово признака понятия не дало. Разбор P01–P10 закреплён точно: по их выдаче
-проведена слепая оценка (PLAN.md, 3.7), и он не должен меняться. Запросы F01–F04 и F15 взяты из
+проведена слепая оценка (docs/plan.md, 3.7), и он не должен меняться. Запросы F01–F04 и F15 взяты из
 инженерной проверки словаря, запросы с широкими словами — из итоговой проверки, остальные — типичные
 вопросы малого бизнеса.
 """
@@ -41,8 +41,9 @@ def parsed(task: str) -> Parse:
 def row(case_id: str, task: str, topics: str = "", signals: str = "", concepts: str | None = None, **rest):
     """Строка таблицы: темы, признаки и понятия — коды через пробел, слова-пробелы (gaps) — кортеж подписей.
     Без `concepts` понятия совпадают с признаками."""
-    codes = (topics, signals, signals if concepts is None else concepts)
-    return pytest.param(task, Parse(*(tuple(c.split()) for c in codes), **rest), id=case_id)
+    named = signals if concepts is None else concepts
+    parse = Parse(tuple(topics.split()), tuple(signals.split()), tuple(named.split()), **rest)
+    return pytest.param(task, parse, id=case_id)
 
 
 P01_TASK = "Хочу начать продвигать свою кофейню, с чего начать?"
@@ -60,6 +61,8 @@ PROFILES = [
     row("P08", P01_TASK, "marketing", industry="horeca", stage="start"),
     row("P09", "Какой налоговый режим выбрать для ИП", "taxes_law", "tax_regime"),
     row("P10", "Как сдать декларацию и не получить штраф", "taxes_law", "tax_reporting"),
+    row("P11", ""),
+    row("P12", ""),
 ]
 
 FINDINGS = [
@@ -333,6 +336,90 @@ def test_stem_may_end_with_a_hyphen_but_an_exact_form_may_not():
     lexicon._compile(("кафе-",))
     with pytest.raises(ValueError):
         lexicon._compile(("=кафе-",))
+
+
+@pytest.mark.parametrize(
+    ("task", "code", "words"),
+    [
+        # Фраза D01 цитирует слова так, как их написал пользователь: регистр, форма, «ё»
+        ("Какую CRM выбрать", "crm", "CRM"),
+        ("Какой налоговый режим выбрать для ИП", "tax_regime", "налоговый режим"),
+        # Два совпадения признака: «декларацию» и «штраф»; берётся первое слева
+        ("Как сдать декларацию и не получить штраф", "tax_reporting", "декларацию"),
+        ("Нужно выстроить системное продвижение и считать его эффективность", "ad_budget", "эффективность"),
+        ("Как рассчитать Юнит-Экономику?", "profitability", "Юнит-Экономику"),
+        ("Как сдать отчёт в налоговую", "tax_reporting", "сдать отчёт"),
+        # Знаки между словами совпадения заменяются одним пробелом
+        ("Какой налоговый,   режим выбрать", "tax_regime", "налоговый режим"),
+        # Исключение отменяет совпадение: «декларация соответствия» не налоговая
+        ("Декларация соответствия и налоговая декларация", "tax_reporting", "декларация"),
+        ("Нужна декларация соответствия", "tax_reporting", None),
+        # Признака нет в задаче или нет такого кода
+        ("Как продвигать бизнес", "crm", None),
+        ("", "crm", None),
+        ("Какую CRM выбрать", "no_such_signal", None),
+    ],
+)
+def test_signal_quote_returns_the_words_as_typed(task, code, words):
+    assert lexicon.signal_quote(task, code) == words
+
+
+@pytest.mark.parametrize("task", [r.values[0] for r in ROWS])
+def test_signal_quote_exists_exactly_for_found_signals(task):
+    """Цитата есть ровно у найденных признаков, состоит из слов задачи по порядку и снова даёт признак."""
+    parsed_task = parse_task(task)
+    for code in lexicon.SIGNAL_PATTERNS:
+        words = lexicon.signal_quote(task, code)
+        assert (words is not None) == (code in parsed_task.signals), (task, code)
+        if words is None:
+            continue
+        position = 0
+        for word in words.split():
+            position = task.index(word, position) + len(word)
+        assert code in parse_task(words).signals, (task, code, words)
+
+
+@pytest.mark.parametrize(
+    ("task", "code", "signal_words", "concept_words"),
+    [
+        # Широкое слово стоит раньше понятия: цитата понятия называет слова, по которым отобраны материалы
+        ("Как эффективно снизить CAC", "ad_budget", "эффективно", "CAC"),
+        ("Эффективно ли тратить, какой ROMI нормальный", "ad_budget", "Эффективно", "ROMI"),
+        ("Первые шаги: как открыть свой бизнес", "launch", "Первые шаги", "открыть свой бизнес"),
+        # Понятие в сочетании: широкое слово с контекстом
+        ("Как безопасно принимать онлайн-платежи", "fraud", "безопасно", "безопасно принимать онлайн-платежи"),
+        # Без широких слов цитаты совпадают
+        ("Какую CRM выбрать", "crm", "CRM", "CRM"),
+        # Понятия нет: цитата понятия падает на слова признака
+        ("Нужно выстроить системное продвижение и считать его эффективность", "ad_budget", "эффективность",
+         "эффективность"),
+    ],
+)
+def test_signal_quote_of_a_concept_names_the_concept(task, code, signal_words, concept_words):
+    assert lexicon.signal_quote(task, code) == signal_words
+    assert lexicon.signal_quote(task, code, concept=True) == concept_words
+    if code in parse_task(task).concepts:
+        assert code in parse_task(concept_words).concepts
+
+
+@pytest.mark.parametrize("task", [r.values[0] for r in ROWS])
+def test_concept_quote_exists_exactly_for_found_concepts(task):
+    """Цитата понятия — слова задачи по порядку, и по ним одним снова находится понятие."""
+    parsed_task = parse_task(task)
+    for code in parsed_task.concepts:
+        words = lexicon.signal_quote(task, code, concept=True)
+        assert words is not None, (task, code)
+        position = 0
+        for word in words.split():
+            position = task.index(word, position) + len(word)
+        assert code in parse_task(words).concepts, (task, code, words)
+
+
+def test_signal_quote_keeps_the_original_letters():
+    # Строчные буквы и «ё» не меняют границы слов; заглавная «Ё» сохраняется в цитате
+    assert lexicon.signal_quote("СДАТЬ ОТЧЁТ ВОВРЕМЯ", "tax_reporting") == "СДАТЬ ОТЧЁТ"
+    # Буква, которая в нижнем регистре даёт два знака, не сдвигает цитату
+    assert lexicon.signal_quote("İ CRM", "crm") == "CRM"
 
 
 def test_topics_from_signals_flag():

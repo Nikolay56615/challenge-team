@@ -14,3 +14,11 @@ createRoot(container).render(
     <App />
   </StrictMode>,
 );
+
+// Только в режиме разработки: в production import.meta.env.DEV равен false, ветка и модуль web-vitals
+// в сборку не попадают (кандидат W04)
+if (import.meta.env.DEV) {
+  void import('./dev/vitals').then(({ reportWebVitals }) => {
+    reportWebVitals();
+  });
+}

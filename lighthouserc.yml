@@ -1,0 +1,42 @@
+# Lighthouse CI: лабораторные метрики главной страницы (кандидат W04; research/literature-web.md, 1.1–1.3, 1.10).
+# Пресет Lighthouse по умолчанию: эмуляция телефона, симуляция медленной сети 4G и замедление CPU в 4 раза.
+# Три прогона, каждое утверждение считается по медиане. Полевых данных у демо нет: цифры только лабораторные.
+# В CI сервис слушает 127.0.0.1:8000. Другой адрес: lhci autorun --collect.url=http://127.0.0.1:<порт>/
+ci:
+  collect:
+    url:
+      - http://127.0.0.1:8000/
+    numberOfRuns: 3
+    settings:
+      chromeFlags: "--headless=new"
+  assert:
+    assertions:
+      categories:performance:
+        - error
+        - minScore: 0.9
+          aggregationMethod: median
+      categories:accessibility:
+        - error
+        - minScore: 1
+          aggregationMethod: median
+      largest-contentful-paint:
+        - error
+        - maxNumericValue: 2500
+          aggregationMethod: median
+      cumulative-layout-shift:
+        - error
+        - maxNumericValue: 0.1
+          aggregationMethod: median
+      total-blocking-time:
+        - error
+        - maxNumericValue: 200
+          aggregationMethod: median
+      # Переданный объём скриптов страницы в байтах, со сжатием gzip. 11 ноября 2026 года — 81 238 байт,
+      # бюджет на 20 % больше
+      resource-summary:script:size:
+        - error
+        - maxNumericValue: 97500
+          aggregationMethod: median
+  upload:
+    target: filesystem
+    outputDir: .lighthouseci/reports

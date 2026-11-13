@@ -14,7 +14,7 @@ export interface ChipGroupProps<T extends string>
   name: string;
   options: readonly ChipOption<T>[];
   value: T | null;
-  onChange(value: T | null): void;
+  onChange: (value: T | null) => void;
   optional?: boolean;
   /** Повторное нажатие на выбранный чип снимает выбор */
   allowDeselect?: boolean;
@@ -95,12 +95,16 @@ export function ChipGroup<T extends string>({
                 value={option.value}
                 checked={checked}
                 disabled={disabled}
-                onChange={() => onChange(option.value)}
+                onChange={() => {
+                  onChange(option.value);
+                }}
                 // Повторное нажатие снимает выбор. Мышь: click приходит и по выбранной радиокнопке
                 onClick={() => {
                   if (checked && allowDeselect) onChange(null);
                 }}
-                onKeyDown={(event) => onKeyDown(event, index, option.value, checked)}
+                onKeyDown={(event) => {
+                  onKeyDown(event, index, option.value, checked);
+                }}
               />
               <span className="chip__label">{option.label}</span>
             </label>

@@ -1,4 +1,4 @@
-"""Каталог из JSON: кодировка, типы полей, правило кодов материалов (PLAN.md, 2.5 и 4.4; проверка S6)."""
+"""Каталог из JSON: кодировка, типы полей, правило кодов материалов (docs/plan.md, 2.5 и 4.4; проверка S6)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-import app.catalog.synthetic_source as synthetic_source
+from app.catalog import synthetic_source
 from app.catalog.models import CatalogError, valid_material_id
 from app.catalog.synthetic_source import load_json_catalog
 from app.profiles.synthetic import load_profiles
@@ -69,7 +69,10 @@ def test_utf8_with_bom_loads(tmp_path):
 @pytest.mark.parametrize(
     ("content", "message"),
     [
-        ('{"materials": [{"id": "N1", "title": "Налоги"}]}'.encode("cp1251"), "Файл каталога не в кодировке UTF-8: catalog.json"),
+        (
+            '{"materials": [{"id": "N1", "title": "Налоги"}]}'.encode("cp1251"),
+            "Файл каталога не в кодировке UTF-8: catalog.json",
+        ),
         (b'{"materials": [', "Файл каталога не является корректным JSON: catalog.json"),
         (b'{"materials": []}', "Каталог пуст"),
     ],
