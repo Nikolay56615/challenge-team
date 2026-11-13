@@ -267,7 +267,7 @@ def test_api_feed_contract(feed_catalog, clients):
     assert first["rank"] == 1 and first["score"] == round(sum(p["value"] for p in first["parts"]), 2)
     assert first["reason"] == first["parts"][0]["evidence"]
     assert body["user"] == {
-        "id": "U0239", "label": "U0239 · 3 курса · начинающий предприниматель",
+        "id": "U0239", "label": "Илья · 3 курса · на старте бизнеса",
         "segment": "Начинающий предприниматель", "materials": 3, "paid": True,
     }
     assert body["history"][0] == {
