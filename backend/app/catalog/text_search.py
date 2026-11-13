@@ -7,7 +7,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import snowballstemmer
+import snowballstemmer  # type: ignore[import-untyped]
 
 from .lexicon import tokenize
 
@@ -57,6 +57,9 @@ class TextMatches:
         return 1 if material_id in self.descriptions else 0
 
 
+MIN_KEYWORDS = 2
+
+
 class TextIndex:
     def __init__(self, materials: Iterable[Material]) -> None:
         self.titles: dict[str, set[str]] = defaultdict(set)
@@ -73,9 +76,9 @@ class TextIndex:
     def match(self, query: str) -> TextMatches:
         words = set(_words(query))
         keys = _keys(words - STOP_WORDS - QUALIFIERS)
-        if len(keys) < 2 and not words.intersection(ABBREVIATIONS):
+        if len(keys) < MIN_KEYWORDS and not words.intersection(ABBREVIATIONS):
             return TextMatches()
         titles = _intersection(self.titles, keys)
-        descriptions = _intersection(self.descriptions, keys) if len(keys) >= 2 else frozenset()
+        descriptions = _intersection(self.descriptions, keys) if len(keys) >= MIN_KEYWORDS else frozenset()
         qualified = titles & _intersection(self.titles, _keys(words & QUALIFIERS))
         return TextMatches(titles, descriptions, qualified)

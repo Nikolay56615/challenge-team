@@ -1,8 +1,8 @@
 import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react';
-import type { CompareResponse, Item, RecommendResponse } from '../api/types';
-import { formatShownMaterials, toSentence } from '../format';
+import type { CompareResponse, ExperienceCode, Item, RecommendResponse } from '../api/types';
+import { formatShownMaterials, toSentence, typo } from '../format';
 import { Panel, TabPanel, Tabs } from '../kit';
-import { hasNoMaterialLinks, MaterialCard, MISSING_LINKS_NOTE } from './MaterialCard';
+import { MaterialCard } from './MaterialCard';
 
 /** Порог компоновки, как в @container screen (min-width: 800px) в kit.css */
 const WIDE_MIN_WIDTH = 800;
@@ -21,7 +21,9 @@ function useScreenIsWide(ref: RefObject<HTMLElement | null>): boolean {
       if (entry) setWide(entry.contentRect.width >= WIDE_MIN_WIDTH);
     });
     observer.observe(screen);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+    };
   }, [ref]);
   return wide;
 }
@@ -35,22 +37,22 @@ function hasResults(response: RecommendResponse): boolean {
 }
 
 /**
- * Итог сравнения для строки состояния (design/ui-kit.md, раздел 4). Позиции сравниваются,
+ * Итог сравнения для строки состояния (docs/ui-kit.md, раздел 4). Позиции сравниваются,
  * только если оба метода вернули выдачу по запросу: стартовая подборка с ней несопоставима.
  */
 export function compareStatus(response: CompareResponse): string {
   const { baseline, personal, diff } = response;
   const ready = 'Сравнение готово.';
   if (hasResults(baseline) && hasResults(personal)) {
-    return `${ready} Изменились позиции: ${diff.changed_positions} из ${diff.compared_positions}.`;
+    return typo(`${ready} Изменились позиции: ${String(diff.changed_positions)} из ${String(diff.compared_positions)}.`);
   }
-  if (hasResults(personal)) return baseline.filter_options
-    ? `${ready} По выбранным фильтрам у подбора по теме нет материалов.`
-    : `${ready} Подбор по теме не нашёл материалов по запросу.`;
-  if (hasResults(baseline)) return personal.filter_options
-    ? `${ready} По выбранным фильтрам у персонального подбора нет материалов.`
-    : `${ready} Персональный подбор не нашёл материалов по запросу.`;
-  if (baseline.filter_options || personal.filter_options) return `${ready} По выбранным фильтрам материалов нет.`;
+  // Пустая задача и история профиля: подбор по теме отвечает cold со стартовой подборкой, персональный
+  // подбирает по истории (docs/plan.md, раздел 9, решение 2026-11-11). Запроса нет, поэтому о «не нашёл» речи нет
+  if (baseline.status === 'cold' && hasResults(personal)) {
+    return `${ready} Без задачи подбор по теме показывает стартовую подборку, персональный\u00A0— подбор по истории.`;
+  }
+  if (hasResults(personal)) return `${ready} Подбор по теме не нашёл материалов по запросу.`;
+  if (hasResults(baseline)) return `${ready} Персональный подбор не нашёл материалов по запросу.`;
   if (baseline.status === 'cold' && personal.status === 'cold' && baseline.items.length && personal.items.length) {
     return `${ready} Без задачи оба метода показывают стартовую подборку.`;
   }
@@ -60,41 +62,44 @@ export function compareStatus(response: CompareResponse): string {
 interface ColumnProps {
   title: string;
   response: RecommendResponse;
-  onComplete?(item: Item): void;
+  onComplete?: ((item: Item) => void) | undefined;
+  experience: ExperienceCode | null;
 }
 
 /**
  * Колонка метода. Выдача по запросу — карточки. При none, cold и empty вместо карточек сообщение
  * ответа, а карточки собраны в группу «Стартовая подборка».
  */
-function Column({ title, response, onComplete }: ColumnProps) {
+function Column({ title, response, onComplete, experience }: ColumnProps) {
   const starterId = useId();
   const ranked = hasResults(response);
-  const linksMissing = hasNoMaterialLinks(response.items);
-  const summary = response.items.length > 0 ? (
-    <>
-      <p className="note">{formatShownMaterials(response.items.length, response.total_candidates)}</p>
-      {linksMissing ? <p className="note">{MISSING_LINKS_NOTE}</p> : null}
-    </>
-  ) : null;
+  // Бейдж темы — как в основной выдаче: у смешанной выдачи и стартовой подборки
   const cards = response.items.map((item) => (
-    <MaterialCard key={item.material_id} item={item} compact linkNoteInList={linksMissing} onComplete={onComplete} />
+    <MaterialCard
+      key={item.material_id}
+      item={item}
+      compact
+      onComplete={onComplete}
+      experience={experience}
+    />
   ));
 
   return (
     <div className="compare__col">
       <h3 className="h3">{title}</h3>
       {ranked ? (
-        <>{summary}{cards}</>
+        <>
+          <p className="note">{formatShownMaterials(cards.length, response.total_candidates)}</p>
+          {cards}
+        </>
       ) : (
         <>
-          <p>{toSentence(response.message)}</p>
+          <p className="compare__message">{typo(toSentence(response.message))}</p>
           {cards.length > 0 ? (
             <div className="starter" role="group" aria-labelledby={starterId}>
               <p id={starterId} className="kv__label">
                 Стартовая подборка
               </p>
-              {summary}
               {cards}
             </div>
           ) : null}
@@ -109,18 +114,20 @@ export type CompareTab = 'baseline' | 'personal';
 
 export interface CompareViewProps {
   response: CompareResponse;
-  topicLabel?: string;
-  filters?: ReactNode;
-  onComplete?(item: Item): void;
+  onComplete?: (item: Item) => void;
   /** Выбранная вкладка хранится снаружи: представление пересоздаётся при повторе запроса */
   tab: CompareTab;
-  onTabChange(tab: CompareTab): void;
+  topicLabel?: string | undefined;
+  filters?: ReactNode;
+  onTabChange: (tab: CompareTab) => void;
   /** Заголовок принимает фокус, когда нажатый элемент исчез вместе с прежним ответом */
   headingRef?: Ref<HTMLHeadingElement>;
+  /** Опыт из запроса сравнения: для пометки «уровень» (src/match.ts) */
+  experience?: ExperienceCode | null;
 }
 
 /** Один профиль, один каталог, два метода. Широкий экран — две колонки, узкий — вкладки. */
-export function CompareView({ response, topicLabel, filters, onComplete, tab, onTabChange, headingRef }: CompareViewProps) {
+export function CompareView({ response, onComplete, tab, onTabChange, headingRef, topicLabel, filters, experience = null }: CompareViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const wide = useScreenIsWide(rootRef);
   const uid = useId();
@@ -132,8 +139,12 @@ export function CompareView({ response, topicLabel, filters, onComplete, tab, on
   const [baselineTab, personalTab] = tabs;
   const selected = tab === 'baseline' ? baselineTab.id : personalTab.id;
 
-  const baseline = <Column title="Подбор по теме" response={response.baseline} onComplete={onComplete} />;
-  const personal = <Column title="Персональный подбор" response={response.personal} onComplete={onComplete} />;
+  const baseline = (
+    <Column title="Подбор по теме" response={response.baseline} onComplete={onComplete} experience={experience} />
+  );
+  const personal = (
+    <Column title="Персональный подбор" response={response.personal} onComplete={onComplete} experience={experience} />
+  );
   // Позиции сравниваются только между двумя выдачами по запросу
   const diff = hasResults(response.baseline) && hasResults(response.personal) ? response.diff : null;
 
@@ -141,16 +152,16 @@ export function CompareView({ response, topicLabel, filters, onComplete, tab, on
     <div ref={rootRef} className="results">
       <Panel labelledBy={headingId}>
         <h2 id={headingId} ref={headingRef} className="h2" tabIndex={-1}>
-          {topicLabel ? `Сравнение по теме «${topicLabel}»` : 'Сравнение методов на одном профиле и каталоге'}
+          {topicLabel ? `Сравнение по теме «${topicLabel}»` : 'Сравнение методов на одном профиле и\u00a0каталоге'}
         </h2>
         {diff ? (
           <p className="note">
-            Изменились позиции: {diff.changed_positions} из {diff.compared_positions}.
+            {typo(`Изменились позиции: ${String(diff.changed_positions)} из ${String(diff.compared_positions)}.`)}
           </p>
         ) : null}
       </Panel>
-      {filters}
 
+      {filters}
       {wide ? (
         <div className="compare">
           {baseline}
@@ -162,7 +173,9 @@ export function CompareView({ response, topicLabel, filters, onComplete, tab, on
             ariaLabel="Метод подбора"
             tabs={tabs}
             selected={selected}
-            onSelect={(id) => onTabChange(id === baselineTab.id ? 'baseline' : 'personal')}
+            onSelect={(id) => {
+              onTabChange(id === baselineTab.id ? 'baseline' : 'personal');
+            }}
           />
           <div className="compare">
             <TabPanel tabId={baselineTab.id} hidden={tab !== 'baseline'}>

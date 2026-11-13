@@ -12,11 +12,31 @@ services:
       CATALOG_PATH: ${CATALOG_PATH:-}
       CATALOG_SIGNALS_PATH: ${CATALOG_SIGNALS_PATH:-}
       CATALOG_MAPPING: ${CATALOG_MAPPING:-}
+      CATALOG_PAIRS_PATH: ${CATALOG_PAIRS_PATH:-}
+      PAIRS_MIN_SUPPORT: ${PAIRS_MIN_SUPPORT:-}
       DEMO_MODE: ${DEMO_MODE:-true}
       MAX_TASK_LENGTH: ${MAX_TASK_LENGTH:-300}
+      METRICS_ENABLED: ${METRICS_ENABLED:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    # Привилегии и ресурсы (OWASP API4 и API8, CIS Docker 5). Ключи уровня сервиса: docker compose up
+    # применяет их и без swarm. Таблица мер и проверок — backend/tests/test_runtime.py.
+    cap_drop:
+      - ALL
+    # Замер без Docker в Windows, два прогона: 49–67 МБ и до 10 потоков под нагрузкой. Потоков не больше 73:
+    # основной, 40 в пуле AnyIO и до 32 в пуле asyncio; pids_limit считает и потоки. memswap_limit равен mem_limit:
+    # без подкачки.
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 1024
+    # После SIGTERM uvicorn до 10 с завершает начатые запросы (backend/app/serve.py), Docker ждёт 15 с до SIGKILL
+    stop_grace_period: 15s

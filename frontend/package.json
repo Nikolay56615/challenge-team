@@ -7,17 +7,29 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "lint": "eslint . --max-warnings 0",
+    "test": "node --test \"tests/*.test.mjs\"",
+    "fetch:api": "node scripts/fetch-openapi.mjs",
+    "gen:api": "node scripts/gen-api.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.7"
+    "eslint": "10.14.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "json-schema-to-typescript": "16.0.0",
+    "rolldown": "1.2.18",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
+    "vite": "^8.3.7",
+    "web-vitals": "6.2.3"
   }
 }

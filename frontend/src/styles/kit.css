@@ -1,4 +1,4 @@
-/* Стили компонентов UI-кита трека 1. Описание: design/ui-kit.md, разделы 3–4.
+/* Стили компонентов UI-кита трека 1. Описание: docs/ui-kit.md, разделы 3–4.
    Порог компоновки 800 px задан числом: CSS не допускает переменную в условии @container. */
 
 /* ---------- основа ---------- */
@@ -8,7 +8,9 @@
   box-sizing: border-box;
 }
 
+/* Тёмной темы нет: браузер рисует поля и прокрутку светлыми и в тёмном режиме системы */
 html {
+  color-scheme: light;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -33,6 +35,18 @@ p {
 :focus-visible {
   outline: var(--focus-ring-width) solid var(--color-focus);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* Снижение движения (WCAG 2.3.3, техника C39): переходы и анимации почти мгновенны */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .visually-hidden {
@@ -69,6 +83,19 @@ p {
   font-weight: var(--font-weight-semibold);
 }
 
+/* Переносы в заголовках по словарю языка страницы: нужен lang="ru" у html.
+   Слова короче шести букв не переносятся, с каждой стороны переноса не меньше трёх букв. */
+h1,
+h2,
+h3,
+.h1,
+.h2,
+.h3 {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 3 3;
+}
+
 .lead {
   color: var(--color-muted);
 }
@@ -92,6 +119,16 @@ p {
   margin: var(--space-1) 0;
 }
 
+/* Длина строки текстового блока не больше 65ch: причина и польза на широком окне не растягиваются
+   на всю колонку (кандидат D09; research/literature-design.md, 4.12). Баннеры D09 не меняет */
+.lead,
+.list,
+.kv__value,
+.card__benefit,
+.compare__message {
+  max-width: 65ch;
+}
+
 /* ---------- экран и компоновка ---------- */
 .screen {
   container: screen / inline-size;
@@ -101,58 +138,12 @@ p {
 
 .topbar {
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
   padding: 14px var(--space-5);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-line);
-}
-
-.topbar__nav {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.topbar__nav a {
-  display: flex;
-  align-items: center;
-  min-height: var(--control-min-height);
-  padding-inline: var(--space-3);
-  border-radius: var(--radius-pill);
-  color: var(--color-ink);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
-}
-
-.topbar__nav a:hover,
-.topbar__nav a[aria-current="page"] {
-  background: var(--color-surface-subtle);
-  text-decoration: underline;
-  text-underline-offset: .25em;
-}
-
-.catalog-topics__picker {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.catalog-topics__list {
-  display: none;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.catalog-topics__list .btn {
-  width: 100%;
-  justify-content: start;
-  text-align: start;
-}
-
-.catalog-topics__list .btn[aria-pressed="true"] {
-  border-color: var(--color-accent);
 }
 
 .topbar__brand {
@@ -207,21 +198,13 @@ p {
 
 /* «Показать ещё» — по ширине подписи, а не колонки */
 .layout__content > .btn,
+.stale > .btn,
 .results > .btn,
 .starter > .btn {
   justify-self: start;
 }
 
 @container screen (min-width: 800px) {
-  .catalog-topics__picker {
-    display: none;
-  }
-
-  .catalog-topics__list {
-    display: grid;
-    gap: var(--space-2);
-  }
-
   .layout {
     grid-template-columns: var(--aside-width) minmax(0, 1fr);
     gap: var(--space-6);
@@ -255,15 +238,12 @@ p {
   gap: var(--space-2);
 }
 
-.result-filters__fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: var(--space-3);
-}
-
 /* ---------- поля ---------- */
+/* Колонка не шире поля. С неявной колонкой auto её ширину задавал нативный select по самому
+   длинному варианту: компактный список профилей выходил за край демо-панели. */
 .field {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   min-width: 0;
   margin: 0;
@@ -291,6 +271,12 @@ p {
 .field__hint {
   font-size: var(--font-size-xs);
   color: var(--color-muted);
+}
+
+/* Сообщение у предела поля: это не ошибка, поле валидно, но текст сверх предела не помещается (ИИ-5).
+   Цвет основного текста отличает его от серой подсказки без цвета ошибки */
+.field__hint--limit {
+  color: var(--color-ink);
 }
 
 .field__error {
@@ -347,6 +333,8 @@ p {
   border-radius: var(--radius-field);
   cursor: pointer;
   transition: border-color 0.15s ease;
+  /* Подпись длиннее списка обрезается многоточием; полный текст виден в раскрытом списке */
+  text-overflow: ellipsis;
 }
 
 .select:hover:not(:disabled) {
@@ -399,6 +387,15 @@ p {
 .chip {
   position: relative;
   display: inline-flex;
+}
+
+/* Скрытая радиокнопка занимает площадь чипа: при переходе Tab браузер прокручивает к чипу
+   целиком, а не к точке 1×1 px в его углу (WCAG 2.4.11). Обрезка .visually-hidden её прячет. */
+.chip > input {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
 }
 
 .chip__label {
@@ -479,11 +476,6 @@ p {
   min-width: 0;
 }
 
-.course-details ul {
-  margin: var(--space-2) 0 0;
-  padding-inline-start: 1.25em;
-}
-
 /* ---------- кнопки ---------- */
 .actions {
   display: flex;
@@ -546,17 +538,22 @@ p {
   background: var(--color-accent-soft);
 }
 
+/* Ссылка-кнопка в цвете текста с постоянным подчёркиванием: роль читается без цвета (D03).
+   Наведение — тон акцента и подчёркивание 2 px: состояние меняет не только цвет. Фокус — общее кольцо. */
 .btn--link {
   padding-left: var(--space-1);
   padding-right: var(--space-1);
-  color: var(--color-accent-ink);
+  color: var(--color-ink);
   font-weight: var(--font-weight-medium);
   background: transparent;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .btn--link:hover:not(:disabled) {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--color-accent-ink);
+  text-decoration-thickness: 2px;
 }
 
 .btn--sm {
@@ -570,7 +567,7 @@ p {
 }
 
 .btn:disabled,
-.btn[aria-disabled="true"] {
+.btn[aria-disabled="true"]:not([data-busy="false"]) {
   opacity: 0.6;
   cursor: default;
 }
@@ -685,6 +682,58 @@ p {
   font-size: var(--font-size-sm);
 }
 
+/* ---------- пометки «Совпало» ---------- */
+/* Статичные пометки под причиной (D09, R19): без рамки, наведения и высоты цели нажатия, чтобы не читаться
+   как чипы формы. Галочка — рамка псевдоэлемента: шрифт не нужен, в режиме принудительных цветов она
+   получает системный цвет. Галочка стоит только рядом с текстом. */
+.match {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.match__label {
+  font-size: var(--font-size-2xs);
+  line-height: var(--line-height-base);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.match__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.match__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 8px;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--color-ink);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.match__chip::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 4px;
+  margin-bottom: 3px;
+  border-left: 2px solid var(--color-muted);
+  border-bottom: 2px solid var(--color-muted);
+  transform: rotate(-45deg);
+}
+
 /* ---------- выдача, маршрут, состояния ---------- */
 .results {
   display: grid;
@@ -720,6 +769,15 @@ p {
   border-radius: var(--radius-lg);
 }
 
+/* Строка роли над заголовком: у ошибки — «Ошибка». Роль читается текстом, а не только цветом (D03) */
+.banner__kicker {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-base);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .banner__title {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
@@ -729,18 +787,22 @@ p {
   font-size: var(--font-size-sm);
 }
 
+/* Баннеры различаются не оттенком красного, а тремя признаками, которые переживают нарушения цветового
+   зрения (D03, D18; проверка — check_cvd.mjs):
+   уточнение — нейтральная поверхность, светлая рамка 1 px и акцентная полоса 4 px слева;
+   ошибка — строка «Ошибка», своя поверхность и сплошная тёмная рамка 2 px цвета ошибки.
+   Рамки отличаются по светлоте не меньше чем в 3 раза при любой симуляции. */
 .banner--info {
   color: var(--color-ink);
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent-line);
-  border-left: 3px solid var(--color-accent);
+  background: var(--color-surface-subtle);
+  border-color: var(--color-line);
+  border-left: 4px solid var(--color-accent);
 }
 
 .banner--error {
   color: var(--color-err-ink);
   background: var(--color-err-bg);
-  border-color: var(--color-err-line);
-  border-left: 3px solid var(--color-err-ink);
+  border: 2px solid var(--color-err-ink);
 }
 
 /* Растяжение основной кнопки на узком экране — правило формы. В баннере «Повторить» сохраняет свою ширину */
@@ -753,6 +815,23 @@ p {
   background: linear-gradient(90deg, var(--color-skeleton-a) 0%, var(--color-skeleton-b) 50%, var(--color-skeleton-a) 100%);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
+}
+
+/* Прежняя выдача во время загрузки до скелетонов (D10). Обёртка без блока: дети остаются в сетке колонки.
+   Приглушение до прозрачности заблокированных элементов начинается через 150 мс и длится 150 мс: ответ
+   за 100–200 мс приходит почти без него. Неактивный элемент исключён из требований контраста 1.4.3 */
+.stale {
+  display: contents;
+}
+
+.stale > * {
+  animation: stale-dim 0.15s ease-out 0.15s both;
+}
+
+@keyframes stale-dim {
+  to {
+    opacity: 0.6;
+  }
 }
 
 .starter {
@@ -839,4 +918,165 @@ p {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-frame);
   overflow: hidden;
+}
+
+/* ---------- принудительные цвета ---------- */
+/* Режим высокой контрастности Windows заменяет фон и рамки системными цветами (W19). Выбранный чип
+   и вкладка отличались от невыбранных фоном и цветом рамки, а в этом режиме различие оставалось бы только
+   в начертании. Выбор получает системную пару SelectedItem и SelectedItemText. Рамки без цвета
+   у бейджей, пометок «Совпало» и номера позиции делают их границы видимыми: прозрачная рамка в этом
+   режиме рисуется системным цветом. */
+@media (forced-colors: active) {
+  .chip input:checked + .chip__label,
+  .tab[aria-selected="true"] {
+    forced-color-adjust: none;
+    color: SelectedItemText;
+    background: SelectedItem;
+    border-color: SelectedItem;
+  }
+
+  /* Элемент с forced-color-adjust: none сам задаёт цвет кольца фокуса: снаружи чипа — на фоне Canvas,
+     внутри выбранной вкладки — на SelectedItem */
+  .chip input:checked:focus-visible + .chip__label {
+    outline-color: CanvasText;
+  }
+
+  .tab[aria-selected="true"]:focus-visible {
+    outline-color: SelectedItemText;
+  }
+
+  .badge,
+  .match__chip,
+  .rank {
+    border: 1px solid transparent;
+  }
+
+  .match__chip::before {
+    border-color: CanvasText;
+  }
+}
+
+/* ---------- печать ---------- */
+/* Печатается подборка: форма, демо-панель и элементы управления скрыты, карточки не разрываются
+   между страницами. Колонки сравнения стоят рядом без вкладок, у каждой свой заголовок h3. Ссылка
+   карточки печатается текстом с адресом. Блок стоит последним и перекрывает контейнерные запросы
+   компоновки. */
+@media print {
+  .layout__aside,
+  .tabs,
+  .skeleton,
+  button,
+  select,
+  textarea,
+  input,
+  fieldset {
+    display: none !important;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
+  }
+
+  .layout__content {
+    max-width: none;
+  }
+
+  [role="tabpanel"][hidden] {
+    display: block;
+  }
+
+  /* Сравнение на листе: две колонки рядом при любой ширине экрана, с которого печатают. На узком экране
+     колонки лежат во вкладках, и обе панели печатаются */
+  .compare {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    max-width: none;
+  }
+
+  .compare__col > .h3 {
+    break-after: avoid;
+  }
+
+  .card,
+  .route,
+  .banner {
+    break-inside: avoid;
+  }
+
+  .card__actions a.btn {
+    display: inline;
+    padding: 0;
+    background: none;
+    border: 0;
+    text-align: start;
+    overflow-wrap: anywhere;
+  }
+
+  .card__actions a.btn[href^="http"]::after {
+    content: " " attr(href);
+    font-weight: var(--font-weight-regular);
+  }
+}
+
+.topbar__nav {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.topbar__nav a {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-min-height);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.topbar__nav a:hover,
+.topbar__nav a[aria-current="page"] {
+  background: var(--color-surface-subtle);
+  text-decoration: underline;
+  text-underline-offset: .25em;
+}
+
+.catalog-topics__picker {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.catalog-topics__list {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-topics__list .btn {
+  width: 100%;
+  justify-content: start;
+  text-align: start;
+}
+
+.catalog-topics__list .btn[aria-pressed="true"] {
+  border-color: var(--color-accent);
+}
+
+.course-details ul {
+  margin: var(--space-2) 0 0;
+  padding-inline-start: 1.25em;
+}
+
+
+.result-filters__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+@container screen (min-width: 800px) {
+  .catalog-topics__picker { display: none; }
+  .catalog-topics__list { display: grid; gap: var(--space-2); }
 }

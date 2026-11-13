@@ -1,4 +1,4 @@
-// Базовые компоненты UI-кита (design/ui-kit.md, раздел 3)
+// Базовые компоненты UI-кита (docs/ui-kit.md, раздел 3)
 export { Badge, type BadgeProps, type BadgeTone } from './Badge';
 export { Banner, type BannerProps } from './Banner';
 export { Button, buttonClass, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
@@ -9,11 +9,13 @@ export { ChipGroup, type ChipGroupProps, type ChipOption } from './ChipGroup';
 export { cx } from './cx';
 export { Disclosure, type DisclosureProps } from './Disclosure';
 export { KeyValue, type KeyValueProps } from './KeyValue';
+export { MatchChips, type MatchChipsProps } from './MatchChips';
 export { Panel, type PanelProps } from './Panel';
 export { RankMarker, type RankMarkerProps } from './RankMarker';
 export { Layout, Screen, type LayoutProps, type ScreenProps } from './Screen';
 export { SelectField, type SelectFieldProps, type SelectOption } from './SelectField';
-export { Skeleton, type SkeletonProps } from './Skeleton';
+export { Skeleton, SKELETON_DELAY_MS, useDelayedFlag, type SkeletonProps } from './Skeleton';
+export { Stale, type StaleProps } from './Stale';
 export { StatusLine, type StatusLineProps } from './StatusLine';
 export { TabPanel, Tabs, type TabItem, type TabPanelProps, type TabsProps } from './Tabs';
 export { Tag, type TagProps } from './Tag';

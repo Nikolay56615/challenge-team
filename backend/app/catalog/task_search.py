@@ -20,8 +20,11 @@ class Intent:
     conflict: re.Pattern[str] | None = None
 
     def matches(self, text: str) -> bool:
-        return bool(self.object.search(text) and self.action.search(text)
-                    and (self.conflict is None or not self.conflict.search(text)))
+        return bool(
+            self.object.search(text)
+            and self.action.search(text)
+            and (self.conflict is None or not self.conflict.search(text))
+        )
 
 
 INTENTS = (
@@ -36,7 +39,9 @@ INTENTS = (
     ),
     Intent(
         re.compile(r"\b(?:маркетплейс\w*|маркет плейс\w*|селлер\w*)\b"),
-        re.compile(r"\b(?:нача\w*|выход\w*|выйти|старт\w*|с нуля|как прода\w* на маркет\w*|перв\w* (?:онлайн )?витрин\w*)\b"),
+        re.compile(
+            r"\b(?:нача\w*|выход\w*|выйти|старт\w*|с нуля|как прода\w* на маркет\w*|перв\w* (?:онлайн )?витрин\w*)\b"
+        ),
     ),
     Intent(
         re.compile(r"\b(?:оквэд|код\w* (?:вид\w* )?деятельност\w*|вид\w* деятельности)\b"),
@@ -87,8 +92,7 @@ class Field:
     def bm25(self, weights: Mapping[str, float], average_length: float) -> float:
         normalization = 1.2 * (0.25 + 0.75 * self.terms.total() / average_length)
         return self.weight * sum(
-            weights[key] * (2.2 * count) / (count + normalization)
-            for key in weights if (count := self.terms[key])
+            weights[key] * (2.2 * count) / (count + normalization) for key in weights if (count := self.terms[key])
         )
 
 
@@ -102,6 +106,9 @@ def _fields(material: Material, description: str | None, metadata: bool) -> Iter
         for label, values in ((COURSE_AUDIENCE, details.audiences), (COURSE_OUTCOMES, details.outcomes)):
             for text in values:
                 yield Field.prepare(text, label, 0.5)
+
+
+MIN_KEYWORDS = 2
 
 
 class TaskIndex:
@@ -123,7 +130,9 @@ class TaskIndex:
         for material in materials:
             if not material.available:
                 continue
-            description = descriptions.get(material.id) if material.format == "article" and material.access == "open" else None
+            description = (
+                descriptions.get(material.id) if material.format == "article" and material.access == "open" else None
+            )
             fields = tuple(_fields(material, description, metadata))
             self.fields[material.id] = fields
             terms = frozenset().union(*(field.terms for field in fields))
@@ -149,13 +158,14 @@ class TaskIndex:
         intents = _intents(query)
         words = set(_words(query)) - STOP_WORDS - QUALIFIERS
         keys = sorted(set(_stems(words)))
-        if not intents and (not self.metadata or len(keys) < 2):
+        if not intents and (not self.metadata or len(keys) < MIN_KEYWORDS):
             return {}
         required = max(2, (2 * len(keys) + 2) // 3)
         abbreviations = {f"={word}" for word in words & ABBREVIATIONS}
         weights = {
             key: log1p((len(self.fields) - count + 0.5) / (count + 0.5))
-            for key in keys if (count := self.frequencies[key])
+            for key in keys
+            if (count := self.frequencies[key])
         }
         found = {}
         for material_id in candidates:
@@ -173,7 +183,9 @@ class TaskIndex:
                     score = field.bm25(weights, self.lengths.get(field.label, 1))
                     scores[field.label] = max(score, scores.get(field.label, 0))
                 label = max(scores, key=scores.__getitem__)
-                if sum(any(field.label == label and key in field.terms for field in fields) for key in keys) < 2:
+                confirmed_words = sum(any(field.label == label and key in field.terms for field in fields)
+                                      for key in keys)
+                if confirmed_words < MIN_KEYWORDS:
                     label = "в данных карточки"
                 found[material_id] = Evidence(label, score=sum(scores.values()))
             else:

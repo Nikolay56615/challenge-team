@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import math
 from collections import Counter
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +30,7 @@ CODE_LISTS = ("topics", "signals", "stage", "industries", "recommended_next")
 CODE_STRINGS = ("level", "access")
 
 
-def _codes(values: Any, allowed: dict | tuple | frozenset, dropped: Counter, kind: str) -> tuple[str, ...]:
+def _codes(values: Any, allowed: Collection[str], dropped: Counter[str], kind: str) -> tuple[str, ...]:
     if not isinstance(values, list):
         return ()
     result: list[str] = []
@@ -55,14 +56,39 @@ def _popularity(value: Any) -> float | None:
 
 
 def _well_typed(row: dict[str, Any]) -> bool:
-    """Типы полей, которые разбор использует как коды, числа и флаги."""
+    """Типы полей, которые разбор использует как коды и флаги. Популярность проверяет `_popularity`."""
     if any(row.get(key) is not None and not isinstance(row.get(key), list) for key in CODE_LISTS):
         return False
     if any(row.get(key) is not None and not isinstance(row.get(key), str) for key in CODE_STRINGS):
         return False
-    if row.get("available") is not None and not isinstance(row.get("available"), bool):
-        return False
-    return _popularity(row.get("popularity")) is not None
+    return row.get("available") is None or isinstance(row.get("available"), bool)
+
+
+def _accepted_rows(records: list[Any]) -> tuple[list[dict[str, Any]], dict[str, float], int]:
+    """Записи, которые разбор принимает, их исходная популярность по коду и число пропущенных записей."""
+    skipped = 0
+    rows: list[dict[str, Any]] = []
+    raw_popularity: dict[str, float] = {}
+    for row in records:
+        if not isinstance(row, dict):
+            skipped += 1
+            continue
+        material_id = row.get("id")
+        title = row.get("title")
+        fmt = row.get("format")
+        if not valid_material_id(material_id) or material_id in raw_popularity:
+            skipped += 1
+            continue
+        if not isinstance(title, str) or not title.strip() or not isinstance(fmt, str) or fmt not in vocab.FORMATS:
+            skipped += 1
+            continue
+        popularity_raw = _popularity(row.get("popularity"))
+        if not _well_typed(row) or popularity_raw is None:
+            skipped += 1
+            continue
+        rows.append(row)
+        raw_popularity[material_id] = popularity_raw
+    return rows, raw_popularity, skipped
 
 
 def parse_materials(payload: dict[str, Any]) -> tuple[list[Material], dict[str, Any]]:
@@ -71,30 +97,11 @@ def parse_materials(payload: dict[str, Any]) -> tuple[list[Material], dict[str, 
     scale = payload.get("popularity_scale", "single")
     if not isinstance(scale, str) or scale not in {"single", "per_format"}:
         raise CatalogError("popularity_scale должен быть single или per_format")
-    dropped: Counter = Counter()
-    skipped = 0
-    seen: set[str] = set()
-    rows: list[dict[str, Any]] = []
-    for row in payload["materials"]:
-        if not isinstance(row, dict):
-            skipped += 1
-            continue
-        material_id = row.get("id")
-        title = row.get("title")
-        fmt = row.get("format")
-        if not valid_material_id(material_id) or material_id in seen:
-            skipped += 1
-            continue
-        if not isinstance(title, str) or not title.strip() or not isinstance(fmt, str) or fmt not in vocab.FORMATS:
-            skipped += 1
-            continue
-        if not _well_typed(row):
-            skipped += 1
-            continue
-        seen.add(material_id)
-        rows.append(row)
+    dropped: Counter[str] = Counter()
+    rows, raw_popularity, skipped = _accepted_rows(payload["materials"])
+    # Коды принятых записей: ссылки recommended_next на прочие коды отбрасываются
+    seen = set(raw_popularity)
 
-    raw_popularity = {r["id"]: _popularity(r.get("popularity")) for r in rows}
     formats = {r["id"]: r["format"] for r in rows}
     popularity = normalize_popularity(raw_popularity, formats, scale)
 
@@ -135,7 +142,9 @@ def parse_materials(payload: dict[str, Any]) -> tuple[list[Material], dict[str, 
                 popularity_raw=raw_popularity[row["id"]],
                 popularity=popularity.get(row["id"], 0.0),
                 recommended_next=tuple(
-                    x for x in (row.get("recommended_next") or []) if isinstance(x, str) and x in seen and x != row["id"]
+                    x
+                    for x in (row.get("recommended_next") or [])
+                    if isinstance(x, str) and x in seen and x != row["id"]
                 ),
                 url=url,
                 short_benefit=benefit,

@@ -1,10 +1,11 @@
-"""Модели запроса и ответа API (PLAN.md, 4.4). Иных полей в ответе нет."""
+"""Модели запроса и ответа API (docs/plan.md, 4.4). Иных полей в ответе нет."""
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 
 from .catalog.models import MATERIAL_ID_MAX_LENGTH, MATERIAL_ID_PATTERN
 
@@ -30,12 +31,26 @@ TASK_HARD_LIMIT = 2000
 HISTORY_LIMIT = 200
 
 
+def json_integer(value: object) -> object:
+    """Целое по правилам JSON Schema, как его описывает OpenAPI: 8 и 8.0 — целые, строка "8" и true — нет.
+
+    Без этой проверки pydantic приводил строку и логическое значение к целому, и запрос, который схема называет
+    неверным, проходил: `"seq": false` давал 200. Строгий режим pydantic отклонял бы и 8.0, а схема называет 8.0
+    целым (находки Schemathesis, кандидат W10). Дробное 8.5 отклоняет сам pydantic.
+    """
+    if isinstance(value, (bool, str)):
+        raise PydanticCustomError("int_type", "Input should be a valid integer")
+    return value
+
+
 class HistoryEventIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     material_id: str = Field(min_length=1, max_length=MATERIAL_ID_MAX_LENGTH, pattern=MATERIAL_ID_PATTERN)
     event: EventCode
     seq: int = Field(ge=0, le=1_000_000_000)
+
+    _integers = field_validator("seq", mode="before")(json_integer)
 
 
 class FiltersIn(BaseModel):
@@ -59,6 +74,8 @@ class RecommendRequest(BaseModel):
     limit: int = Field(default=5, ge=1, le=10)
     method: MethodCode = "personal"
     filters: FiltersIn | None = None
+
+    _integers = field_validator("limit", mode="before")(json_integer)
 
 
 class Option(BaseModel):
@@ -206,7 +223,7 @@ class ProfilesResponse(BaseModel):
 
 
 class HealthCatalog(CatalogInfo):
-    coverage: dict
+    coverage: dict[str, Any]
 
 
 class HealthResponse(BaseModel):
@@ -220,9 +237,10 @@ class ErrorDetail(BaseModel):
 
 
 class ErrorBody(BaseModel):
+    # Модель только описывает ответ в схеме; problem_response всегда отдаёт details, хотя бы пустым списком
     code: str
     message: str
-    details: list[ErrorDetail] = []
+    details: list[ErrorDetail]
 
 
 class ErrorResponse(BaseModel):

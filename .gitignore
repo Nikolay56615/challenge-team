@@ -6,16 +6,28 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Кеши проверок и результаты шагов CI: Hypothesis, линтеры, покрытие, мутационное тестирование, аудит и SBOM,
+# Lighthouse, копия бэкенда mutmut
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+/mutation/
+/supply-chain/
+/.lighthouseci/
+backend/mutants/
+
 # Локальные снимки проверок и настройки
 frontend/.screenshots/
 /evaluation/e2e/.results/
+/evaluation/e2e/node_modules/
 .env
 
 # Копия выгрузки и любые базы SQLite со служебными файлами не попадают в репозиторий
-*.backup
 *.sqlite3
 *.sqlite3-*
+*.backup
 
-# Локальные материалы команды
-/Personal/
 /data/local/
+/data/restricted/

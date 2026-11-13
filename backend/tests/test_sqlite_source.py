@@ -1,7 +1,8 @@
-"""Источник каталога из SQLite (PLAN.md, 2.2–2.4, 2.8) на вымышленных мини-базах.
+"""Источник каталога из SQLite (docs/plan.md, 2.2–2.4, 2.8) на вымышленных мини-базах.
 
 Базы строятся во временной папке только с нужными таблицами. Идентификаторы и названия
-вымышленные; подписи тем, тегов и отраслей — общие справочные значения из PLAN.md.
+вымышленные; подписи тем, тегов и отраслей — общие справочные значения, в основном из data/mapping.example.yaml.
+Несопоставленные подписи и написание через «ё» заданы нарочно.
 """
 
 from __future__ import annotations
@@ -236,6 +237,24 @@ def load_tables(tmp_path: Path, tables: dict[str, Table], **kwargs):
     return load_sqlite_catalog(write_db(tmp_path / "variant.sqlite3", tables), **kwargs)
 
 
+def test_prepared_catalog_links_are_used_only_for_available_matching_materials(tmp_path):
+    tables = base_tables()
+    tables["MaterialDetails"] = (
+        ["MaterialId", "MaterialFormat", "PlatformUrl"],
+        [
+            ("A-101", "article", " https://example.org/articles/guide "),
+            ("A-101", "course", "https://example.org/courses/other"),
+            ("A-102", "article", "https://example.org/articles/hidden"),
+            ("C-201", "course", "javascript:alert(1)"),
+        ],
+    )
+    catalog = load_tables(tmp_path, tables)
+    assert catalog.materials["article:A-101"].url == "https://example.org/articles/guide"
+    assert catalog.materials["article:A-102"].url is None
+    assert catalog.materials["course:C-201"].url is None
+    assert catalog.coverage["links_total"] == 1
+
+
 @pytest.fixture
 def catalog_db(tmp_path: Path) -> Path:
     return write_db(tmp_path / "catalog.sqlite3", base_tables())
@@ -265,9 +284,10 @@ def test_materials_ids_titles_formats_and_version(sqlite_catalog):
     assert sqlite_catalog.size == 14
     article = sqlite_catalog.materials["article:A-101"]
     assert (article.title, article.format) == ("Вымышленная статья 1", "article")
-    assert {m.format for m in sqlite_catalog.materials.values()} == {"article", "course", "document", "webinar", "podcast"}
+    materials = sqlite_catalog.materials.values()
+    assert {m.format for m in materials} == {"article", "course", "document", "webinar", "podcast"}
     assert "course:C-201" in sqlite_catalog.materials and "document:D-302" in sqlite_catalog.materials
-    assert all(m.url is None and m.short_benefit is None and m.next_step is None for m in sqlite_catalog.materials.values())
+    assert all(m.url is None and m.short_benefit is None and m.next_step is None for m in materials)
     assert re.fullmatch(r"sqlite-\d+-\d{4}-\d{2}-\d{2}", sqlite_catalog.version)
     assert sqlite_catalog.coverage["source_tables"]["Articles"] == 6
     assert sqlite_catalog.coverage["content_settings"]["unmatched"] == 1
@@ -277,23 +297,22 @@ def test_availability_uses_status_and_flags_where_present(sqlite_catalog):
     available = {key for key, m in sqlite_catalog.materials.items() if m.available}
     assert available == {
         "article:A-101",
-        "article:A-105",
         "course:C-201",
         "course:C-203",
         "document:D-301",
         "webinar:W-401",
         "podcast:P-501",
     }
-    # A-102 IsPublic = 0, A-103 черновик, A-104 закрыта, A-106 удалена, C-202 закрыт,
-    # D-302 удалён в ContentSettings, W-402 черновик
+    # A-102 IsPublic = 0, A-103 черновик, A-104 закрыта, A-105 приватный тип «Закрытый», A-106 удалена,
+    # C-202 закрыт, D-302 удалён в ContentSettings, W-402 черновик
     assert sqlite_catalog.coverage["available_by_format"] == {
-        "article": 2,
+        "article": 1,
         "course": 2,
         "document": 1,
         "podcast": 1,
         "webinar": 1,
     }
-    assert sqlite_catalog.coverage["unavailable_by_reason"] == {"status": 2, "flags": 5, "no_settings": 0}
+    assert sqlite_catalog.coverage["unavailable_by_reason"] == {"status": 2, "flags": 5, "no_settings": 0, "private": 1}
 
 
 def test_status_must_be_published_in_both_tables(tmp_path):
@@ -312,7 +331,7 @@ def test_status_must_be_published_in_both_tables(tmp_path):
     assert not catalog.materials["document:D-303"].available
     assert not catalog.materials["document:D-304"].available
     assert (catalog.coverage["by_format"]["document"], catalog.coverage["available_by_format"]["document"]) == (4, 1)
-    assert catalog.coverage["unavailable_by_reason"] == {"status": 4, "flags": 5, "no_settings": 0}
+    assert catalog.coverage["unavailable_by_reason"] == {"status": 4, "flags": 5, "no_settings": 0, "private": 1}
 
 
 def test_material_without_settings_unavailable(tmp_path):
@@ -322,7 +341,8 @@ def test_material_without_settings_unavailable(tmp_path):
     assert (podcast.available, podcast.access, podcast.topics) == (False, "paid", ())
     assert catalog.coverage["content_settings"]["materials_without"] == 1
     assert catalog.coverage["unavailable_by_reason"]["no_settings"] == 1
-    assert catalog.coverage["access_mapping"]["unknown"] == 2  # доступ неизвестен: осторожно как платный
+    # Доступ неизвестен только у P-502: осторожно как платный. «Закрытый» у A-105 — известный приватный тип
+    assert catalog.coverage["access_mapping"]["unknown"] == 1
 
 
 @pytest.mark.parametrize("case", ["other-status-label", "no-status-columns"])
@@ -339,6 +359,7 @@ def test_no_available_materials_raises(tmp_path, case):
         load_tables(tmp_path, tables, **options)
     message = str(error.value)
     assert "без статуса из published_statuses — 14, скрыто флагами — 5, без записи ContentSettings — 0" in message
+    assert "скрыто приватным типом доступа — 1" in message
     assert "published_statuses в файле соответствия" in message
     assert str(tmp_path) not in message
 
@@ -455,15 +476,15 @@ def test_duration_in_catalog(sqlite_catalog):
 
 def test_access_mapping(sqlite_catalog):
     access = field_of(sqlite_catalog, "access")
-    assert access["article:A-101"] == "open"  # тип статьи в таблице сущности не используется
-    assert access["article:A-105"] == "paid"  # «Закрытый» не сопоставлен: осторожно как платный
+    assert access["article:A-101"] == "paid"  # расхождение с Articles.TypeId: строже
+    assert access["article:A-105"] == "paid"  # приватный тип «Закрытый»: материал скрыт, код самый строгий
     assert access["course:C-201"] == "subscription"
     assert access["course:C-202"] == "paid"  # расхождение с Courses.TypeId: строже
     assert access["course:C-203"] == "paid"
     assert access["podcast:P-501"] == "subscription"
     assert sqlite_catalog.materials["course:C-201"].is_paid
-    assert sqlite_catalog.coverage["by_access"] == {"open": 9, "paid": 3, "subscription": 2}
-    assert sqlite_catalog.coverage["access_mapping"] == {"unknown": 1, "conflicts": 2}
+    assert sqlite_catalog.coverage["by_access"] == {"open": 8, "paid": 4, "subscription": 2}
+    assert sqlite_catalog.coverage["access_mapping"] == {"unknown": 0, "conflicts": 3}
 
 
 def test_popularity_raw_and_rank_within_format(sqlite_catalog):
@@ -562,7 +583,7 @@ def test_untitled_materials_get_distinct_titles(tmp_path):
     assert titles == ["Статья без названия", "Статья без названия 2"]
     # Выдача убирает дубликаты по названию и формату: заглушки не должны совпадать
     available = [m for m in catalog.materials.values() if m.available]
-    assert len({(m.title.casefold(), m.format) for m in available}) == len(available) == 9
+    assert len({(m.title.casefold(), m.format) for m in available}) == len(available) == 8
     assert catalog.coverage["titles_missing"] == 2
 
 
@@ -591,6 +612,7 @@ def test_coverage_holds_only_aggregates(sqlite_catalog, tmp_path):
         pytest.param("industries:\n  Без опыта: horeca\n", "служебная", id="industry-is-service-label"),
         pytest.param("stage_tags:\n  Старт бизнеса: launch\n", "stage_tags", id="unknown-stage"),
         pytest.param("access_titles:\n  Открытый: free\n", "access_titles", id="unknown-access"),
+        pytest.param("hidden_access_titles: [платный]\n", "и в hidden_access_titles", id="access-title-hidden-too"),
         pytest.param("duration_units:\n  минут: -1\n", "положительным", id="negative-unit"),
         pytest.param("duration_units:\n  2мин: 1\n", "одним словом", id="unit-with-digit"),
         pytest.param("history_events:\n  status:\n    0: watch\n", "history_events", id="unknown-event"),
@@ -648,7 +670,7 @@ def test_missing_or_unreadable_database(tmp_path):
 
 
 def test_empty_catalog(tmp_path):
-    tables = {name: (columns, []) for name, (columns, _) in base_tables().items()}
+    tables: dict = {name: (columns, []) for name, (columns, _) in base_tables().items()}
     with pytest.raises(CatalogError, match="Каталог пуст"):
         load_sqlite_catalog(write_db(tmp_path / "catalog.sqlite3", tables))
 

@@ -27,6 +27,7 @@ def test_normalizes_word_forms_and_hyphens_and_requires_all_keywords():
         Material("unavailable", "Штатное расписание предприятия", "document", available=False),
         Material("fold", "Учёт расходов", "article"),
     )
+    assert catalog.text_index is not None
     assert catalog.text_index.match("Как посчитать юнит экономику маркетплейса").titles == {"exact"}
     assert catalog.text_index.match("Как составить штатного расписания").titles == {"schedule"}
     assert catalog.text_index.match("Учет расхода").titles == {"fold"}

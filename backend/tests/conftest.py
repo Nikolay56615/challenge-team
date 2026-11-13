@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.catalog.coverage import disabled_features, summarize
 from app.catalog.loader import load_catalog
 from app.catalog.models import Catalog
 from app.catalog.synthetic_source import parse_materials
-from app.catalog.coverage import disabled_features, summarize
 from app.config import DATA_DIR, Settings
 from app.main import create_app
 from app.profiles.synthetic import load_profiles

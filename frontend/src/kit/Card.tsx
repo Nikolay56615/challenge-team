@@ -5,7 +5,7 @@ export interface CardProps extends HTMLAttributes<HTMLElement> {
   /** Доступное имя карточки: «Позиция N» */
   label: string;
   children: ReactNode;
-  ref?: Ref<HTMLElement>;
+  ref?: Ref<HTMLElement> | undefined;
 }
 
 /** article.card */

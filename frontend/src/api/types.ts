@@ -114,7 +114,7 @@ export interface Item {
 export interface Clarification {
   question: string;
   text: string;
-  field: 'topic';
+  field?: 'topic';
   options: Option<TopicCode>[];
 }
 

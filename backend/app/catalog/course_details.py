@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from html import unescape
 
+_POINT_LIMIT = 5
 _MARKUP = re.compile(r"<\s*(?:/?[a-z]|[!?])", re.IGNORECASE)
 
 
@@ -24,7 +25,7 @@ def _points(values: object) -> tuple[str, ...]:
     for value in values:
         if text := _plain_text(value):
             points.setdefault(text.casefold().replace("ё", "е"), text)
-        if len(points) == 5:
+        if len(points) == _POINT_LIMIT:
             break
     return tuple(points.values())
 

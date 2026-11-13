@@ -1,14 +1,21 @@
-"""HTTP-слой: переводит запросы и ответы, правил подбора не содержит (PLAN.md, 4.3–4.4)."""
+"""HTTP-слой: переводит запросы и ответы, правил подбора не содержит (docs/plan.md, 4.3–4.4).
+
+Состояние запроса: `request.state.request_id` назначает EdgeMiddleware в `main.py`, маршруты подбора
+записывают `request.state.rank_ms` для заголовка Server-Timing. Схема строк журнала — в `main.py`.
+"""
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 import uuid
 from collections.abc import Mapping
+from typing import Literal, cast
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel
 
 from .. import schemas, vocab
 from ..catalog.coverage import link_allowed
@@ -20,11 +27,27 @@ from ..ranking.policy import Outcome, eligible, recommend, topics_with_materials
 log = logging.getLogger("app.api")
 router = APIRouter(prefix="/api")
 
+# Ответы с ошибкой в схеме OpenAPI: тот же конверт `{"error": {...}}`, что отдаёт problem_response. Без них FastAPI
+# описывал 422 своей моделью HTTPValidationError с полем `detail`, которой сервис не отвечает, а 404, 413 и 503
+# в схеме не было; из такой схемы интерфейс получил бы неверные типы ошибок (кандидат W10).
+# 405 и 500 не описаны: их нет в контракте операций.
+ERROR_DESCRIPTIONS = {
+    404: "Не найдено: тестовые профили выключены вне демо-режима (not_found)",
+    413: "Тело запроса больше предела (payload_too_large)",
+    422: "Неверный запрос: тело не JSON-объект, неизвестное поле, значение вне схемы или задача длиннее предела "
+    "(validation_error)",
+    503: "Каталог не загружен (catalog_unavailable)",
+}
+
+
+def _errors(*statuses: int) -> dict[int | str, dict[str, object]]:
+    return {status: {"model": schemas.ErrorResponse, "description": ERROR_DESCRIPTIONS[status]} for status in statuses}
+
 
 class ApiProblem(Exception):
     """Ошибка с кодом и сообщением для единого формата ответа."""
 
-    def __init__(self, status: int, code: str, message: str, details: list[dict] | None = None) -> None:
+    def __init__(self, status: int, code: str, message: str, details: list[dict[str, str]] | None = None) -> None:
         super().__init__(message)
         self.status = status
         self.code = code
@@ -45,8 +68,30 @@ def task_too_long_message(limit: int) -> str:
     return f"Запрос длиннее {limit} {explain.plural(limit, 'символа', 'символов', 'символов')}"
 
 
+class ProbeResponse(BaseModel):
+    """Ответ /api/live и /api/ready: только статус, без сведений о каталоге."""
+
+    status: Literal["ok"]
+
+
+def _request_id(request: Request) -> str:
+    """Код запроса из EdgeMiddleware: тот же в заголовке X-Request-Id и в строках журнала."""
+    return getattr(request.state, "request_id", None) or uuid.uuid4().hex
+
+
+def _reference(model: BaseModel) -> Response:
+    """Справочник: сильный ETag по телу и `no-cache` — браузер хранит копию и каждый раз сверяет её.
+
+    Тело сериализуется так же, как FastAPI сериализует `response_model`. Совпавший If-None-Match
+    превращает ответ в 304 в ConditionalGetMiddleware, после сжатия.
+    """
+    body = model.model_dump_json().encode()
+    etag = f'"{hashlib.sha256(body).hexdigest()}"'
+    return Response(body, media_type="application/json", headers={"ETag": etag, "Cache-Control": "no-cache"})
+
+
 def _catalog(request: Request) -> Catalog:
-    catalog = getattr(request.app.state, "catalog", None)
+    catalog: Catalog | None = getattr(request.app.state, "catalog", None)
     if catalog is None:
         raise ApiProblem(503, "catalog_unavailable", "Каталог не загружен. Повторите запрос позже.")
     return catalog
@@ -83,7 +128,7 @@ def _profile_from_request(body: schemas.RecommendRequest, request: Request) -> P
         topic=body.topic,
         history=history,
         limit=body.limit,
-        filters=MaterialFilters(**body.filters.model_dump()) if body.filters else MaterialFilters(),
+        filters=MaterialFilters(body.filters.format, body.filters.access) if body.filters else MaterialFilters(),
     )
 
 
@@ -106,8 +151,10 @@ def _item(rank: int, outcome: Outcome, index: int) -> schemas.ItemOut:
         duration_minutes=material.duration_minutes,
         lesson_count=material.lesson_count,
         has_certificate=material.has_certificate,
-        course_details=material.course_details,
-        access=material.access,
+        course_details=(schemas.CourseDetailsOut.model_validate(material.course_details)
+                        if material.course_details else None),
+        # Коды ядро хранит строками; cast только для mypy: pydantic сверяет значение с Literal при создании модели
+        access=cast(schemas.AccessCode, material.access),
         access_label=vocab.ACCESS[material.access],
         is_paid=material.is_paid,
         short_benefit=material.short_benefit if material.is_paid else None,
@@ -115,7 +162,7 @@ def _item(rank: int, outcome: Outcome, index: int) -> schemas.ItemOut:
         link_allowed=allowed,
         reasons=outcome.reasons[index],
         next_step=explain.next_step(material),
-        flags=[schemas.FlagOut(code=f, label=vocab.FLAGS[f]) for f in scored.flags],
+        flags=[schemas.FlagOut(code=cast(schemas.FlagCode, f), label=vocab.FLAGS[f]) for f in scored.flags],
         score=round(scored.score, 2),
         contributions={k: round(v, 2) for k, v in scored.contributions.items()},
     )
@@ -143,9 +190,9 @@ def _response(outcome: Outcome, catalog: Catalog, request_id: str) -> schemas.Re
         )
     return schemas.RecommendResponse(
         request_id=request_id,
-        method=outcome.method,
+        method=cast(schemas.MethodCode, outcome.method),
         catalog=_catalog_info(catalog),
-        status=outcome.status,
+        status=cast(schemas.StatusCode, outcome.status),
         detected_topics=list(outcome.detected_topics),
         message=outcome.message,
         clarification=clarification,
@@ -169,20 +216,40 @@ def _log(request_id: str, kind: str, outcome: Outcome, started: float) -> None:
     )
 
 
-@router.get("/health", response_model=schemas.HealthResponse)
+@router.get("/health", response_model=schemas.HealthResponse, responses=_errors(503))
 def health(request: Request) -> schemas.HealthResponse:
     catalog = _catalog(request)
     info = _catalog_info(catalog)
-    return schemas.HealthResponse(status="ok", catalog=schemas.HealthCatalog(**info.model_dump(), coverage=catalog.coverage))
+    return schemas.HealthResponse(
+        status="ok", catalog=schemas.HealthCatalog(**info.model_dump(), coverage=catalog.coverage)
+    )
 
 
-@router.get("/meta", response_model=schemas.MetaResponse)
-def meta(request: Request) -> schemas.MetaResponse:
+@router.get("/live", response_model=ProbeResponse)
+def live() -> ProbeResponse:
+    """Живость: процесс отвечает. Каталог не проверяется — перезапуск не загрузит его.
+
+    Обычная функция, как у маршрутов подбора: она выполняется в том же пуле потоков, и зависший пул виден здесь.
+    """
+    return ProbeResponse(status="ok")
+
+
+@router.get("/ready", response_model=ProbeResponse, responses=_errors(503))
+def ready(request: Request) -> ProbeResponse:
+    """Готовность: каталог загружен и подбор возможен, иначе 503 `catalog_unavailable`."""
+    _catalog(request)
+    return ProbeResponse(status="ok")
+
+
+@router.get("/meta", response_model=schemas.MetaResponse, responses=_errors(503))
+def meta(request: Request) -> Response:
     catalog = _catalog(request)
     settings = request.app.state.settings
     topics = topics_with_materials(eligible(catalog, HistoryIndex.build(())))
-    return schemas.MetaResponse(
-        catalog=schemas.MetaCatalog(source=catalog.source, available=sum(m.available for m in catalog.materials.values())),
+    body = schemas.MetaResponse(
+        catalog=schemas.MetaCatalog(
+            source=catalog.source, available=sum(m.available for m in catalog.materials.values())
+        ),
         topics=[schemas.Option(label=vocab.topic_label(t), value=t) for t in topics],
         stages=[schemas.Option(label=label, value=code) for code, (label, _) in vocab.STAGES.items()],
         experience=[schemas.Option(label=label, value=code) for code, (label, _) in vocab.EXPERIENCE.items()],
@@ -191,13 +258,14 @@ def meta(request: Request) -> schemas.MetaResponse:
         max_task_length=settings.max_task_length,
         demo_mode=settings.demo_mode,
     )
+    return _reference(body)
 
 
-@router.get("/profiles", response_model=schemas.ProfilesResponse)
-def profiles(request: Request) -> schemas.ProfilesResponse:
+@router.get("/profiles", response_model=schemas.ProfilesResponse, responses=_errors(404))
+def profiles(request: Request) -> Response:
     if not request.app.state.settings.demo_mode:
         raise ApiProblem(404, "not_found", "Тестовые профили доступны только в демо-режиме")
-    return schemas.ProfilesResponse(
+    body = schemas.ProfilesResponse(
         profiles=[
             schemas.ProfileOut(
                 id=p.id,
@@ -208,32 +276,39 @@ def profiles(request: Request) -> schemas.ProfilesResponse:
                 experience=p.experience,
                 format_pref=p.format_pref,
                 industry=p.industry,
-                history=[schemas.HistoryEventOut(material_id=e.material_id, event=e.event, seq=e.seq) for e in p.history],
+                history=[
+                    schemas.HistoryEventOut(material_id=e.material_id, event=e.event, seq=e.seq) for e in p.history
+                ],
             )
             for p in request.app.state.profiles.values()
         ]
     )
+    return _reference(body)
 
 
-@router.post("/recommend", response_model=schemas.RecommendResponse)
+@router.post("/recommend", response_model=schemas.RecommendResponse, responses=_errors(413, 422, 503))
 def recommend_endpoint(body: schemas.RecommendRequest, request: Request) -> schemas.RecommendResponse:
     started = time.perf_counter()
     catalog = _catalog(request)
     profile = _profile_from_request(body, request)
-    request_id = uuid.uuid4().hex[:12]
+    request_id = _request_id(request)
+    ranking = time.perf_counter()
     outcome = recommend(catalog, profile, body.method)
+    request.state.rank_ms = (time.perf_counter() - ranking) * 1000
     _log(request_id, "recommend", outcome, started)
     return _response(outcome, catalog, request_id)
 
 
-@router.post("/compare", response_model=schemas.CompareResponse)
+@router.post("/compare", response_model=schemas.CompareResponse, responses=_errors(413, 422, 503))
 def compare_endpoint(body: schemas.RecommendRequest, request: Request) -> schemas.CompareResponse:
     started = time.perf_counter()
     catalog = _catalog(request)
     profile = _profile_from_request(body, request)
-    request_id = uuid.uuid4().hex[:12]
+    request_id = _request_id(request)
+    ranking = time.perf_counter()
     base = recommend(catalog, profile, "baseline")
     personal = recommend(catalog, profile, "personal")
+    request.state.rank_ms = (time.perf_counter() - ranking) * 1000
     compared = min(len(base.items), len(personal.items))
     changed = sum(1 for i in range(compared) if base.items[i].material.id != personal.items[i].material.id)
     _log(request_id, "compare", personal, started)

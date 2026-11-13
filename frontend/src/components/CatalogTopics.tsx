@@ -8,11 +8,11 @@ interface CatalogTopicsProps {
   topics: readonly Option<TopicCode>[];
   loaded: boolean;
   failed: boolean;
-  reload(): void;
+  reload: () => void;
   value: TopicCode | null;
   current: TopicCode | null;
-  onChange(value: TopicCode | null): void;
-  onShow(value: TopicCode): void;
+  onChange: (value: TopicCode | null) => void;
+  onShow: (value: TopicCode) => void;
   disabled: boolean;
 }
 
@@ -31,7 +31,7 @@ export function CatalogTopics({
       ) : !loaded ? (
         <p className="note" role="status">Загружаем темы…</p>
       ) : topics.length === 0 ? (
-        <p>В каталоге пока нет доступных тем.</p>
+        <p>В&nbsp;каталоге пока нет доступных тем.</p>
       ) : (
         <>
           <div className="catalog-topics__picker">
@@ -47,7 +47,7 @@ export function CatalogTopics({
           <ul className="catalog-topics__list" aria-label="Темы каталога">
             {topics.map(({ label, value: topic }) => (
               <li key={topic}>
-                <Button aria-pressed={current === topic} disabled={disabled} onClick={() => onShow(topic)}>
+                <Button aria-pressed={current === topic} disabled={disabled} onClick={() => { onShow(topic); }}>
                   {label}
                 </Button>
               </li>

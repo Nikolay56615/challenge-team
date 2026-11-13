@@ -8,3 +8,98 @@ requires-python = ">=3.12"
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-q"
+
+# Проверки бэкенда (кандидат W09). Команды из папки backend; CI выполняет их же в задании backend-tests:
+#   python -m ruff check .
+#   python -m mypy
+#   python -m pytest -q --cov --cov-report=term-missing
+#   python -m coverage report --include="app/ranking/*" --fail-under=95
+# Инструменты закреплены в requirements-dev.txt. ruff format не обязателен: на 12.11.2026 он переформатировал
+# бы 28 файлов из 52, около 2 400 изменённых строк, а стиль кода задают line-length и правила E.
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+# mutmut копирует app/ в mutants/ с изменённым кодом
+extend-exclude = ["mutants"]
+
+[tool.ruff.lint]
+# E, F — ошибки и стиль pycodestyle и pyflakes; B — bugbear; UP — синтаксис Python 3.12; S — bandit;
+# C90 — цикломатическая сложность; PL — pylint; I — порядок импортов
+select = ["E", "F", "B", "UP", "S", "C90", "PL", "I"]
+
+[tool.ruff.lint.mccabe]
+# Радон относит 11–20 к классу C, 21 и выше — к D. Порог 15 блокирует верх класса C: функции сложнее
+# разбиты на шаги (оценка материала, фразы причин, выбор ответа политики). Порог 10 задел бы ещё шесть
+# функций приложения со сложностью 11–13 (разбор пар и тем каталога, EdgeMiddleware, сообщения валидации,
+# create_app, personal_reasons) и шесть проверочных функций тестов; их дробление читаемости не прибавит
+max-complexity = 15
+
+[tool.ruff.lint.pylint]
+# max-branches не задан: действует порог ruff 12, код приложения в него укладывается.
+# Строки состояния собираются из ключевых аргументов (results_message и соседние): всего до 7,
+# позиционных — не больше 5 (без явного значения ruff взял бы для PLR0917 порог max-args)
+max-args = 7
+max-positional-args = 5
+# Выбор текста по случаю (_order_sentence): ранний выход читается проще вложенных ветвей
+max-returns = 8
+
+[tool.ruff.lint.per-file-ignores]
+# В SQL подставляются только имена таблиц и столбцов из констант модуля и схемы файла; значения в запросы
+# не попадают, а параметры sqlite3 не принимают имена таблиц
+"app/catalog/sqlite_source.py" = ["S608"]
+# Тесты: assert — их язык; числа в сравнениях — ожидаемые значения; случайные числа с фиксированным
+# зерном строят входы, а не секреты; подпроцессы запускают sys.executable и docker с аргументами из теста;
+# 0.0.0.0 и /tmp — проверяемые значения настроек, а не адреса и файлы теста; SQL собирает испорченные базы;
+# фикстуры и параметры pytest передаёт тесту по имени, поэтому число позиционных аргументов не важно;
+# проверка верности причин (test_explain_faithfulness.py) перебирает признаки фраз подряд, и её ветвление
+# ограничивает только max-complexity
+"tests/**" = ["S101", "PLR2004", "S311", "S603", "S607", "S104", "S108", "S608", "PLR0917", "PLR0912"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["app", "tests"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# Для тестов выключены пять флагов strict в трёх группах. Аннотации не обязательны (disallow_untyped_defs,
+# disallow_incomplete_defs) и вызов функций без них разрешён (disallow_untyped_calls): тело функции mypy
+# всё равно проверяет (check_untyped_defs входит в strict), а фикстуры и параметры pytest аннотаций не требуют.
+# Голые dict и list (disallow_any_generics) и возврат Any (warn_return_any) из разбора JSON и YAML допустимы:
+# это ответы и файлы, которые тест затем проверяет сам. Остальные флаги strict такие же, как для app/.
+# CI работает в Linux: локально в Windows проверьте и python -m mypy --platform linux
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+# Общий порог бэкенда; app/ranking/ — не ниже 95 % отдельной командой (см. блок проверок выше)
+fail_under = 85
+# coverage округляет итог до precision знаков после запятой и только потом сравнивает с порогом. При 0 знаков
+# 84,6 % прошло бы порог 85 %, а 94,6 % прошло бы порог 95 %. pytest-cov и coverage report берут значение отсюда
+precision = 2
+show_missing = true
+skip_covered = true
+
+# Мутационное тестирование ranking/ и schemas.py (кандидат W21): workflow .github/workflows/mutation.yml,
+# порог в нём же. mutmut 3 запускает мутанты через fork и работает только в Linux и macOS.
+# mutmut копирует app/ целиком в mutants/, но меняет только файлы из only_mutate. mutmut 3 меняет код внутри
+# функций и методов; ограничения полей pydantic в теле класса он не трогает.
+[tool.mutmut]
+source_paths = ["app/"]
+only_mutate = ["app/ranking/*", "app/schemas.py"]
+# Каталог и пары курсов из data/ нужны тестам в копии mutants/
+also_copy = ["data/"]
+# test_runtime.py читает Dockerfile, compose и workflow из корня комплекта и запускает сервер: в mutants/ их нет.
+# test_schemathesis.py проверяет контракт HTTP множеством запросов на каждую операцию: подбор он вызывает через API,
+# а прямые свойства подбора есть в test_properties.py, поэтому для мутантов ranking/ он только удлинял бы прогон
+pytest_add_cli_args = ["-p", "no:cacheprovider", "--ignore=tests/test_runtime.py", "--ignore=tests/test_schemathesis.py"]
+use_git_change_detection = false

@@ -11,7 +11,7 @@ export function buttonClass(variant: ButtonVariant, size: ButtonSize, extra?: st
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  ref?: Ref<HTMLButtonElement>;
+  ref?: Ref<HTMLButtonElement> | undefined;
 }
 
 /** button.btn. Занятое состояние передаётся через aria-disabled, чтобы кнопка не теряла фокус. */

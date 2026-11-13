@@ -1,6 +1,17 @@
-# Проверка комплекта, два независимых задания. Тесты бэкенда. Docker: сборка образа, его состав, ответ
-# контейнера, подбор для профиля P01, браузерные проверки и запуск с наложением compose.data.yaml. Рассчитан
-# на репозиторий, в корне которого лежат backend/, frontend/, Dockerfile и файлы compose:
+# Проверка комплекта, пять заданий. Образ собирается один раз — в задании docker.
+# - backend-tests: зависимости из requirements-dev.lock с проверкой хешей; ruff и mypy (strict для app/), тесты бэкенда
+#   с покрытием ветвей и порогами 85 % и 95 % для app/ranking/ (W09); среди тестов свойства Hypothesis над подбором,
+#   контракт API по Schemathesis и снимок /openapi.json (W10).
+# - frontend-tests: тесты склонений и форматов интерфейса; копия схемы API, типы из неё и ручные типы
+#   интерфейса без расхождений (W10); eslint (W09).
+# - docker-lint: проверки BuildKit и hadolint для Dockerfile, контекст сборки без запрещённых путей.
+# - docker: сборка образа, метки OCI, состав и команда запуска, сканирование trivy и SBOM (W06), заголовки ответа,
+#   пределы контейнера, HEALTHCHECK, подбор для P01, /metrics выключен по умолчанию, браузерные проверки,
+#   Lighthouse CI с бюджетами из lighthouserc.yml (W04), корректная остановка и запуск с compose.data.yaml.
+#   По расписанию и при ручном запуске — ещё необязательный нагрузочный прогон (W08, W15).
+# - supply-chain: аудит зависимостей Python и npm (W06).
+# Мутационное тестирование идёт по расписанию в mutation.yml (W21).
+# Рассчитан на репозиторий, в корне которого лежат backend/, frontend/, Dockerfile и файлы compose:
 # GitHub читает workflow только из .github/workflows в корне.
 name: docker-check
 
@@ -8,6 +19,15 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  # По понедельникам в 04:37 UTC, через 80 минут после старта mutation.yml; задания могут идти одновременно.
+  # По расписанию намеренно идут все задания: базы уязвимостей pip-audit, npm audit и trivy пополняются
+  # и без коммитов, и еженедельный прогон находит новые CVE в закреплённых зависимостях и образе.
+  # Нагрузочный прогон идёт только по расписанию и при ручном запуске
+  schedule:
+    - cron: "37 4 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
   backend-tests:
@@ -17,20 +37,207 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Зависимости бэкенда
+        id: deps
+        working-directory: backend
+        # Только пакеты из блокировки: точные версии и проверка sha256. pip check — зависимости полны.
+        # В блокировке и инструменты проверок W09: ruff, mypy, coverage, pytest-cov.
+        run: |
+          python -m pip install --require-hashes -r requirements-dev.lock
+          python -m pip check
+      - name: ruff
+        # Правила и пороги сложности — в backend/pyproject.toml; формат github даёт пометки в коде PR
+        working-directory: backend
+        run: python -m ruff check --output-format=github .
+      - name: mypy
+        # strict для app/; для tests/ выключены пять флагов strict об аннотациях, обобщённых типах и возврате Any
+        # (files и переопределение для tests.* — в pyproject.toml); шаги проверок идут и после чужого падения
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        working-directory: backend
+        run: python -m mypy
       - name: Тесты бэкенда
+        # pytest запускает все тесты, в том числе test_properties.py (Hypothesis), test_schemathesis.py,
+        # test_openapi_snapshot.py — сверку /openapi.json со снимком — и test_schema_bounds.py. Hypothesis
+        # работает с derandomize и без базы примеров: прогон повторяет локальный на том же Python 3.12.
+        # Покрытие ветвей пишется в .coverage, пороги проверяет следующий шаг.
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        working-directory: backend
+        run: python -m pytest -q --cov --cov-report= --cov-fail-under=0
+      - name: Покрытие ветвей
+        # Порог всего бэкенда — fail_under = 85 в pyproject.toml, app/ranking/ — не ниже 95 %. Проверяются оба
+        # порога, шаг падает, если не выполнен хотя бы один
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         working-directory: backend
         run: |
-          pip install -r requirements-dev.txt
-          python -m pytest -q
+          mkdir -p "$RUNNER_TEMP/backend-reports"
+          failed=""
+          python -m coverage report || failed="$failed backend"
+          python -m coverage report --include="app/ranking/*" --fail-under=95 || failed="$failed app/ranking/"
+          python -m coverage xml -q --fail-under=0 -o "$RUNNER_TEMP/backend-reports/coverage.xml"
+          if [ -n "$failed" ]; then
+            echo "Покрытие ветвей ниже порога:$failed"
+            exit 1
+          fi
+      - name: Отчёты тестов бэкенда
+        # coverage.xml — покрытие ветвей
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-reports
+          path: ${{ runner.temp }}/backend-reports/
+          if-no-files-found: ignore
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+      - name: Тесты интерфейса
+        # node --test запускает модули TypeScript без сборки: нужен Node.js 23.6 или новее
+        run: |
+          npm --prefix frontend ci --no-audit --no-fund
+          npm --prefix frontend test
+      - name: Типы API интерфейса
+        # Копия схемы frontend/src/api/openapi.json совпадает со снимком бэкенда backend/tests/openapi.snapshot.json,
+        # а типы frontend/src/api/schema.gen.ts пересобираются из неё без изменений (W10). Снимок
+        # с /openapi.json сверяет test_openapi_snapshot.py в задании backend-tests. Файлы JSON сравниваются
+        # по содержимому, форматирование копии не важно. Копия сверяется первой: если она устарела, gen:api
+        # собрал бы типы из старой схемы. gen:api с ключом --check только сравнивает и файл не пишет; если
+        # schema.gen.ts нет в репозитории, его нет и в checkout, и сверка падает. typecheck собирает
+        # frontend/src/api/contract.ts: ручные типы интерфейса совпадают с типами схемы, включая конверт ошибки.
+        run: |
+          python3 - <<'EOF'
+          import json
+          import sys
+
+          with open("backend/tests/openapi.snapshot.json", encoding="utf-8") as file:
+              backend = json.load(file)
+          with open("frontend/src/api/openapi.json", encoding="utf-8") as file:
+              frontend = json.load(file)
+          if backend != frontend:
+              print("frontend/src/api/openapi.json отличается от backend/tests/openapi.snapshot.json. Обновите копию")
+              print("из папки backend: python -X utf8 -m tests.test_openapi_snapshot ../frontend/src/api/openapi.json")
+              print("и типы из корня репозитория: npm --prefix frontend run gen:api")
+              sys.exit(1)
+          print("Копия схемы API совпадает со снимком бэкенда")
+          EOF
+          npm --prefix frontend run gen:api -- --check
+          npm --prefix frontend run typecheck
+      - name: Линтер интерфейса
+        # eslint с правилами из frontend/eslint.config.*, без предупреждений (W09). Зависимости ставит npm ci
+        # в шаге «Тесты интерфейса»; линтер идёт и после падения сверки типов, чтобы оба отчёта были видны
+        if: ${{ !cancelled() }}
+        run: npm --prefix frontend run lint
+
+  docker-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверки BuildKit для Dockerfile
+        # Правила проверяются без сборки; любое нарушение даёт код выхода 1
+        run: docker build --check .
+      - name: hadolint
+        # Версия и контрольная сумма закреплены и обновляются вместе
+        env:
+          HADOLINT_VERSION: v2.15.1
+          HADOLINT_SHA256: c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/hadolint" \
+            "https://github.com/hadolint/hadolint/releases/download/$HADOLINT_VERSION/hadolint-linux-x86_64"
+          echo "$HADOLINT_SHA256  $RUNNER_TEMP/hadolint" | sha256sum --check --strict
+          chmod +x "$RUNNER_TEMP/hadolint"
+          "$RUNNER_TEMP/hadolint" Dockerfile
+      - name: actionlint
+        # Синтаксис workflow, выражения и скрипты run через shellcheck раннера. Версия и сумма закреплены вместе.
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$archive"
+          echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+      - name: Контекст сборки
+        # Контекст после .dockerignore выгружается в папку без сборки образа. В нём нет тестов, кешей,
+        # зависимостей и результатов сборки, .env, баз SQLite, закрытых и локальных данных, служебных папок,
+        # результатов шагов CI и документации docs/, а файлы, нужные Dockerfile, на месте
+        run: |
+          context="$RUNNER_TEMP/context"
+          printf 'FROM scratch\nCOPY . /\n' | docker build --file - --output "type=local,dest=$context" .
+          cd "$context"
+          echo "Файлов в контексте: $(find . -type f | wc -l)"
+          forbidden=$(find . \( -name tests -o -name node_modules -o -name dist -o -name __pycache__ \
+            -o -name "*.pyc" -o -name .pytest_cache -o -name .mypy_cache -o -name .ruff_cache -o -name .coverage \
+            -o -name htmlcov -o -name .venv -o -name .env -o -name ".env.*" -o -name "*.sqlite3" \
+            -o -name "*.sqlite3-*" -o -name "*.backup" -o -name Personal -o -path "*/data/local" -o -path "*/data/restricted" -o -name evaluation -o -name scripts \
+            -o -name .git -o -name .github -o -name .screenshots -o -name .results -o -name .vscode \
+            -o -name .idea -o -name .hypothesis -o -name mutation -o -name supply-chain -o -name .lighthouseci \
+            -o -name mutants -o -name docs \) -print)
+          if [ -n "$forbidden" ]; then
+            echo "Запрещённые пути в контексте сборки:"
+            echo "$forbidden"
+            exit 1
+          fi
+          for required in Dockerfile backend/requirements.lock backend/app/main.py backend/app/serve.py \
+            backend/data/catalog.synthetic.json frontend/package.json frontend/package-lock.json \
+            frontend/index.html frontend/src; do
+            if [ ! -e "$required" ]; then
+              echo "Нет в контексте: $required"
+              exit 1
+            fi
+          done
+          echo "Контекст сборки в порядке"
 
   docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Сборка образа
-        run: docker compose build
+        # SOURCE_DATE_EPOCH — время последнего коммита: от него BuildKit ставит время создания образа,
+        # а метка created — дату. Ревизия и адрес репозитория — из контекста GitHub.
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> "$GITHUB_ENV"
+          docker compose build \
+            --build-arg SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" \
+            --build-arg IMAGE_CREATED="$(date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%dT%H:%M:%SZ)" \
+            --build-arg IMAGE_REVISION="$GITHUB_SHA" \
+            --build-arg IMAGE_SOURCE="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+      - name: Метки образа
+        # Метки OCI связывают образ с коммитом и репозиторием (W06)
+        run: |
+          docker image inspect --format '{{json .Config.Labels}}' track1-recommender:local > labels.json
+          docker image inspect --format 'Время создания образа: {{.Created}}' track1-recommender:local
+          python3 - <<'EOF'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          labels = json.load(open("labels.json"))
+          print(json.dumps(labels, ensure_ascii=False, indent=2))
+          prefix = "org.opencontainers.image."
+          created = datetime.fromtimestamp(int(os.environ["SOURCE_DATE_EPOCH"]), timezone.utc)
+          expected = {
+              "title": "track1-recommender",
+              "revision": os.environ["GITHUB_SHA"],
+              "source": f'{os.environ["GITHUB_SERVER_URL"]}/{os.environ["GITHUB_REPOSITORY"]}',
+              "created": created.strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "base.name": "docker.io/library/python:3.12-slim",
+          }
+          problems = [f"{key} = {labels.get(prefix + key)!r}, ожидалось {value!r}"
+                      for key, value in expected.items() if labels.get(prefix + key) != value]
+          problems += [f"{key}: пусто" for key in ("description", "version") if not labels.get(prefix + key)]
+          if problems:
+              print("\n".join(problems))
+              raise SystemExit(1)
+          print("Метки образа в порядке")
+          EOF
       - name: Состав образа
-        # В /srv/app только backend/app, backend/data, backend/requirements.txt и frontend/dist;
+        # В /srv/app только backend/app, backend/data, backend/requirements.lock и frontend/dist;
         # нет тестов, закрытых и служебных папок, а во всём образе нет баз SQLite.
         run: |
           docker run --rm --user root --network none --entrypoint sh track1-recommender:local -c '
@@ -38,20 +245,20 @@ jobs:
             echo "Содержимое /srv/app:"
             find /srv/app -maxdepth 3 | LC_ALL=C sort
             top=$(cd /srv/app && find . -mindepth 1 -maxdepth 2 | LC_ALL=C sort | tr "\n" " ")
-            expected="./backend ./backend/app ./backend/data ./backend/requirements.txt ./frontend ./frontend/dist "
+            expected="./backend ./backend/app ./backend/data ./backend/requirements.lock ./frontend ./frontend/dist "
             if [ "$top" != "$expected" ]; then
               echo "Ожидалось: $expected"
               echo "Получено:  $top"
               exit 1
             fi
             extra=$(find /srv/app \( -name tests -o -name "test_*.py" -o -name conftest.py -o -name Personal \
-              -o -path "*/data/local" -o -name scripts -o -name evaluation -o -name node_modules -o -name .env \) -print)
+              -o -path "*/data/local" -o -path "*/data/restricted" -o -name scripts -o -name evaluation -o -name node_modules -o -name .env \) -print)
             if [ -n "$extra" ]; then
               echo "Лишнее в /srv/app:"
               echo "$extra"
               exit 1
             fi
-            dbs=$(find / -xdev \( -name "*.sqlite3" -o -name "*.sqlite3-*" \) -print)
+            dbs=$(find / -xdev \( -name "*.sqlite3" -o -name "*.sqlite3-*" -o -name "*.backup" \) -print)
             if [ -n "$dbs" ]; then
               echo "Базы SQLite в образе:"
               echo "$dbs"
@@ -59,15 +266,132 @@ jobs:
             fi
             echo "Состав образа в порядке"
           '
+      - name: Команда запуска и HEALTHCHECK образа
+        # CMD в exec-форме без оболочки, пользователь без root с числовыми uid и gid, HEALTHCHECK в exec-форме
+        # опрашивает /api/ready
+        run: |
+          docker image inspect --format '{{json .Config}}' track1-recommender:local > image-config.json
+          python3 - <<'EOF'
+          import json
+
+          config = json.load(open("image-config.json"))
+          cmd, test = config["Cmd"], config["Healthcheck"]["Test"]
+          print("Cmd:", cmd)
+          print("Entrypoint:", config.get("Entrypoint"))
+          print("User:", config.get("User"))
+          print("Healthcheck:", test)
+          assert cmd == ["python", "-m", "app.serve", "--host", "0.0.0.0", "--port", "8000"], cmd
+          assert not config.get("Entrypoint"), config.get("Entrypoint")
+          assert config.get("User") == "10001:10001", config.get("User")
+          assert test[0] == "CMD" and "http://127.0.0.1:8000/api/ready" in test[-1], test
+          print("Команда запуска в порядке")
+          EOF
       - name: Запуск контейнера
         run: docker compose up --detach
       - name: Ожидание готовности
+        # /api/ready отвечает 200, когда каталог загружен, и 503 без каталога; тот же адрес опрашивает HEALTHCHECK
         run: |
-          for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8000/api/health > /dev/null; then exit 0; fi
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/ready > /dev/null; then exit 0; fi
             sleep 2
           done
           exit 1
+      - name: Заголовки ответа
+        # На HTML, файле из assets, API и ошибке 404: нет Server и Access-Control-*, есть заголовки безопасности,
+        # CSP без unsafe-, X-Request-Id и Cache-Control. Запросы идут с чужим Origin.
+        run: |
+          python3 - <<'EOF'
+          import re
+          import urllib.error
+          import urllib.request
+
+          BASE = "http://127.0.0.1:8000"
+          EXPECTED = {
+              "X-Content-Type-Options": "nosniff",
+              "Referrer-Policy": "no-referrer",
+              "X-Frame-Options": "DENY",
+              "Cross-Origin-Opener-Policy": "same-origin",
+              "Cross-Origin-Resource-Policy": "same-origin",
+          }
+
+
+          def fetch(path):
+              request = urllib.request.Request(BASE + path, headers={"Origin": "https://example.org"})
+              try:
+                  response = urllib.request.urlopen(request, timeout=5)
+              except urllib.error.HTTPError as error:
+                  response = error
+              with response:
+                  return response.getcode(), response.headers, response.read()
+
+
+          index = fetch("/")[2].decode()
+          asset = re.search(r'/assets/[^"]+\.js', index)
+          paths = ["/", asset.group(0) if asset else "/assets/missing.js", "/api/ready", "/api/meta", "/api/nothing"]
+          problems = []
+          for path in paths:
+              status, headers, _ = fetch(path)
+              print(status, path, ", ".join(sorted(headers.keys())))
+              if "Server" in headers:
+                  problems.append(f"{path}: заголовок Server: {headers['Server']}")
+              for name, value in EXPECTED.items():
+                  if headers.get(name) != value:
+                      problems.append(f"{path}: {name} = {headers.get(name)!r}")
+              if "camera=()" not in headers.get("Permissions-Policy", ""):
+                  problems.append(f"{path}: Permissions-Policy = {headers.get('Permissions-Policy')!r}")
+              csp = headers.get("Content-Security-Policy", "")
+              if "default-src 'self'" not in csp or "frame-ancestors 'none'" not in csp or "unsafe-" in csp:
+                  problems.append(f"{path}: Content-Security-Policy = {csp!r}")
+              if not re.fullmatch(r"[0-9a-f]{32}", headers.get("X-Request-Id", "")):
+                  problems.append(f"{path}: X-Request-Id = {headers.get('X-Request-Id')!r}")
+              if not headers.get("Cache-Control"):
+                  problems.append(f"{path}: нет Cache-Control")
+              cors = [name for name in headers if name.lower().startswith("access-control-")]
+              if cors:
+                  problems.append(f"{path}: заголовки CORS {cors}")
+          if not asset:
+              problems.append("в index.html нет ссылки на скрипт из /assets/")
+          if problems:
+              print("\n".join(problems))
+              raise SystemExit(1)
+          print("Заголовки в порядке")
+          EOF
+      - name: Пределы контейнера
+        # docker inspect: сброшены все capabilities, заданы пределы процессов, памяти без подкачки, CPU
+        # и дескрипторов, корень только для чтения, no-new-privileges, контейнер не privileged
+        run: |
+          docker inspect "$(docker compose ps --quiet app)" > container.json
+          python3 - <<'EOF'
+          import json
+
+          host = json.load(open("container.json"))[0]["HostConfig"]
+          for key in ("CapDrop", "PidsLimit", "Memory", "MemorySwap", "NanoCpus", "Ulimits", "ReadonlyRootfs",
+                      "SecurityOpt", "Privileged"):
+              print(f"{key}: {host.get(key)}")
+          problems = []
+          if "ALL" not in (host.get("CapDrop") or []):
+              problems.append("CapDrop без ALL")
+          if not (host.get("PidsLimit") or 0) > 0:
+              problems.append("нет PidsLimit")
+          if not (host.get("Memory") or 0) > 0:
+              problems.append("нет предела памяти")
+          if host.get("MemorySwap") != host.get("Memory"):
+              problems.append("подкачка не отключена")
+          if not (host.get("NanoCpus") or 0) > 0:
+              problems.append("нет предела CPU")
+          if not any(limit.get("Name") == "nofile" for limit in host.get("Ulimits") or []):
+              problems.append("нет предела дескрипторов")
+          if host.get("ReadonlyRootfs") is not True:
+              problems.append("корень доступен на запись")
+          if not any(option.startswith("no-new-privileges") for option in host.get("SecurityOpt") or []):
+              problems.append("нет no-new-privileges")
+          if host.get("Privileged"):
+              problems.append("контейнер privileged")
+          if problems:
+              print("\n".join(problems))
+              raise SystemExit(1)
+          print("Пределы контейнера в порядке")
+          EOF
       - name: Подбор для P01
         run: |
           curl -fsS -X POST http://127.0.0.1:8000/api/recommend \
@@ -79,6 +403,26 @@ jobs:
         run: |
           curl -fsS http://127.0.0.1:8000/ -o index.html
           grep -q '<div id="root">' index.html
+      - name: Метрики выключены по умолчанию
+        # compose.yaml передаёт METRICS_ENABLED со значением false по умолчанию. Тогда маршрута /metrics нет:
+        # GET /metrics отвечает 404 в конверте error, как любой неизвестный путь, и счётчики не ведутся (W12)
+        run: |
+          code=$(curl -sS -o metrics.json -w '%{http_code}' http://127.0.0.1:8000/metrics)
+          echo "GET /metrics: $code"
+          test "$code" = 404
+          python3 -c "import json; e = json.load(open('metrics.json'))['error']; print(e); assert e['code'] == 'not_found'"
+      - name: Статус HEALTHCHECK
+        # Первая проверка идёт через 15 с после запуска; ждём статус healthy не дольше 60 с
+        run: |
+          container=$(docker compose ps --quiet app)
+          for _ in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$container")
+            if [ "$status" = healthy ]; then echo "HEALTHCHECK: healthy"; exit 0; fi
+            if [ "$status" = unhealthy ]; then break; fi
+            sleep 2
+          done
+          docker inspect --format '{{json .State.Health}}' "$container"
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: "26"
@@ -88,14 +432,25 @@ jobs:
           npm ci
           npm run install:browser -- --with-deps
       - name: Сквозные проверки и доступность
+        # Выполняются все проверки, даже если одна упала; шаг падает, если упала хотя бы одна.
+        # check:contrast считает контраст токенов и сервиса не требует, остальные открывают интерфейс в Chromium.
+        # check:display эмулирует принудительные цвета и увеличение 400 % (W19), check:wcag печатает сравнение
+        # в PDF: обе возможности есть и в headless-оболочке Chromium, которую ставит install:browser.
         working-directory: evaluation/e2e
         run: |
-          ui=0
-          a11y=0
-          npm run check:ui || ui=$?
-          npm run check:a11y || a11y=$?
-          test "$ui" -eq 0 && test "$a11y" -eq 0
+          failed=""
+          for check in ui a11y wcag contrast cvd display; do
+            echo "::group::check:$check"
+            npm run "check:$check" || failed="$failed check:$check"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "Не прошли:$failed"
+            exit 1
+          fi
       - name: Снимки и отчёты браузерных проверок
+        # Вся папка .results/: отчёты проверок в JSON, в том числе display-results.json, снимки
+        # forced-colors/ и печать сравнения print-compare-*.pdf
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -103,6 +458,88 @@ jobs:
           path: evaluation/e2e/.results/
           include-hidden-files: true
           if-no-files-found: ignore
+      - name: Lighthouse CI
+        # Три прогона главной страницы в Google Chrome раннера, утверждения по медиане (lighthouserc.yml).
+        # Цифры лабораторные: эмуляция телефона, медленная сеть 4G, CPU медленнее в 4 раза. Раннер одноразовый,
+        # страница своя, поэтому Chrome запускается без песочницы.
+        if: ${{ !cancelled() }}
+        env:
+          LHCI_VERSION: 0.16.0
+        run: >-
+          npx --yes "@lhci/cli@$LHCI_VERSION" autorun --config=lighthouserc.yml
+          --collect.settings.chromeFlags="--headless=new --no-sandbox"
+      - name: Отчёты Lighthouse
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse
+          path: .lighthouseci/
+          include-hidden-files: true
+          if-no-files-found: ignore
+      - name: Нагрузочный прогон
+        # Необязательный шаг: только по расписанию и при ручном запуске, против работающего контейнера
+        # (W08 и W15). Открытая модель 20 → 50 → 100 запросов в секунду и SLO при пяти клиентах. На раннере
+        # с общими ядрами цифры — ориентир, а не приёмка, поэтому continue-on-error: упавший шаг виден в сводке,
+        # а задание остаётся зелёным. Код 1 — порог или SLO не выполнены (предупреждение); код 2 — прогон
+        # не начался: сервис не прошёл проверку или параметры неверны, то есть сломана настройка, а не нагрузка.
+        # Необработанное исключение Python тоже даёт код 1, поэтому вывод с Traceback считается сбоем скрипта
+        # (код 3). Скрипты лежат в evaluation/ рядом с evaluation/e2e/; без них шаг завершается с кодом 2.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set +e
+          for script in evaluation/load_open.py evaluation/load_local.py; do
+            if [ ! -f "$script" ]; then
+              echo "::error title=Нагрузочный прогон::нет $script: положите его в корень репозитория, см. README"
+              exit 2
+            fi
+          done
+          python3 -X utf8 evaluation/load_open.py http://127.0.0.1:8000 --json load-open.json 2>&1 | tee load-open.txt
+          open_code=${PIPESTATUS[0]}
+          python3 -X utf8 evaluation/load_local.py http://127.0.0.1:8000 --slo 2>&1 | tee load-local.txt
+          local_code=${PIPESTATUS[0]}
+          worst=0
+          report() {
+            script=$1 code=$2 output=$3
+            if [ "$code" -ne 0 ] && grep -q "Traceback (most recent call last)" "$output"; then code=3; fi
+            case "$code" in
+              0) echo "$script: пороги выполнены" ;;
+              1) echo "::warning title=Нагрузочный прогон::$script: порог или SLO не выполнены (код 1)" ;;
+              2) echo "::error title=Нагрузочный прогон::$script: прогон не начался, ошибка настройки (код 2)" ;;
+              3) echo "::error title=Нагрузочный прогон::$script: скрипт завершился исключением, см. $output" ;;
+              *) echo "::error title=Нагрузочный прогон::$script: неожиданный код $code" ;;
+            esac
+            if [ "$code" -gt "$worst" ]; then worst=$code; fi
+          }
+          report load_open.py "$open_code" load-open.txt
+          report load_local.py "$local_code" load-local.txt
+          exit "$worst"
+      - name: Отчёты нагрузочного прогона
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v4
+        with:
+          name: load
+          path: |
+            load-open.json
+            load-open.txt
+            load-local.txt
+          if-no-files-found: ignore
+      - name: Корректная остановка
+        # SIGTERM доходит до uvicorn: процесс завершается сам раньше stop_grace_period 15 с, без SIGKILL (код 137).
+        # Ожидаемый код 0: Python — PID 1, и SIGTERM, повторно поднятый uvicorn после остановки, ядро
+        # ему не доставляет. Код 143 тоже означает остановку по SIGTERM.
+        run: |
+          container=$(docker compose ps --quiet app)
+          start=$(date +%s)
+          docker compose stop app
+          elapsed=$(( $(date +%s) - start ))
+          code=$(docker inspect --format '{{.State.ExitCode}}' "$container")
+          echo "Остановка за $elapsed с, код выхода $code"
+          docker compose logs --no-color --tail 5 app
+          docker compose logs --no-color app | grep -q "Finished server process"
+          test "$elapsed" -lt 15
+          test "$code" -eq 0 || test "$code" -eq 143
       - name: Наложение compose.data.yaml с JSON-каталогом
         # Папка монтируется только на чтение и читается пользователем контейнера с uid 10001
         env:
@@ -112,11 +549,45 @@ jobs:
           docker compose down
           export LOCAL_DATA_DIR="$PWD/backend/data"
           docker compose -f compose.yaml -f compose.data.yaml up --detach
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8000/api/health -o health.json; then break; fi
             sleep 2
           done
           python3 -c "import json; c = json.load(open('health.json'))['catalog']; print(c['source'], c['size']); assert c['source'] == 'file' and c['size'] == 23"
+      - name: Установка trivy
+        if: ${{ !cancelled() }}
+        # Версия и контрольная сумма закреплены и обновляются вместе
+        env:
+          TRIVY_VERSION: 0.76.1
+          TRIVY_SHA256: c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0
+        run: |
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY_VERSION/$archive"
+          echo "$TRIVY_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/trivy"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/trivy" trivy
+          echo "$RUNNER_TEMP/trivy" >> "$GITHUB_PATH"
+      - name: Сканирование образа trivy
+        if: ${{ !cancelled() }}
+        # Порог: HIGH и CRITICAL, для которых есть исправление. Полный отчёт по всем уровням — в артефакте.
+        run: |
+          mkdir -p supply-chain
+          trivy image --scanners vuln --format json --output supply-chain/trivy-image.json track1-recommender:local
+          trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            track1-recommender:local
+      - name: SBOM образа
+        # CycloneDX: пакеты Debian и Python в образе. Интерфейс в образе — только собранный dist,
+        # его зависимости описаны в frontend-runtime.cdx.json артефакта supply-chain.
+        if: ${{ !cancelled() }}
+        run: trivy image --format cyclonedx --output supply-chain/image.cdx.json track1-recommender:local
+      - name: Отчёты сканирования и SBOM образа
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-scan
+          path: supply-chain/
+          if-no-files-found: ignore
       - name: Журнал контейнера при сбое
         if: failure()
         run: |
@@ -127,3 +598,64 @@ jobs:
       - name: Остановка
         if: always()
         run: docker compose down
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+      - name: Инструменты аудита
+        working-directory: backend
+        run: |
+          python -m pip install --require-hashes -r requirements-dev.lock
+          mkdir -p ../supply-chain
+      - name: Аудит зависимостей Python
+        # Любая известная уязвимость в любой блокировке останавливает проверку. Исключение задаётся ключом
+        # --ignore-vuln с номером и датой пересмотра в комментарии рядом.
+        working-directory: backend
+        run: |
+          failed=""
+          for lock in requirements.lock requirements-dev.lock; do
+            echo "== $lock"
+            pip-audit --requirement "$lock" --require-hashes --disable-pip --strict --progress-spinner off \
+              || failed="$failed $lock"
+          done
+          pip-audit --requirement requirements.lock --require-hashes --disable-pip --progress-spinner off \
+            --format cyclonedx-json --output ../supply-chain/python-runtime-lock.cdx.json || true
+          if [ -n "$failed" ]; then
+            echo "Уязвимости или ошибки аудита:$failed"
+            exit 1
+          fi
+      - name: Аудит зависимостей npm
+        # Пакеты, которые попадают в собранный интерфейс (--omit=dev), — порог moderate. Инструменты сборки
+        # и браузерных проверок — порог high. После npm ci проверяются подписи реестра.
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p supply-chain
+          failed=""
+          npm --prefix frontend audit --omit=dev --audit-level=moderate || failed="$failed frontend(runtime)"
+          npm --prefix frontend audit --audit-level=high || failed="$failed frontend"
+          npm --prefix evaluation/e2e audit --audit-level=high || failed="$failed evaluation/e2e"
+          npm --prefix frontend ci --no-audit --no-fund --ignore-scripts
+          npm --prefix evaluation/e2e ci --no-audit --no-fund --ignore-scripts
+          npm --prefix frontend audit signatures || failed="$failed frontend(signatures)"
+          npm --prefix evaluation/e2e audit signatures || failed="$failed evaluation/e2e(signatures)"
+          npm --prefix frontend sbom --sbom-format cyclonedx --omit dev --package-lock-only \
+            > supply-chain/frontend-runtime.cdx.json
+          if [ -n "$failed" ]; then
+            echo "Не прошли:$failed"
+            exit 1
+          fi
+      - name: Отчёты аудита зависимостей
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain
+          path: supply-chain/
+          if-no-files-found: ignore

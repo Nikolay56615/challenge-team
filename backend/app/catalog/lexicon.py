@@ -1,4 +1,4 @@
-"""Словарь запроса и разбор задачи (PLAN.md, 3.1–3.5).
+"""Словарь запроса и разбор задачи (docs/plan.md, 3.1–3.5).
 
 Задача приводится к нижнему регистру, «ё» заменяется на «е», текст делится на слова из букв и цифр,
 дефис внутри слова сохраняется. Шаблон — одно или несколько слов подряд. Слово шаблона задаёт условие
@@ -31,6 +31,14 @@
 называет, поэтому подбор ищет кандидатов по самому понятию (ranking/policy.py). Задача с одними широкими
 словами остаётся без темы. Распознанную тему признаки не дополняют: материал другой темы с тем же
 признаком в кандидаты не попадает.
+
+Цитата признака (кандидат D01, решение 2026-11-11; docs/plan.md, 3.6). `signal_quote` возвращает
+слова задачи, по которым найден признак, в том виде, как их написал пользователь: «CRM», «налоговый
+режим», «декларацию». Берётся первое слева совпадение шаблонов признака, которое не отменено
+исключением. Условие то же, что у разбора, поэтому цитата есть ровно тогда, когда признак найден.
+Если задача называет признак как понятие, цитируются слова понятия (CONCEPT_PATTERNS): по ним подбор
+отбирает материалы, а широкое слово рядом понятия не называет. Знаки между словами совпадения
+заменяются одним пробелом. Разбор задачи от цитаты не зависит.
 """
 
 from __future__ import annotations
@@ -500,7 +508,7 @@ FORMAT_HINTS: dict[str, Patterns] = {
     "quick": _compile(("быстро", "кратко", "коротко", "чек-лист", "памятк")),
 }
 
-# Узкие темы, которые требуют подтверждения при подборе (PLAN.md, 3.5).
+# Узкие темы, которые требуют подтверждения при подборе (docs/plan.md, 3.5).
 # Подпись после «о» -> шаблоны для задачи и названий материалов.
 GAP_PATTERNS: dict[str, Patterns] = {
     "лицензировании": _compile(("лицензи",)),
@@ -536,6 +544,59 @@ def _found(tokens: tuple[str, ...], patterns: Patterns, *, negatable: bool = Fal
                     continue
             return True
     return False
+
+
+def _first_span(tokens: tuple[str, ...], patterns: Patterns) -> tuple[int, int] | None:
+    """Первое слева совпадение, которое не отменяют исключения записи; при равном начале берётся самое
+    длинное. Совпадение есть тогда же, когда `_found` без отрицания возвращает True."""
+    blocked = [span for p in patterns.exclude for span in _spans(tokens, p)]
+    spans = [
+        (start, end)
+        for pattern in patterns.include
+        for start, end in _spans(tokens, pattern)
+        if not any(start < stop and begin < end for begin, stop in blocked)
+    ]
+    return min(spans, key=lambda span: (span[0], -span[1]), default=None)
+
+
+def _token_bounds(text: str) -> list[tuple[int, int]] | None:
+    """Границы слов `tokenize(text)` в исходном тексте.
+
+    Буквы приводятся к нижнему регистру по одной, «ё» заменяется на «е», каждый знак помнит позицию в
+    исходном тексте. Если слова так разобранного текста разошлись с `tokenize`, возвращается None.
+    """
+    normal: list[str] = []
+    origin: list[int] = []
+    for index, char in enumerate(text):
+        low = char.lower().replace("ё", "е")
+        normal.append(low)
+        origin.extend([index] * len(low))
+    matches = list(_WORD.finditer("".join(normal)))
+    if [m.group() for m in matches] != tokenize(text):
+        return None
+    return [(origin[m.start()], origin[m.end() - 1] + 1) for m in matches]
+
+
+def signal_quote(text: str, code: str, *, concept: bool = False) -> str | None:
+    """Слова задачи, по которым найден признак `code`, как их написал пользователь; None — признака нет.
+
+    «Какую CRM выбрать» и crm → «CRM»; «Какой налоговый режим выбрать» и tax_regime → «налоговый режим».
+    `concept` — задача называет признак как понятие (`ParsedTask.concepts`): цитируются слова понятия
+    по CONCEPT_PATTERNS, а не первое широкое слово. «Как эффективно снизить CAC» и ad_budget → «CAC»,
+    а не «эффективно». Если слов понятия нет, цитируются слова признака.
+    """
+    if code not in SIGNAL_PATTERNS:
+        return None
+    text = text or ""
+    tokens = tuple(tokenize(text))
+    span = _first_span(tokens, CONCEPT_PATTERNS[code]) if concept else None
+    if span is None:
+        span = _first_span(tokens, SIGNAL_PATTERNS[code])
+    bounds = _token_bounds(text) if span else None
+    if span is None or bounds is None:
+        return None
+    start, end = span
+    return " ".join(text[begin:stop] for begin, stop in bounds[start:end])
 
 
 def title_matches_gaps(title: str, gaps: tuple[str, ...]) -> bool:

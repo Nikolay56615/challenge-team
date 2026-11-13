@@ -12,7 +12,7 @@ export interface SelectFieldProps<T extends string>
   label: string;
   optional?: boolean;
   value: T | null;
-  onChange(value: T | null): void;
+  onChange: (value: T | null) => void;
   options: readonly SelectOption<T>[];
   /** Подпись пустого значения: «Не указана» или «Не выбран» */
   emptyLabel: string;

@@ -4,20 +4,26 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from itertools import pairwise
 
 from ..catalog.lexicon import ParsedTask
-from ..catalog.models import HistoryEvent, Material
+from ..catalog.models import CoursePairs, HistoryEvent, Material
 
-# Порядок признаков при равном вкладе: определяет порядок фраз причины
+# Порядок признаков при равном вкладе: определяет порядок фраз причины. «Похожие курсы» (co_enrollment)
+# стоят сразу после признака из текста: обе фразы говорят о самом материале и опираются на данные, а не
+# на анкету. Тема истории (history_topic) — общая фраза, как тема задачи, но слабее: при равном вкладе
+# она уступает всем конкретным фразам и стоит перед усилием (docs/plan.md, 3.6; раздел 9, решение 2026-11-11).
 FEATURE_PRIORITY: tuple[str, ...] = (
     "in_progress",
     "topic",
     "signal",
+    "co_enrollment",
     "stage",
     "level",
     "industry",
     "format",
     "continuation",
+    "history_topic",
     "effort",
 )
 
@@ -43,7 +49,7 @@ class Profile:
     topic: str | None = None
     history: tuple[HistoryEvent, ...] = ()
     limit: int = 5
-    filters: MaterialFilters = MaterialFilters()
+    filters: MaterialFilters = field(default_factory=MaterialFilters)
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,8 +85,39 @@ class HistoryIndex:
 
 
 @dataclass(frozen=True, slots=True)
+class HistorySignals:
+    """Что история даёт пилоту «похожие курсы» (docs/plan.md, раздел 9, решение 2026-11-11).
+
+    `anchors` — курсы истории из каталога, в том числе недоступные: их пары переносят вес на доступных
+    соседей (R15). `topics` — темы материалов истории из каталога. Порядок — от последнего события
+    к первому, при равном `seq` — по коду.
+    """
+
+    anchors: tuple[str, ...] = ()
+    topics: tuple[str, ...] = ()
+
+    @classmethod
+    def build(cls, history: tuple[HistoryEvent, ...], catalog: dict[str, Material]) -> HistorySignals:
+        latest: dict[str, int] = {}
+        for event in history:
+            if event.material_id in catalog:
+                latest[event.material_id] = max(latest.get(event.material_id, event.seq), event.seq)
+        order = sorted(latest, key=lambda material_id: (-latest[material_id], material_id))
+        anchors = tuple(material_id for material_id in order if catalog[material_id].format == "course")
+        topics: list[str] = []
+        for material_id in order:
+            topics.extend(t for t in catalog[material_id].topics if t not in topics)
+        return cls(anchors=anchors, topics=tuple(topics))
+
+
+@dataclass(frozen=True, slots=True)
 class Context:
-    """Всё, что нужно для оценки: профиль, разбор задачи, темы кандидатов, история, отключённые признаки."""
+    """Всё, что нужно для оценки: профиль, разбор задачи, темы кандидатов, история, отключённые признаки.
+
+    Поля пилота «похожие курсы» заполняет политика только при пустой задаче и персональном методе
+    (ranking/policy.py): `pairs` и `anchors` включают вклад co_enrollment, `history_topics` — вклад
+    history_topic. По умолчанию они пусты, и оценка совпадает с прежней.
+    """
 
     profile: Profile
     parsed: ParsedTask
@@ -88,6 +125,9 @@ class Context:
     history: HistoryIndex
     disabled: frozenset[str]
     catalog: dict[str, Material]
+    pairs: CoursePairs | None = None
+    anchors: tuple[str, ...] = ()
+    history_topics: tuple[str, ...] = ()
 
     @property
     def industry(self) -> str | None:
@@ -107,6 +147,15 @@ class Context:
         return None if self.profile.format_pref else self.parsed.format_hint
 
 
+@dataclass(frozen=True, slots=True)
+class CoEnrollment:
+    """Пара для фразы «похожие курсы»: курс истории с наибольшей долей, N общих слушателей из M слушателей курса."""
+
+    anchor: str
+    together: int
+    total: int
+
+
 @dataclass(slots=True)
 class Scored:
     """Материал с оценкой, вкладами признаков и сведениями для объяснения."""
@@ -122,6 +171,8 @@ class Scored:
     tie_won: bool = False
     popular_in_topic: bool = False  # среди POPULAR_TOP_N самых популярных кандидатов своей темы
     starter_topic: str | None = None
+    history_topic: str | None = None  # тема материала, которая есть у материалов истории
+    co_enrollment: CoEnrollment | None = None
 
     def add(self, feature: str, value: float) -> None:
         if value:
@@ -141,7 +192,7 @@ def mark_tie_winners(items: list[Scored], top_n: int = POPULAR_TOP_N) -> None:
     выше. `popular_in_topic`: популярность не ниже `top_n`-й среди кандидатов темы, с которой материал
     совпал. Фразу о востребованности получает материал с обеими пометками.
     """
-    for current, following in zip(items, items[1:]):
+    for current, following in pairwise(items):
         if current.score == following.score and current.material.popularity > following.material.popularity:
             current.tie_won = True
     thresholds: dict[str, float] = {}

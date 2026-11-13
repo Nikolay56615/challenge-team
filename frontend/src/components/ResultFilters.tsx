@@ -18,8 +18,8 @@ export function mergeFilterOptions(
 
 export interface ResultFiltersProps {
   options: FilterOptions;
-  applied?: MaterialFilters | null;
-  onApply(filters: MaterialFilters | null): void;
+  applied?: MaterialFilters | null | undefined;
+  onApply: (filters: MaterialFilters | null) => void;
 }
 
 function withCurrent<T extends string>(options: Option<T>[], value: T | null, label: string): Option<T>[] {
@@ -32,7 +32,7 @@ export function ResultFilters({ options, applied, onApply }: ResultFiltersProps)
   const current = applied ?? NO_FILTERS;
   const [draft, setDraft] = useState(current);
   const changed = draft.format !== current.format || draft.access !== current.access;
-  const active = Boolean(current.format || current.access);
+  const active = current.format !== null || current.access !== null;
   const formats = withCurrent(options.formats, current.format, 'Выбранный формат недоступен');
   const access = withCurrent(options.access, current.access, 'Выбранный вид доступа недоступен');
 
@@ -45,7 +45,7 @@ export function ResultFilters({ options, applied, onApply }: ResultFiltersProps)
           emptyLabel="Все форматы"
           options={formats}
           value={draft.format}
-          onChange={(format) => setDraft({ ...draft, format })}
+          onChange={(format) => { setDraft({ ...draft, format }); }}
         />
         <SelectField
           id={`${id}-access`}
@@ -53,15 +53,15 @@ export function ResultFilters({ options, applied, onApply }: ResultFiltersProps)
           emptyLabel="Любой доступ"
           options={access}
           value={draft.access}
-          onChange={(access) => setDraft({ ...draft, access })}
+          onChange={(access) => { setDraft({ ...draft, access }); }}
         />
       </div>
       <div className="actions">
-        <Button disabled={!changed} onClick={() => onApply(draft)}>Применить фильтры</Button>
+        <Button disabled={!changed} onClick={() => { onApply(draft); }}>Применить фильтры</Button>
         <Button
           variant="link"
           disabled={!active && !changed}
-          onClick={() => onApply(null)}
+          onClick={() => { onApply(null); }}
         >
           Сбросить фильтры
         </Button>

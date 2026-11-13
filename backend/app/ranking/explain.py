@@ -1,40 +1,82 @@
-"""Причины, следующий шаг, маршрут и тексты выдачи (PLAN.md, 3.5–3.6).
+"""Причины, следующий шаг, маршрут и тексты выдачи (docs/plan.md, 3.5–3.6).
 
 Причины персонального подбора объясняют положительные вклады, разрешение равенств по популярности
-и отбор по названию для узких задач.
+и отбор по названию для узких задач. Фразы пилота «похожие курсы» (docs/plan.md, раздел 9, решение
+2026-11-11) — тема истории и совместные записи — тоже называют только положительные вклады.
+Фраза о признаке из текста цитирует слова задачи, по которым признак найден (кандидат D01, решение
+2026-11-11); если цитата вытеснила бы другую фразу, остаётся фраза без цитаты. Правила микротекстов D19
+проверяет tests/test_microcopy.py.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from .. import vocab
+from ..catalog.lexicon import signal_quote
 from ..catalog.models import Material
 from .base import FEATURE_PRIORITY, Context, Scored
 
 MAX_REASON_PHRASES = 3
+# Две–три фразы: фраза о теме опускается, только если остаётся не меньше двух, а фраза
+# о востребованности добавляется к причине короче двух фраз
+MIN_REASON_PHRASES = 2
+# Части общей фразы «Подходит для …» — стадия и сфера; объединяются, только если есть обе
+FIT_PARTS = 2
 MAX_REASON_CHARS = 180
 POPULARITY_PHRASE = "Один из самых востребованных материалов по теме"
 ROUTE_TITLE = "Маршрут на первую неделю"
 ROUTE_MAX_STEPS = 3
+# Маршрут из одного материала ничего не связывает: его нет
+ROUTE_MIN_STEPS = 2
 TASK_ECHO_CHARS = 80
 QUOTED_TITLE_CHARS = 60
+# Цитата слов задачи во фразе о признаке (D01): не длиннее 30 символов, затем «…»
+TASK_WORDS_CHARS = 30
+# Фраза темы истории в подборе по истории (docs/plan.md, раздел 9, решение 2026-11-11). Начало отличается
+# от фразы темы задачи «Тема «…» совпадает с задачей»: при пустой задаче с задачей совпадать нечему
+HISTORY_TOPIC_PREFIX = "Тема из вашей истории: "
+COURSE_PREFIX = "Курс «"
 
 # Служебные слова, на которых не обрывается сокращённое название
-_DANGLING_WORDS = frozenset({
-    "а", "без", "в", "во", "для", "до", "за", "и", "из", "или", "к", "ко", "на", "не", "но", "о", "об", "от",
-    "по", "при", "с", "со", "у",
-})
+_DANGLING_WORDS = frozenset(
+    {
+        "а",
+        "без",
+        "в",
+        "во",
+        "для",
+        "до",
+        "за",
+        "и",
+        "из",
+        "или",
+        "к",
+        "ко",
+        "на",
+        "не",
+        "но",
+        "о",
+        "об",
+        "от",
+        "по",
+        "при",
+        "с",
+        "со",
+        "у",
+    }
+)
 
 # Подсказка стадии из текста в строке состояния
 STAGE_HINT_LABELS: dict[str, str] = {"start": "старт", "growth": "рост бизнеса"}
 
 
 def plural(n: int, one: str, few: str, many: str) -> str:
+    # Числа в сравнениях — само правило согласования русских числительных: 1, 21 — но 11; 2–4, 22 — но 12–14
     n = abs(n)
-    if n % 10 == 1 and n % 100 != 11:
+    if n % 10 == 1 and n % 100 != 11:  # noqa: PLR2004
         return one
-    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:  # noqa: PLR2004
         return few
     return many
 
@@ -97,56 +139,183 @@ def _industry_phrase(ctx: Context) -> str | None:
     return vocab.INDUSTRIES[code][1] if code in vocab.INDUSTRIES else None
 
 
-def _phrase(feature: str, item: Scored, ctx: Context) -> str | None:
-    material = item.material
-    if feature == "topic" and item.matched_topic:
-        return f"Тема «{vocab.topic_label(item.matched_topic)}» совпадает с задачей"
-    if feature == "signal" and item.matched_signal:
-        return f"Материал о теме «{vocab.signal_label(item.matched_signal)}»"
-    if feature == "stage":
-        stage = _stage_phrase(ctx)
-        if stage:
-            return f"Подходит для стадии «{stage}»"
-        if ctx.stage_hint == "growth":
-            return "Похоже, бизнес растёт — материал рассчитан на это"
-        return "Похоже, вы на старте — материал рассчитан на это"
-    if feature == "level":
-        if item.level_direction > 0:
-            return "На шаг глубже вашего уровня — пригодится как продолжение"
-        if item.level_direction < 0:
-            return "На шаг проще вашего уровня — подойдёт для повторения"
+def topic_phrase(topic: str, ctx: Context) -> str:
+    """Фраза о теме. Тема, выбранная в уточнении, которую задача не называет, с задачей не совпадает:
+    при пустой задаче или после ответа none («Как оформить наследство» → «Старт бизнеса») фраза называет
+    выбор пользователя."""
+    label = vocab.topic_label(topic)
+    if ctx.profile.topic is not None and topic not in ctx.parsed.topics:
+        return f"Вы выбрали тему «{label}»"
+    return f"Тема «{label}» совпадает с задачей"
+
+
+def signal_phrase(code: str, task: str, *, concept: bool = False) -> str:
+    """Фраза о признаке из текста (docs/plan.md, 3.6; кандидат D01, решение 2026-11-11).
+
+    Если слова, по которым найден признак, есть в задаче, фраза цитирует их так, как их написал
+    пользователь: «В задаче вы назвали «CRM» — материал о теме «Работа с CRM и клиентской базой»».
+    `concept` — задача называет признак как понятие: цитируются слова понятия, а не широкое слово
+    («CAC», а не «эффективно»). Цитата сокращается, как название, до TASK_WORDS_CHARS символов. Без цитаты
+    остаётся прежняя фраза «Материал о теме «…»».
+    """
+    label = vocab.signal_label(code)
+    words = signal_quote(task, code, concept=concept)
+    if words:
+        return f"В задаче вы назвали «{short_title(words, TASK_WORDS_CHARS)}» — материал о теме «{label}»"
+    return f"Материал о теме «{label}»"
+
+
+def _topic_reason(item: Scored, ctx: Context) -> str | None:
+    return topic_phrase(item.matched_topic, ctx) if item.matched_topic else None
+
+
+def _signal_reason(item: Scored, ctx: Context) -> str | None:
+    code = item.matched_signal
+    if not code:
         return None
-    if feature == "industry":
-        industry = _industry_phrase(ctx)
-        return f"Подходит для сферы «{industry}»" if industry else None
-    if feature == "continuation" and item.continuation_of:
-        source = ctx.catalog.get(item.continuation_of)
-        if source is None:
-            return None
-        return f"Продолжает материал «{inner_quotes(short_title(source.title))}» из вашей истории"
-    if feature == "in_progress":
-        if material.format == "course":
-            return "Вы начали этот курс — продолжите с текущего урока"
-        return "Вы начали этот материал — продолжите с того же места"
+    return signal_phrase(code, ctx.profile.task, concept=code in ctx.parsed.concepts)
+
+
+def _stage_reason(_: Scored, ctx: Context) -> str | None:
+    stage = _stage_phrase(ctx)
+    if stage:
+        return f"Подходит для стадии «{stage}»"
+    if ctx.stage_hint == "growth":
+        return "Похоже, бизнес растёт — материал рассчитан на это"
+    return "Похоже, вы на старте — материал рассчитан на это"
+
+
+def _level_reason(item: Scored, _: Context) -> str | None:
+    if item.level_direction > 0:
+        return "На шаг глубже вашего уровня — пригодится как продолжение"
+    if item.level_direction < 0:
+        return "На шаг проще вашего уровня — подойдёт для повторения"
     return None
+
+
+def _industry_reason(_: Scored, ctx: Context) -> str | None:
+    industry = _industry_phrase(ctx)
+    return f"Подходит для сферы «{industry}»" if industry else None
+
+
+def _continuation_reason(item: Scored, ctx: Context) -> str | None:
+    source = ctx.catalog.get(item.continuation_of) if item.continuation_of else None
+    if source is None:
+        return None
+    return f"Продолжает материал «{inner_quotes(short_title(source.title))}» из вашей истории"
+
+
+def _in_progress_reason(item: Scored, _: Context) -> str | None:
+    if item.material.format == "course":
+        return "Вы начали этот курс — продолжите с текущего урока"
+    return "Вы начали этот материал — продолжите с того же места"
+
+
+def _history_topic_reason(item: Scored, _: Context) -> str | None:
+    if not item.history_topic:
+        return None
+    return f"{HISTORY_TOPIC_PREFIX}«{vocab.topic_label(item.history_topic)}»"
+
+
+def _co_enrollment_reason(item: Scored, ctx: Context) -> str | None:
+    pair = item.co_enrollment
+    if not pair:
+        return None
+    return co_enrollment_phrase(pair.together, pair.total, pair.anchor, ctx)
+
+
+# Фраза признака с положительным вкладом. Формат и усилие фразы не дают: их показывают бейджи карточки
+_REASONS: dict[str, Callable[[Scored, Context], str | None]] = {
+    "topic": _topic_reason,
+    "signal": _signal_reason,
+    "stage": _stage_reason,
+    "level": _level_reason,
+    "industry": _industry_reason,
+    "continuation": _continuation_reason,
+    "in_progress": _in_progress_reason,
+    "history_topic": _history_topic_reason,
+    "co_enrollment": _co_enrollment_reason,
+}
+
+
+def _phrase(feature: str, item: Scored, ctx: Context) -> str | None:
+    reason = _REASONS.get(feature)
+    return reason(item, ctx) if reason is not None else None
+
+
+def course_name(title: str) -> str:
+    """Название курса после слова «курса»: «Курс «Старт»» → «Старт», иначе название целиком.
+
+    Так фраза не повторяет «курса «Курс …»». Название сокращается и получает внутренние кавычки, как в
+    фразе о продолжении.
+    """
+    text = " ".join(title.split())
+    if text.startswith(COURSE_PREFIX) and text.endswith("»") and _balanced(text[len(COURSE_PREFIX) : -1]):
+        text = text[len(COURSE_PREFIX) : -1]
+    return inner_quotes(short_title(text))
+
+
+def _balanced(text: str) -> bool:
+    """Кавычки «…» внутри текста закрыты по порядку: «Курс «A» и «B»» не превратится в «A» и «B»."""
+    depth = 0
+    for char in text:
+        depth += {"«": 1, "»": -1}.get(char, 0)
+        if depth < 0:
+            return False
+    return depth == 0 and bool(text.strip())
+
+
+def co_enrollment_phrase(together: int, total: int, anchor: str, ctx: Context) -> str | None:
+    """«Этот курс выбрали N из M слушателей курса «X» из вашей истории» (R18 в части курсов).
+
+    N — слушатели обоих курсов, M — все слушатели курса истории X. Без «часто»: при пороге поддержки
+    10 доля бывает и 10 %, а фраза называет число, а не оценку.
+    """
+    source = ctx.catalog.get(anchor)
+    if source is None:
+        return None
+    verb = plural(together, "выбрал", "выбрали", "выбрали")
+    listeners = plural(total, "слушателя", "слушателей", "слушателей")  # «из 21 слушателя», «из 120 слушателей»
+    name = course_name(source.title)
+    return f"Этот курс {verb} {together} из {total} {listeners} курса «{name}» из вашей истории"
 
 
 def _length(entries: list[tuple[str, str]]) -> int:
     return sum(len(phrase) for _, phrase in entries) + 2 * (len(entries) - 1)
 
 
-def _fit(entries: list[tuple[str, str]]) -> list[str]:
+def _fit_entries(entries: list[tuple[str, str]], protected: str | None = None) -> list[tuple[str, str]]:
     """Не больше трёх фраз и 180 символов вместе с разделителями.
 
     `entries` — пары (признак, фраза) от сильной к слабой. Лишнее отбрасывается со слабого конца,
-    фраза о теме тоже. Сильнейшая фраза, кроме темы, остаётся всегда (PLAN.md, 3.6).
+    фраза о теме тоже. Сильнейшая фраза, кроме темы, остаётся всегда (docs/plan.md, 3.6). Исключение —
+    `protected`: фраза этого признака остаётся при любом сокращении, на своём месте по вкладу, а
+    сильнейшая другая уходит последней. Так курс другой темы в подборе по истории всегда объясняет, откуда
+    он взялся (docs/plan.md, раздел 9, решение 2026-11-11).
     """
-    entries = entries[:MAX_REASON_PHRASES]
-    keep = next((entry for entry in entries if entry[0] != "topic"), None)
+    guard = next((entry for entry in entries if entry[0] == protected), None) if protected else None
+    if guard is not None and entries.index(guard) >= MAX_REASON_PHRASES:
+        entries = [*entries[: MAX_REASON_PHRASES - 1], guard]
+    else:
+        entries = entries[:MAX_REASON_PHRASES]
+    keep = guard or next((entry for entry in entries if entry[0] != "topic"), None)
     while len(entries) > 1 and _length(entries) > MAX_REASON_CHARS:
         drop = max(i for i, entry in enumerate(entries) if entry is not keep)
         del entries[drop]
-    return [phrase for _, phrase in entries]
+    return entries
+
+
+def _fit(entries: list[tuple[str, str]], protected: str | None = None) -> list[str]:
+    return [phrase for _, phrase in _fit_entries(entries, protected)]
+
+
+def _fit_reason(entries: list[tuple[str, str]], protected: str | None, lead: str | None) -> list[str]:
+    """Причина в пределах 3.6. `lead` — фраза отбора по названию: она встаёт первой, а причина
+    ранжирования сокращается второй раз вместе с ней, как в `title_match_reasons`."""
+    fitted = _fit_entries(entries, protected)
+    if lead is not None:
+        fitted = _fit_entries([("title", lead), *fitted])
+    return [phrase for _, phrase in fitted]
 
 
 def _fit_parts(item: Scored, ctx: Context) -> list[tuple[str, str]]:
@@ -165,19 +334,23 @@ def _fit_parts(item: Scored, ctx: Context) -> list[tuple[str, str]]:
     return parts
 
 
-def personal_reasons(item: Scored, ctx: Context) -> list[str]:
+def personal_reasons(item: Scored, ctx: Context, *, lead: str | None = None) -> list[str]:
     """Две–три фразы из признаков с положительным вкладом, по убыванию вклада.
 
     Стадия и сфера объединяются в одну фразу «Подходит для …». Уровень, формат и длительность
     не повторяются: их показывают бейджи карточки. Фраза о теме
     опускается, если в выдаче одна тема и без неё остаётся не меньше двух фраз: тему уже
     называет строка состояния. Фразу о востребованности получает победитель равенства из тройки
-    самых популярных кандидатов своей темы.
+    самых популярных кандидатов своей темы. Курс, который связан с запросом только парой совместных
+    записей (ни темы задачи, ни темы истории), сохраняет фразу о похожих курсах при сокращении.
+    Фраза D01 с цитатой длиннее прежней «Материал о теме «…»»: если из-за неё пределы 3.6 вытеснили бы
+    другую верную фразу, остаётся прежняя фраза, и фраз в причине не меньше, чем без цитаты.
+    `lead` — фраза отбора по названию для узкой задачи (`title_match_phrase`).
     """
     contributions = item.contributions
     features = [f for f in FEATURE_PRIORITY if contributions.get(f, 0) > 0]
     parts = _fit_parts(item, ctx)
-    merged = {feature for feature, _ in parts} if len(parts) >= 2 else set()
+    merged = {feature for feature, _ in parts} if len(parts) >= FIT_PARTS else set()
     entries: list[tuple[float, int, str, str]] = []
     if merged:
         weight = max(contributions[f] for f in merged)
@@ -191,15 +364,23 @@ def personal_reasons(item: Scored, ctx: Context) -> list[str]:
             entries.append((contributions[feature], FEATURE_PRIORITY.index(feature), feature, phrase))
     entries.sort(key=lambda e: (-e[0], e[1]))
     others = [e for e in entries if e[2] != "topic"]
-    if len(ctx.topics) == 1 and len(others) >= 2:
+    if len(ctx.topics) == 1 and len(others) >= MIN_REASON_PHRASES:
         entries = others
     chosen: list[tuple[str, str]] = []
     for _, _, feature, phrase in entries:
         if all(phrase != existing for _, existing in chosen):
             chosen.append((feature, phrase))
-    if item.tie_won and item.popular_in_topic and len(chosen) < 2:
+    if item.tie_won and item.popular_in_topic and len(chosen) < MIN_REASON_PHRASES:
         chosen.append(("popularity", POPULARITY_PHRASE))
-    return _fit(chosen)
+    linked_only = item.co_enrollment is not None and item.history_topic is None and item.matched_topic is None
+    protected = "co_enrollment" if linked_only else None
+    reasons = _fit_reason(chosen, protected, lead)
+    if item.matched_signal and any(feature == "signal" for feature, _ in chosen):
+        plain = signal_phrase(item.matched_signal, "")
+        brief = _fit_reason([(f, plain if f == "signal" else p) for f, p in chosen], protected, lead)
+        if len(brief) > len(reasons):
+            return brief
+    return reasons
 
 
 def baseline_reasons(item: Scored) -> list[str]:
@@ -211,21 +392,60 @@ def starter_reasons(item: Scored) -> list[str]:
     return [f"Стартовый материал по теме «{vocab.topic_label(item.starter_topic)}»"] if item.starter_topic else []
 
 
+def title_match_phrase(gaps: tuple[str, ...]) -> str:
+    return f"В названии есть упоминание о {join_ru(list(gaps))}"
+
+
 def title_match_reasons(gaps: tuple[str, ...], ranking_reasons: list[str]) -> list[str]:
-    title_reason = f"В названии есть упоминание о {join_ru(list(gaps))}"
-    return _fit([("title", title_reason), *[("ranking", reason) for reason in ranking_reasons]])
+    """Фраза отбора по названию и причина подбора по теме. Персональный метод передаёт фразу в
+    `personal_reasons(..., lead=...)`: так правило о фразе D01 действует и после второго сокращения."""
+    return _fit([("title", title_match_phrase(gaps)), *[("ranking", reason) for reason in ranking_reasons]])
+
+
+DEFAULT_NEXT_STEP = "Откройте материал и отметьте главное"
+# Длительность курса относится ко всему курсу, а шаг курса открывает программу и первый урок:
+# время шага неизвестно
+UNTIMED_STEP_FORMATS = frozenset({"course"})
+
+
+STEP_HOURS_FROM = 120
+
+
+def step_time(minutes: int) -> str:
+    """Время шага после «около»: «около 1 минуты», «около 12 минут», «около 21 минуты».
+
+    Единицы те же, что у бейджа длительности (formatDuration во фронтенде, docs/ui-kit.md, раздел 4):
+    от 120 минут — часы и минуты, «около 2 часов 30 минут». Так карточка не называет одну длительность
+    в разных единицах.
+    """
+    if minutes < STEP_HOURS_FROM:
+        return f"около {minutes} {plural(minutes, 'минуты', 'минут', 'минут')}"
+    hours, rest = divmod(minutes, 60)
+    text = f"около {hours} {plural(hours, 'часа', 'часов', 'часов')}"
+    return f"{text} {rest} {plural(rest, 'минуты', 'минут', 'минут')}" if rest else text
 
 
 def text_match_reasons(field: str, ranking_reasons: list[str]) -> list[str]:
-    return _fit([("text", f"Ключевые слова запроса совпали {field}"), *[("ranking", reason) for reason in ranking_reasons]])
+    return _fit([("text", f"Ключевые слова запроса совпали {field}"), *(("ranking", r) for r in ranking_reasons)])
 
 
 def task_match_reasons(field: str, ranking_reasons: list[str]) -> list[str]:
-    return _fit([("text", f"Действие и объект задачи указаны {field}"), *[("ranking", reason) for reason in ranking_reasons]])
+    return _fit([("text", f"Действие и объект задачи указаны {field}"), *(("ranking", r) for r in ranking_reasons)])
 
 
 def next_step(material: Material) -> str:
-    return material.next_step or vocab.NEXT_STEP_BY_FORMAT.get(material.format, "Откройте материал и отметьте главное")
+    """Следующий шаг: из данных материала, иначе по шаблону формата (docs/plan.md, 3.6).
+
+    Шаблон формата строится как «глагол + объект + время» (правила микротекстов D19; обзор, находки
+    2.3 и 7.4): если длительность известна, шаг называет её в скобках: «Пройдите пункты и отметьте
+    выполненное (около 15 минут)». Шаг из данных материала не меняется: время показывает бейдж карточки.
+    """
+    if material.next_step:
+        return material.next_step
+    step = vocab.NEXT_STEP_BY_FORMAT.get(material.format, DEFAULT_NEXT_STEP)
+    if material.duration_minutes and material.format not in UNTIMED_STEP_FORMATS:
+        return f"{step} ({step_time(material.duration_minutes)})"
+    return step
 
 
 def build_route(items: list[Scored], catalog: dict[str, Material]) -> list[Material]:
@@ -234,7 +454,7 @@ def build_route(items: list[Scored], catalog: dict[str, Material]) -> list[Mater
     Политика передаёт окно первой страницы, поэтому маршрут не зависит от `limit`.
     """
     pool = [i.material for i in items if "completed" not in i.flags]
-    if len(pool) < 2:
+    if len(pool) < ROUTE_MIN_STEPS:
         return []
     in_items = {m.id for m in pool}
     route = [pool[0]]
@@ -247,7 +467,7 @@ def build_route(items: list[Scored], catalog: dict[str, Material]) -> list[Mater
         if not nxt:
             break
         route.append(catalog[nxt])
-    return route if len(route) >= 2 else []
+    return route if len(route) >= ROUTE_MIN_STEPS else []
 
 
 def short_task(task: str) -> str:
@@ -301,7 +521,7 @@ ASSUMPTION = "Стадия и опыт не указаны."
 def _order_sentence(*, method: str, ctx: Context, items: Sequence[Scored], total: int, signal: str | None) -> str:
     """Чем задан порядок: профилем, описанием задачи или популярностью.
 
-    Без анкеты строка называет допущение «стадия и опыт не указаны» (PLAN.md, 3.4) и говорит
+    Без анкеты строка называет допущение «стадия и опыт не указаны» (docs/plan.md, 3.4) и говорит
     о востребованности, только если порядок задали тема и популярность. Если материал один,
     о порядке не говорится.
     """
@@ -336,7 +556,7 @@ def _with_tail(head: str, tail: str) -> str:
     return f"{head} {tail}" if tail else head
 
 
-def results_message(
+def results_message(  # noqa: PLR0913 — separate evidence for the status text
     *,
     method: str,
     topics: tuple[str, ...],
@@ -370,7 +590,7 @@ def _about(labels: list[str]) -> str:
     return f"на тему {labels[0]}" if len(labels) == 1 else f"на темы {join_ru(labels)}"
 
 
-def signal_results_message(
+def signal_results_message(  # noqa: PLR0913 — separate evidence for the status text
     *,
     signals: Sequence[str],
     total: int,
@@ -397,6 +617,48 @@ def signal_results_message(
     if text_order:
         return f"{head} Сначала показываем совпадения по словам запроса."
     return _with_tail(head, _order_sentence(method="personal", ctx=ctx, items=items, total=total, signal=None))
+
+
+def history_results_message(
+    *,
+    topics: Sequence[str],
+    total: int,
+    linked_courses: int,
+    linked_sources: int,
+    items: Sequence[Scored],
+    ctx: Context,
+) -> str:
+    """Строка состояния подбора по истории при пустой задаче (docs/plan.md, раздел 9, решение 2026-11-11).
+
+    `topics` — темы истории, по которым нашлись кандидаты; `linked_courses` — курсы других тем, которые
+    попали в кандидаты по парам совместных записей; `linked_sources` — сколько курсов истории их связали.
+    Порядок называется честно: с учётом истории. Пример: «Нашли 3 материала по теме «Продажи», знакомой
+    по вашей истории, и 1 курс другой темы: его выбирали слушатели вашего курса».
+    """
+    by_topic = total - linked_courses
+    parts: list[str] = []
+    if topics and by_topic:
+        labels = quoted([vocab.topic_label(t) for t in topics])
+        if len(labels) == 1:
+            where = f"по теме {labels[0]}, знакомой по вашей истории"
+        else:
+            where = f"по темам {join_ru(labels)}, знакомым по вашей истории"
+        word = plural(by_topic, "материал", "материала", "материалов")
+        parts.append(f"{by_topic} {word} {where}")
+    if linked_courses:
+        courses = f"{linked_courses} {plural(linked_courses, 'курс', 'курса', 'курсов')}"
+        if parts:
+            # Запятая закрывает оборот «знакомой по вашей истории» перед «и»
+            parts[-1] += ","
+            courses += " другой темы" if linked_courses == 1 else " других тем"
+        parts.append(courses)
+    head = f"Нашли {join_ru(parts)}"
+    if linked_courses:
+        pronoun = "его" if linked_courses == 1 else "их"
+        source = "вашего курса" if linked_sources == 1 else "ваших курсов"
+        head += f": {pronoun} выбирали слушатели {source}"
+    order = _order_sentence(method="personal", ctx=ctx, items=items, total=total, signal=None)
+    return _with_tail(f"{head}.", order)
 
 
 def title_results_message(
@@ -426,8 +688,10 @@ def none_message(task: str, *, gaps: Sequence[str] = (), baseline_without_topic:
 def weak_clarification_text(topics: tuple[str, ...], gaps: tuple[str, ...]) -> str:
     labels = quoted([vocab.topic_label(t) for t in topics])
     if gaps and len(topics) == 1:
-        return f"Материалов о {gaps[0]} пока нет. Показываем материалы по теме {labels[0]} на случай, если вопрос о них."
-    both = "обеим темам" if len(topics) == 2 else "всем этим темам"
+        return (
+            f"Материалов о {gaps[0]} пока нет. Показываем материалы по теме {labels[0]} на случай, если вопрос о них."
+        )
+    both = "обеим темам" if len(topics) == 2 else "всем этим темам"  # noqa: PLR2004 — «обеим» значит ровно две
     text = f"Задача может относиться к темам {join_ru(labels, 'или')}. Пока показываем материалы по {both}."
     if gaps:
         text = f"Материалов о {gaps[0]} пока нет. {text}"
@@ -444,6 +708,10 @@ def none_clarification_text(topics: list[str], *, has_starter: bool) -> str:
     return f"Каталог покрывает темы: {', '.join(labels)}. {action}"
 
 
+HISTORY_QUESTION = "Уточните тему"
+HISTORY_CLARIFICATION_TEXT = (
+    "Задача не указана, поэтому подбор опирается на вашу историю. Выберите тему или опишите задачу."
+)
 COLD_QUESTION = "С чего хотите начать?"
 COLD_TEXT = "Выберите тему или опишите задачу."
 COLD_STARTER_TEXT = f"{COLD_TEXT} Ниже — вводные бесплатные материалы по каждой теме."

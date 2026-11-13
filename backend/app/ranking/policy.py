@@ -1,20 +1,24 @@
-"""Политика выдачи: допустимость, статусы, уточнения и стартовая подборка (PLAN.md, 3.2–3.5)."""
+"""Политика выдачи, включая поиск по задаче и подбор по истории (docs/plan.md, 3.2–3.5)."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from typing import Any, cast
 
 from .. import vocab
-from ..catalog.global_search import SearchUnavailable
+from ..catalog.global_search import SearchIndex, SearchUnavailable
 from ..catalog.lexicon import TOPIC_ORDER, ParsedTask, parse_task, title_matches_gaps
 from ..catalog.models import Catalog, Material
+from ..catalog.reranked_search import RerankedIndex
 from ..catalog.task_search import ARTICLE_PARAGRAPH, TITLE, Evidence
 from ..catalog.text_search import TextMatches
 from . import baseline, explain, personal
-from .base import Context, HistoryIndex, MaterialFilters, Profile, Scored
+from .base import Context, HistoryIndex, HistorySignals, MaterialFilters, Profile, Scored
 
 METHODS = ("personal", "baseline")
+MIN_AMBIGUOUS_TOPICS = 2
+TITLE_PRIORITY = 2
 FILTERS_EMPTY_MESSAGE = "По выбранным фильтрам материалов нет"
 CandidateObserver = Callable[[list[Material]], None]
 
@@ -34,7 +38,7 @@ class Outcome:
     reasons: list[list[str]]
     total_candidates: int
     message: str
-    clarification: dict | None
+    clarification: dict[str, Any] | None
     route: list[Material]
     filter_options: FilterOptions | None = None
 
@@ -50,7 +54,8 @@ def _filter_candidates(
     )
     if filters.format is not None or filters.access is not None:
         candidates = [
-            m for m in candidates
+            m
+            for m in candidates
             if (filters.format is None or m.format == filters.format)
             and (filters.access is None or m.access == filters.access)
         ]
@@ -130,20 +135,40 @@ def starter_selection(pool: list[Material], history: HistoryIndex, *, by_level: 
     return picks
 
 
-def _options(topics: list[str] | tuple[str, ...]) -> list[dict]:
+def _options(topics: list[str] | tuple[str, ...]) -> list[dict[str, str]]:
     return [{"label": vocab.topic_label(t), "value": t} for t in topics]
 
 
-def _starter_outcome(
-    *, method: str, status: str, message: str, pool: list[Material], history: HistoryIndex,
-    limit: int, detected: tuple[str, ...], by_level: bool
+def _first(topics: list[str], preferred: tuple[str, ...]) -> list[str]:
+    """Темы с материалами, сначала предпочтительные: так «товарный знак» первой предложит «Налоги и законы»."""
+    return [t for t in preferred if t in topics] + [t for t in topics if t not in preferred]
+
+
+def _starter_outcome(  # noqa: PLR0913 — common response for the cold and empty states
+    *,
+    method: str,
+    status: str,
+    message: str,
+    pool: list[Material],
+    history: HistoryIndex,
+    limit: int,
+    detected: tuple[str, ...],
+    by_level: bool,
+    preferred: tuple[str, ...] = (),
 ) -> Outcome:
     picks = starter_selection(pool, history, by_level=by_level)
-    options = topics_with_materials(pool)
+    options = _first(topics_with_materials(pool), preferred)
     if not picks and not options:
         return Outcome(
-            method=method, status="empty", detected_topics=detected, items=[], reasons=[], total_candidates=0,
-            message=explain.EMPTY_MESSAGE, clarification=None, route=[],
+            method=method,
+            status="empty",
+            detected_topics=detected,
+            items=[],
+            reasons=[],
+            total_candidates=0,
+            message=explain.EMPTY_MESSAGE,
+            clarification=None,
+            route=[],
         )
     items = picks[:limit]
     if status == "cold":
@@ -192,14 +217,18 @@ def _rank_personal(
     return ranked
 
 
-def _task_order(
-    item: Scored, matches: TextMatches, evidence: dict[str, Evidence],
-    positions: dict[str, int], max_score: float, last: int,
+def _task_order(  # noqa: PLR0917 — inputs shared by the ranking key
+    item: Scored,
+    matches: TextMatches,
+    evidence: dict[str, Evidence],
+    positions: dict[str, int],
+    max_score: float,
+    last: int,
 ) -> tuple[int, float]:
     material_id = item.material.id
     exact = matches.priority(material_id)
     hit = evidence.get(material_id)
-    if exact >= 2:
+    if exact >= TITLE_PRIORITY:
         return -exact - 3, 0
     if hit and hit.intent and hit.field == TITLE:
         return -4, 0
@@ -234,9 +263,14 @@ def _personal_reasons(
     return reasons
 
 
-def _signal_outcome(
-    catalog: Catalog, profile: Profile, parsed: ParsedTask, history: HistoryIndex, pool: list[Material],
-    matches: TextMatches, observe: CandidateObserver | None,
+def _signal_outcome(  # noqa: PLR0917 — shared request inputs
+    catalog: Catalog,
+    profile: Profile,
+    parsed: ParsedTask,
+    history: HistoryIndex,
+    pool: list[Material],
+    matches: TextMatches,
+    observe: CandidateObserver | None,
 ) -> Outcome | None:
     """Задача называет понятие признака, но не тему («Какую CRM выбрать»): кандидаты — материалы с этим
     признаком из любых тем, без вклада темы. Понятия берутся из `parsed.concepts` — признаков, названных
@@ -253,7 +287,9 @@ def _signal_outcome(
     candidates, filter_options = _filter_candidates(candidates, profile.filters, observe)
     # Вклад признака и причина считаются только по понятиям, отобравшим кандидатов
     focused = replace(parsed, signals=parsed.concepts)
-    ctx = Context(profile=profile, parsed=focused, topics=(), history=history, disabled=disabled, catalog=catalog.materials)
+    ctx = Context(
+        profile=profile, parsed=focused, topics=(), history=history, disabled=disabled, catalog=catalog.materials
+    )
     evidence = _task_evidence(catalog, profile, candidates)
     ranked = _rank_personal(candidates, ctx, matches, evidence)
     items = ranked[: profile.limit]
@@ -271,59 +307,89 @@ def _signal_outcome(
         reasons=_personal_reasons(items, ctx, matches, evidence),
         total_candidates=len(candidates),
         message=explain.signal_results_message(
-            signals=found, total=len(candidates), items=items, ctx=ctx, gaps=parsed.gaps, missing=missing,
+            signals=found,
+            total=len(candidates),
+            items=items,
+            ctx=ctx,
+            gaps=parsed.gaps,
+            missing=missing,
             text_order=any(matches.priority(item.material.id) for item in items),
             task_order=any(item.material.id in evidence for item in items),
-        ) if candidates else FILTERS_EMPTY_MESSAGE,
+        )
+        if candidates
+        else FILTERS_EMPTY_MESSAGE,
         clarification=None,
         route=route,
         filter_options=filter_options,
     )
 
 
-def _title_match_outcome(
-    catalog: Catalog, profile: Profile, parsed: ParsedTask, history: HistoryIndex, pool: list[Material], method: str,
+def _title_match_outcome(  # noqa: PLR0917 — shared request inputs
+    catalog: Catalog,
+    profile: Profile,
+    parsed: ParsedTask,
+    history: HistoryIndex,
+    pool: list[Material],
+    method: str,
     observe: CandidateObserver | None,
 ) -> Outcome:
     topics = set(parsed.topics)
-    constrained = catalog.search_index.constrained(profile.task, {m.id for m in pool}) if (
-        method == "personal" and catalog.search_index is not None
-    ) else None
+    constrained = (
+        cast(SearchIndex, catalog.search_index).constrained(profile.task, {m.id for m in pool})
+        if (method == "personal" and catalog.search_index is not None and catalog.search_index.mode != "reranked")
+        else None
+    )
     candidates = [
-        material for material in pool
+        material
+        for material in pool
         if (method == "personal" or topics.intersection(material.topics))
         and title_matches_gaps(material.title, parsed.gaps)
         and (constrained is None or material.id in constrained)
     ]
     if not candidates:
         return _starter_outcome(
-            method=method, status="none", message=explain.NO_TITLE_MATCH_MESSAGE,
-            pool=pool, history=history, limit=profile.limit, detected=parsed.topics,
+            method=method,
+            status="none",
+            message=explain.NO_TITLE_MATCH_MESSAGE,
+            pool=pool,
+            history=history,
+            limit=profile.limit,
+            detected=parsed.topics,
             by_level=levels_beyond_courses(catalog),
         )
 
     candidates, filter_options = _filter_candidates(candidates, profile.filters, observe)
     ctx = Context(
-        profile=profile, parsed=parsed, topics=parsed.topics if method == "baseline" else (),
-        history=history, disabled=frozenset(catalog.disabled_features), catalog=catalog.materials,
+        profile=profile,
+        parsed=parsed,
+        topics=parsed.topics if method == "baseline" else (),
+        history=history,
+        disabled=frozenset(catalog.disabled_features),
+        catalog=catalog.materials,
     )
     ranked = personal.rank(candidates, ctx) if method == "personal" else baseline.rank(candidates, ctx)
-    items = ranked[:profile.limit]
+    items = ranked[: profile.limit]
     route: list[Material] = []
     if method == "personal" and _start_like(profile, parsed.stage_hint):
         route = explain.build_route(_route_window(ranked, profile.limit), catalog.materials)
-    ranking_reasons = (
-        [explain.personal_reasons(item, ctx) for item in items]
+    lead = explain.title_match_phrase(parsed.gaps)
+    reasons = (
+        [explain.personal_reasons(item, ctx, lead=lead) for item in items]
         if method == "personal"
-        else [explain.baseline_reasons(item) for item in items]
+        else [explain.title_match_reasons(parsed.gaps, explain.baseline_reasons(item)) for item in items]
     )
     return Outcome(
-        method=method, status="strong", detected_topics=parsed.topics, items=items,
-        reasons=[explain.title_match_reasons(parsed.gaps, reasons) for reasons in ranking_reasons],
+        method=method,
+        status="strong",
+        detected_topics=parsed.topics,
+        items=items,
+        reasons=reasons,
         total_candidates=len(candidates),
         message=explain.title_results_message(method=method, total=len(candidates), items=items, ctx=ctx)
-        if candidates else FILTERS_EMPTY_MESSAGE,
-        clarification=None, route=route,
+        if candidates
+        else FILTERS_EMPTY_MESSAGE,
+        clarification=None,
+        route=route,
         filter_options=filter_options,
     )
 
@@ -334,9 +400,14 @@ def _task_evidence(catalog: Catalog, profile: Profile, candidates: list[Material
     return catalog.task_index.match(profile.task, (material.id for material in candidates))
 
 
-def _search_outcome(
-    catalog: Catalog, profile: Profile, parsed: ParsedTask, history: HistoryIndex, pool: list[Material],
-    matches: TextMatches, observe: CandidateObserver | None,
+def _search_outcome(  # noqa: PLR0917, PLR0912, PLR0915 — search and its fallback use the same response
+    catalog: Catalog,
+    profile: Profile,
+    parsed: ParsedTask,
+    history: HistoryIndex,
+    pool: list[Material],
+    matches: TextMatches,
+    observe: CandidateObserver | None,
 ) -> Outcome | None:
     topics = (profile.topic,) if profile.topic else parsed.topics
     scoped_pool = [m for m in pool if not profile.topic or profile.topic in m.topics]
@@ -350,10 +421,13 @@ def _search_outcome(
             if reranked:
                 filtered_pool, filter_options = _filter_candidates(scoped_pool, profile.filters, None)
                 constraints = parsed.gaps if not profile.topic and not parsed.concepts else ()
-                hits = index.match(profile.task, {m.id for m in filtered_pool}, matches.titles, constraints)
+                hits = cast(RerankedIndex, index).match(
+                    profile.task, {m.id for m in filtered_pool}, matches.titles, constraints
+                )
                 if len(filtered_pool) != len(scoped) and not hits:
-                    return Outcome("personal", "weak", topics, [], [], 0, FILTERS_EMPTY_MESSAGE, None, [],
-                                   filter_options)
+                    return Outcome(
+                        "personal", "weak", topics, [], [], 0, FILTERS_EMPTY_MESSAGE, None, [], filter_options
+                    )
             else:
                 filter_options = None
                 if not profile.topic and parsed.gaps and not parsed.concepts:
@@ -367,13 +441,25 @@ def _search_outcome(
     if not hits:
         options = pool if not profile.topic else [m for m in pool if m.id in scoped]
         return _starter_outcome(
-            method="personal", status="none", message="По этому запросу подходящих материалов не нашлось",
-            pool=options, history=history, limit=profile.limit, detected=topics,
+            method="personal",
+            status="none",
+            message="По этому запросу подходящих материалов не нашлось",
+            pool=options,
+            history=history,
+            limit=profile.limit,
+            detected=topics,
             by_level=levels_beyond_courses(catalog),
         )
     candidates = [m for m in pool if m.id in hits]
-    ctx = Context(profile=profile, parsed=parsed, topics=topics, history=history,
-                  disabled=frozenset(catalog.disabled_features), catalog=catalog.materials)
+    ctx = Context(
+        profile=profile,
+        parsed=parsed,
+        topics=topics,
+        history=history,
+        disabled=frozenset(catalog.disabled_features),
+        catalog=catalog.materials,
+    )
+    protect_exact = cast(RerankedIndex, index).protect_exact if reranked else False
     ranked = personal.rank(candidates, ctx)
     positions = {item.material.id: i for i, item in enumerate(ranked)}
     max_score = max(hit.score for hit in hits.values()) or 1
@@ -384,9 +470,9 @@ def _search_outcome(
         hit = hits[key]
         exact = matches.priority(key) if key in matches.titles else 0
         if reranked:
-            bonus = 0.015 * bool(exact) if not index.protect_exact else 0
+            bonus = 0.015 * bool(exact) if not protect_exact else 0
             relevance = round((hit.score + bonus) / 0.025)
-            return -exact if index.protect_exact and hit.strong else 0, False, -relevance
+            return -exact if protect_exact and hit.strong else 0, False, -relevance
         score = 0.9 * hit.score / max_score + 0.1 * (1 - positions[key] / last)
         return -exact, not hit.strong, -score
 
@@ -395,36 +481,139 @@ def _search_outcome(
     filter_options = filter_options or hit_options
     keys = {m.id for m in filtered}
     ranked = [item for item in ranked if item.material.id in keys]
-    strong = hits[ranked[0].material.id].strong if ranked else any(
-        hit.strong for hit in hits.values()
-    )
+    strong = hits[ranked[0].material.id].strong if ranked else any(hit.strong for hit in hits.values())
     if strong and not reranked:
         ranked = [item for item in ranked if hits[item.material.id].strong]
     if observe is not None:
         observe([item.material for item in ranked])
-    items = ranked[:profile.limit]
+    items = ranked[: profile.limit]
     clarification = None
-    message = "Нашли материалы по задаче." if strong else "Нашли близкие материалы. Уточните действие или объект задачи."
+    message = (
+        "Нашли материалы по задаче." if strong else "Нашли близкие материалы. Уточните действие или объект задачи."
+    )
     if not items:
         message = FILTERS_EMPTY_MESSAGE
     elif not strong:
-        options = topics_with_materials(pool)
-        clarification = {
-            "question": "Уточните задачу", "text": "Дополните запрос или выберите тему.",
-            "options": _options(options),
-        } if options else None
-    route = explain.build_route(_route_window(ranked, profile.limit), catalog.materials) if (
-        strong and _start_like(profile, parsed.stage_hint)
-    ) else []
+        available_topics = topics_with_materials(pool)
+        clarification = (
+            {
+                "question": "Уточните задачу",
+                "text": "Дополните запрос или выберите тему.",
+                "options": _options(available_topics),
+            }
+            if available_topics
+            else None
+        )
+    route = (
+        explain.build_route(_route_window(ranked, profile.limit), catalog.materials)
+        if (strong and _start_like(profile, parsed.stage_hint))
+        else []
+    )
     return Outcome(
-        method="personal", status="strong" if strong else "weak", detected_topics=topics, items=items,
+        method="personal",
+        status="strong" if strong else "weak",
+        detected_topics=topics,
+        items=items,
         reasons=[[hits[item.material.id].reason, *explain.personal_reasons(item, ctx)][:3] for item in items],
-        total_candidates=len(ranked), message=message, clarification=clarification,
-        route=route, filter_options=filter_options,
+        total_candidates=len(ranked),
+        message=message,
+        clarification=clarification,
+        route=route,
+        filter_options=filter_options,
     )
 
 
-def recommend(
+def history_signals(catalog: Catalog, profile: Profile, parsed: ParsedTask, method: str) -> HistorySignals | None:
+    """Данные истории для пилота «похожие курсы» или None, если пилот к запросу не применяется.
+
+    Условие: персональный метод, пустая задача, загруженные пары и хотя бы один курс каталога в истории,
+    доступный или нет. Задача с текстом и подбор по теме пилота не видят. Подбор по истории без выбранной
+    темы требует ещё пары с допустимым курсом вне истории (`_history_outcome`).
+    """
+    if method != "personal" or not parsed.is_empty or catalog.course_pairs is None:
+        return None
+    if "co_enrollment" in catalog.disabled_features:
+        return None
+    signals = HistorySignals.build(profile.history, catalog.materials)
+    return signals if signals.anchors else None
+
+
+def _history_outcome(  # noqa: PLR0917 — shared request inputs
+    catalog: Catalog,
+    profile: Profile,
+    parsed: ParsedTask,
+    history: HistoryIndex,
+    pool: list[Material],
+    signals: HistorySignals,
+    observe: CandidateObserver | None,
+) -> Outcome | None:
+    """Подбор по истории при пустой задаче (docs/plan.md, раздел 9, решение 2026-11-11).
+
+    Кандидаты — материалы тем истории и курсы других тем, связанные парой совместных записей с курсом
+    истории. Оценка — обычные признаки анкеты и истории без темы задачи, плюс тема истории и «похожие курсы».
+    Статус weak: тема не выбрана, пользователь может её уточнить. Маршрута нет: он строится только при strong.
+
+    Подбор включается, только если среди допустимых материалов есть курс с вкладом «похожих курсов»: пара
+    от порога поддержки с курсом истории, у которого не меньше 10 слушателей. Такой курс вне истории, то
+    есть новый для пользователя. Иначе функция возвращает None, и ответ остаётся прежней стартовой подборкой:
+    подбор по истории без пары показал бы только темы истории, а без нового материала только карточки с
+    пометкой «Пройдено» (уточнение решения 2026-11-11 после ревью, вывод O1: кандидатов не ограничивать
+    темами истории).
+    """
+    ctx = Context(
+        profile=profile,
+        parsed=parsed,
+        topics=(),
+        history=history,
+        disabled=frozenset(catalog.disabled_features),
+        catalog=catalog.materials,
+        pairs=catalog.course_pairs,
+        anchors=signals.anchors,
+        history_topics=signals.topics,
+    )
+    linked_ids = {m.id for m in pool if personal.co_enrollment(m, ctx)[1] is not None}
+    if not linked_ids:
+        return None
+    wanted = set(signals.topics)
+    candidates = [m for m in pool if wanted & set(m.topics) or m.id in linked_ids]
+    candidates, filter_options = _filter_candidates(candidates, profile.filters, observe)
+    ranked = personal.rank(candidates, ctx)
+    items = ranked[: profile.limit]
+    covered = tuple(t for t in signals.topics if any(t in m.topics for m in candidates))
+    linked = [m for m in candidates if not wanted & set(m.topics)]
+    sources = {anchor for m in linked for anchor in personal.co_enrollment_anchors(m, ctx)}
+    options = _first(topics_with_materials(pool), signals.topics)
+    clarification = None
+    if options:
+        clarification = {
+            "question": explain.HISTORY_QUESTION,
+            "text": explain.HISTORY_CLARIFICATION_TEXT,
+            "options": _options(options),
+        }
+    return Outcome(
+        method="personal",
+        status="weak",
+        detected_topics=(),
+        items=items,
+        reasons=[explain.personal_reasons(i, ctx) for i in items],
+        total_candidates=len(candidates),
+        message=explain.history_results_message(
+            topics=covered,
+            total=len(candidates),
+            linked_courses=len(linked),
+            linked_sources=len(sources),
+            items=items,
+            ctx=ctx,
+        )
+        if candidates
+        else FILTERS_EMPTY_MESSAGE,
+        clarification=clarification,
+        filter_options=filter_options,
+        route=[],
+    )
+
+
+def recommend(  # noqa: C901, PLR0911, PLR0912, PLR0915 — dispatch among search, topic and history outcomes
     catalog: Catalog, profile: Profile, method: str = "personal", *, observe: CandidateObserver | None = None
 ) -> Outcome:
     if method not in METHODS:
@@ -433,10 +622,18 @@ def recommend(
     history = HistoryIndex.build(profile.history)
     pool = eligible(catalog, history)
     explicit = profile.topic is not None
-    topics: tuple[str, ...] = (profile.topic,) if explicit else parsed.topics
+    topics = (profile.topic,) if profile.topic is not None else parsed.topics
+    pilot = history_signals(catalog, profile, parsed, method)
+    if pilot is not None and not explicit:
+        outcome = _history_outcome(catalog, profile, parsed, history, pool, pilot, observe)
+        if outcome is not None:
+            return outcome
 
-    if not explicit and parsed.gaps and not parsed.concepts and (
-        method == "baseline" or not catalog.search_index or catalog.search_index.mode != "reranked"
+    if (
+        not explicit
+        and parsed.gaps
+        and not parsed.concepts
+        and (method == "baseline" or not catalog.search_index or catalog.search_index.mode != "reranked")
     ):
         return _title_match_outcome(catalog, profile, parsed, history, pool, method, observe)
 
@@ -462,8 +659,13 @@ def recommend(
     if not topics and not text_candidates:
         if parsed.is_empty:
             return _starter_outcome(
-                method=method, status="cold", message=explain.COLD_MESSAGE,
-                pool=pool, history=history, limit=profile.limit, detected=(),
+                method=method,
+                status="cold",
+                message=explain.COLD_MESSAGE,
+                pool=pool,
+                history=history,
+                limit=profile.limit,
+                detected=(),
                 by_level=levels_beyond_courses(catalog),
             )
         return _starter_outcome(
@@ -472,8 +674,12 @@ def recommend(
             message=explain.none_message(
                 profile.task, gaps=parsed.gaps, baseline_without_topic=signal_only and method == "baseline"
             ),
-            pool=pool, history=history, limit=profile.limit, detected=(),
+            pool=pool,
+            history=history,
+            limit=profile.limit,
+            detected=(),
             by_level=levels_beyond_courses(catalog),
+            preferred=parsed.topics if signal_only else (),
         )
 
     candidates = text_candidates or [m for m in pool if set(m.topics) & set(topics)]
@@ -482,7 +688,10 @@ def recommend(
             method=method,
             status="none",
             message=explain.no_materials_text(topics),
-            pool=pool, history=history, limit=profile.limit, detected=topics,
+            pool=pool,
+            history=history,
+            limit=profile.limit,
+            detected=topics,
             by_level=levels_beyond_courses(catalog),
         )
 
@@ -499,26 +708,33 @@ def recommend(
         history=history,
         disabled=frozenset(catalog.disabled_features),
         catalog=catalog.materials,
+        pairs=catalog.course_pairs if pilot else None,
+        anchors=pilot.anchors if pilot else (),
     )
     evidence = _task_evidence(catalog, profile, candidates) if method == "personal" else {}
-    ranked = _rank_personal(candidates, ctx, matches, evidence) if method == "personal" else baseline.rank(candidates, ctx)
+    ranked = (
+        _rank_personal(candidates, ctx, matches, evidence) if method == "personal" else baseline.rank(candidates, ctx)
+    )
     items = ranked[: profile.limit]
 
     if explicit or text_candidates:
         status = "strong"
-    elif len(covered) >= 2 or parsed.gaps:
+    elif len(covered) >= MIN_AMBIGUOUS_TOPICS or parsed.gaps:
         status = "weak"
     else:
         status = "strong"
 
     clarification = None
     if status == "weak":
-        options = list(covered) if len(covered) >= 2 else list(covered) + [
-            t for t in topics_with_materials(pool, order=vocab.CHIP_TOPICS) if t not in covered
-        ]
+        options = (
+            list(covered)
+            if len(covered) >= MIN_AMBIGUOUS_TOPICS
+            else list(covered) + [t for t in topics_with_materials(pool, order=vocab.CHIP_TOPICS) if t not in covered]
+        )
         clarification = {
             "question": "Уточните тему",
-            "text": explain.weak_clarification_text(covered, parsed.gaps) if len(candidates) == original_count
+            "text": explain.weak_clarification_text(covered, parsed.gaps)
+            if len(candidates) == original_count
             else "Выберите тему, чтобы уточнить подбор.",
             "options": _options(options),
         }
@@ -530,10 +746,17 @@ def recommend(
     signal = next((i.matched_signal for i in items if i.matched_signal), None)
     message = FILTERS_EMPTY_MESSAGE
     if candidates and text_candidates:
-        message = explain.title_results_message(method=method, total=len(candidates), items=items, ctx=ctx, text_order=True)
+        message = explain.title_results_message(
+            method=method, total=len(candidates), items=items, ctx=ctx, text_order=True
+        )
     elif candidates:
         message = explain.results_message(
-            method=method, topics=filtered_topics, total=len(candidates), items=items, ctx=ctx, signal=signal,
+            method=method,
+            topics=filtered_topics,
+            total=len(candidates),
+            items=items,
+            ctx=ctx,
+            signal=signal,
             missing=missing,
             text_order=any(matches.priority(item.material.id) for item in items),
             task_order=any(item.material.id in evidence for item in items),

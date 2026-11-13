@@ -6,12 +6,12 @@ interface TopicPickerProps {
   label: string;
   options: readonly Option<TopicCode>[];
   value: TopicCode | null;
-  onChange(topic: TopicCode | null): void;
-  onShow(topic: TopicCode): void;
+  onChange: (topic: TopicCode | null) => void;
+  onShow: (topic: TopicCode) => void;
   disabled?: boolean;
 }
 
-export function TopicPicker({ label, options, value, onChange, onShow, disabled }: TopicPickerProps) {
+export function TopicPicker({ label, options, value, onChange, onShow, disabled = false }: TopicPickerProps) {
   const id = useId();
   const selected = options.find((option) => option.value === value);
   return (

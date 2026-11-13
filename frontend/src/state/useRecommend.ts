@@ -191,8 +191,8 @@ function useResult(active: boolean, history: HistoryEvent[]) {
       cancel();
       dispatch({ type: 'reset' });
     },
-    clearFieldError: () => dispatch({ type: 'clearFieldError' }),
-    hideClarification: () => dispatch({ type: 'hideClarification' }),
+    clearFieldError: () => { dispatch({ type: 'clearFieldError' }); },
+    hideClarification: () => { dispatch({ type: 'hideClarification' }); },
   };
 }
 
@@ -219,15 +219,15 @@ export function useRecommend(section: Section) {
       if (call && !state.loading) run({ kind: call.kind, body: { ...call.body, history, ...patch } });
     };
     return {
-      applyFilters: (filters: MaterialFilters | null) => rerun(state.resultCall, { filters, limit: DEFAULT_LIMIT }),
-      showMore: () => rerun(state.resultCall, { limit: MAX_LIMIT }),
+      applyFilters: (filters: MaterialFilters | null) => { rerun(state.resultCall, { filters, limit: DEFAULT_LIMIT }); },
+      showMore: () => { rerun(state.resultCall, { limit: MAX_LIMIT }); },
       markComplete: (materialId: string) => {
         if (!state.resultCall || state.loading) return;
         const updated = appendComplete(history, materialId);
         setHistory(updated);
         rerun(state.resultCall, { history: updated });
       },
-      retry: () => rerun(state.lastCall),
+      retry: () => { rerun(state.lastCall); },
       hideClarification,
     };
   };
@@ -253,7 +253,7 @@ export function useRecommend(section: Section) {
       setTopic(null);
       recommendation.clearFieldError();
     },
-    setRefinements: (patch: Partial<RefinementValues>) => setForm((current) => ({ ...current, ...patch })),
+    setRefinements: (patch: Partial<RefinementValues>) => { setForm((current) => ({ ...current, ...patch })); },
     selectProfile: (profile: Profile | null) => {
       clearResults();
       setProfileId(profile?.id ?? null);
@@ -273,7 +273,7 @@ export function useRecommend(section: Section) {
     recommendation: {
       state: recommendation.state,
       actions: resultActions(recommendation),
-      submit: () => runFromForm(recommendation, bodyFromForm()),
+      submit: () => { runFromForm(recommendation, bodyFromForm()); },
       chooseTopic: (value: TopicCode) => {
         const call = recommendation.state.resultCall;
         if (!call || recommendation.state.loading) return;
@@ -284,7 +284,7 @@ export function useRecommend(section: Section) {
     catalog: {
       state: catalog.state,
       actions: resultActions(catalog),
-      browseTopic: (value: TopicCode) => runFromForm(catalog, { ...bodyFromForm(), task: '', topic: value }),
+      browseTopic: (value: TopicCode) => { runFromForm(catalog, { ...bodyFromForm(), task: '', topic: value }); },
     },
   };
 }

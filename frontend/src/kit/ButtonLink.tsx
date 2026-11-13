@@ -36,7 +36,7 @@ export function ButtonLink({ href, variant = 'secondary', size = 'md', external 
       rel={external ? 'noopener noreferrer' : undefined}
     >
       {children}
-      {external && <span className="visually-hidden"> (откроется в новой вкладке)</span>}
+      {external && <span className="visually-hidden"> (откроется в&nbsp;новой вкладке)</span>}
     </a>
   );
 }

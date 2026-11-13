@@ -1,4 +1,4 @@
-"""Соответствие подписей выгрузки каноническим кодам (PLAN.md, 2.2, 2.3, 2.8).
+"""Соответствие подписей выгрузки каноническим кодам (docs/plan.md, 2.2, 2.3, 2.8).
 
 Для другой выгрузки меняется YAML-файл (`CATALOG_MAPPING`), а не код загрузчика. Разделы
 необязательны: пропущенный раздел берётся из встроенных значений, указанный заменяет встроенный
@@ -65,6 +65,8 @@ DEFAULT_MAPPING: dict[str, Any] = {
     "level_labels": {"Без опыта": "intro", "С опытом": "advanced"},
     "stage_tags": {"Старт бизнеса": "start", "Развитие бизнеса": "growth", "Налоги и законы": None},
     "access_titles": {"Открытый": "open", "По подписке": "subscription", "Платный": "paid"},
+    # Приватный тип доступа скрывает материал (docs/plan.md, раздел 10, видимость статей)
+    "hidden_access_titles": ["Закрытый"],
     "duration_units": {
         "минута": 1,
         "минуты": 1,
@@ -82,6 +84,8 @@ SECTIONS: tuple[str, ...] = tuple(DEFAULT_MAPPING)
 
 _WORD = re.compile(r"[^\W\d_]+")
 _DURATION_PART = re.compile(r"(\d+(?:[.,]\d+)?)\s*([^\W\d_]+)\.?")
+# Значение в сообщении об ошибке файла соответствия: не длиннее 40 символов вместе с «...»
+SHOW_CHARS = 40
 
 
 def norm_label(value: str) -> str:
@@ -102,12 +106,15 @@ class CatalogMapping:
     level_labels: dict[str, str]
     stage_tags: dict[str, str | None]
     access_titles: dict[str, str]
+    hidden_access_titles: frozenset[str]
     duration_units: dict[str, float]
     history_status: dict[int, str]
     history_paid: str | None
 
     def is_published(self, status: str | None) -> bool:
-        return bool(status) and norm_label(status) in self.published_statuses
+        if not status:
+            return False
+        return norm_label(status) in self.published_statuses
 
     def topic(self, title: str | None) -> str | None:
         return _lookup(self.topic_titles, title)
@@ -126,6 +133,12 @@ class CatalogMapping:
 
     def access(self, title: str | None) -> str | None:
         return _lookup(self.access_titles, title)
+
+    def is_hidden_access(self, title: str | None) -> bool:
+        """Тип доступа скрывает материал: приватный, в копии «Закрытый»."""
+        if not title:
+            return False
+        return norm_label(title) in self.hidden_access_titles
 
     def is_service(self, label: str | None) -> bool:
         """Служебная метка отрасли: не сфера бизнеса. Метки уровня тоже служебные."""
@@ -155,7 +168,7 @@ class CatalogMapping:
         return minutes if minutes > 0 else None
 
 
-def _lookup(table: dict[str, Any], label: str | None) -> Any:
+def _lookup[V](table: dict[str, V], label: str | None) -> V | None:
     return table.get(norm_label(label)) if label else None
 
 
@@ -199,6 +212,7 @@ def build_mapping(payload: dict[str, Any], *, source: str) -> CatalogMapping:
     for label in industries:
         if label in exact or label in levels or any(label == p or label.startswith(p + " ") for p in prefixes):
             raise _fail(source, f"метка «{label}» указана и как сфера в industries, и как служебная")
+    access = _codes(data["access_titles"], source, "access_titles", vocab.ACCESS)
     status, paid = _history(data["history_events"], source)
     return CatalogMapping(
         published_statuses=frozenset(norm_label(s) for s in published),
@@ -209,7 +223,8 @@ def build_mapping(payload: dict[str, Any], *, source: str) -> CatalogMapping:
         service_prefixes=tuple(prefixes),
         level_labels=levels,
         stage_tags=_codes(data["stage_tags"], source, "stage_tags", vocab.STAGES, nullable=True),
-        access_titles=_codes(data["access_titles"], source, "access_titles", vocab.ACCESS),
+        access_titles=access,
+        hidden_access_titles=_hidden_access(data["hidden_access_titles"], source, access),
         duration_units=_duration_units(data["duration_units"], source),
         history_status=status,
         history_paid=paid,
@@ -222,7 +237,7 @@ def _fail(source: str, detail: str) -> CatalogError:
 
 def _show(value: Any) -> str:
     text = repr(value)
-    return text if len(text) <= 40 else text[:37] + "..."
+    return text if len(text) <= SHOW_CHARS else text[: SHOW_CHARS - len("...")] + "..."
 
 
 def _label(value: Any, source: str, where: str) -> str:
@@ -265,14 +280,24 @@ def _codes(
     return result
 
 
+def _hidden_access(value: Any, source: str, access: dict[str, str]) -> frozenset[str]:
+    """Скрывающие типы доступа. Подпись не может одновременно задавать код доступа в access_titles."""
+    hidden: set[str] = set()
+    for label in _labels(value, source, "hidden_access_titles"):
+        key = norm_label(label)
+        if key in access:
+            raise _fail(source, f"тип доступа «{label}» указан и в access_titles, и в hidden_access_titles")
+        hidden.add(key)
+    return frozenset(hidden)
+
+
 def _topic_groups(value: Any, source: str) -> dict[str, str]:
     """Группы тем «код: исходные названия» → словарь «название: код»."""
     titles: dict[str, str] = {}
     for code, labels in _mapping(value, source, "topic_groups", "код темы: список названий").items():
         if not isinstance(code, str) or code not in vocab.TOPICS:
-            raise _fail(
-                source, f"в разделе topic_groups неизвестный код темы {_show(code)}; допустимы: {', '.join(vocab.TOPICS)}"
-            )
+            allowed = ", ".join(vocab.TOPICS)
+            raise _fail(source, f"в разделе topic_groups неизвестный код темы {_show(code)}; допустимы: {allowed}")
         for label in _labels(labels, source, f"topic_groups.{code}"):
             key = norm_label(label)
             if titles.get(key, code) != code:
@@ -319,9 +344,9 @@ def _history(value: Any, source: str) -> tuple[dict[int, str], str | None]:
         if isinstance(code, bool) or not isinstance(code, int):
             raise _fail(source, f"в разделе history_events.status код {_show(code)} должен быть целым числом")
         if event not in vocab.EVENTS:
+            allowed = ", ".join(vocab.EVENTS)
             raise _fail(
-                source,
-                f"в разделе history_events.status неизвестное событие {_show(event)}; допустимы: {', '.join(vocab.EVENTS)}",
+                source, f"в разделе history_events.status неизвестное событие {_show(event)}; допустимы: {allowed}"
             )
         status[code] = event
     paid = data.get("paid")

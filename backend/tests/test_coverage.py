@@ -1,4 +1,4 @@
-"""Нормировка популярности и проверка ссылок (PLAN.md, 2.2 и 7.2, S5)."""
+"""Нормировка популярности и проверка ссылок (docs/plan.md, 2.2 и 7.2, S5)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ def test_single_scale_divides_by_catalog_maximum() -> None:
 
 
 def test_single_scale_all_zero_gives_zero() -> None:
-    assert normalize_popularity({"a": 0.0, "b": 0.0}, {"a": "article", "b": "article"}, "single") == {"a": 0.0, "b": 0.0}
+    raw = {"a": 0.0, "b": 0.0}
+    assert normalize_popularity(raw, {"a": "article", "b": "article"}, "single") == {"a": 0.0, "b": 0.0}
 
 
 def test_per_format_is_rank_percentile_within_format() -> None:

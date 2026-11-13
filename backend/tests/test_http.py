@@ -1,4 +1,4 @@
-"""HTTP-слой: предел тела, единый формат ошибок, заголовки, статика рядом с API, ошибки 500 (PLAN.md, 4.4–4.6)."""
+"""HTTP-слой: предел тела, единый формат ошибок, заголовки, статика рядом с API, ошибки 500 (docs/plan.md, 4.4–4.6)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-import app.api.routes as routes
+from app.api import routes
 from app.config import Settings
 from app.main import CSP, MAX_BODY_BYTES, BodyLimitMiddleware, FrontendFiles, create_app
 
@@ -315,4 +315,5 @@ def test_log_line_escapes_control_characters(client, caplog):
     assert client.get("/api/x%0Afake%20status=200").status_code == 404
     lines = http_log(caplog)
     assert lines and all("\n" not in line for line in lines)
-    assert any("/api/x\\x0afake status=200 status=404" in line for line in lines)
+    # Пробел в пути тоже экранирован: подставное поле status=200 не отделяется от пути
+    assert any("/api/x\\x0afake\\x20status=200 status=404" in line for line in lines)

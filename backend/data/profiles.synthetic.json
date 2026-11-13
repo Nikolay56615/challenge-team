@@ -1,6 +1,6 @@
 {
-  "version": "synthetic-2026-11-09",
-  "note": "Вымышленные тестовые профили (PLAN.md, 2.6). Используются только в демо-режиме и тестах.",
+  "version": "synthetic-2026-11-11",
+  "note": "Вымышленные тестовые профили (docs/plan.md, 2.6). Используются только в демо-режиме и тестах. P11 и P12 — пилот «похожие курсы», пары — в course-pairs.synthetic.json.",
   "profiles": [
     {
       "id": "P01", "label": "P01 · начинающий, первое продвижение",
@@ -67,6 +67,18 @@
       "description": "Признак внутри одной темы: отчётность, пара к P09",
       "task": "Как сдать декларацию и не получить штраф",
       "stage": null, "experience": null, "format_pref": null, "industry": null, "history": []
+    },
+    {
+      "id": "P11", "label": "P11 · без задачи, после курса",
+      "description": "Задача и анкета не заполнены, пройден курс о старте продвижения: похожие курсы других тем",
+      "task": "", "stage": null, "experience": null, "format_pref": null, "industry": null,
+      "history": [{"material_id": "M08", "event": "complete", "seq": 1}]
+    },
+    {
+      "id": "P12", "label": "P12 · без задачи, пары ниже порога",
+      "description": "Задача и анкета не заполнены, пройден курс о делегировании. Порог поддержки: пары курса ниже 10, подбор по истории не включается, остаётся стартовая подборка",
+      "task": "", "stage": null, "experience": null, "format_pref": null, "industry": null,
+      "history": [{"material_id": "O03", "event": "complete", "seq": 1}]
     }
   ]
 }

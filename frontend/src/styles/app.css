@@ -1,4 +1,4 @@
-/* Компоновка поверх UI-кита: только сетка и отступы на токенах (design/ui-kit.md, раздел 1).
+/* Компоновка поверх UI-кита: только сетка и отступы на токенах (docs/ui-kit.md, раздел 1).
    Цвета, шрифты и вид компонентов задают tokens.css и kit.css. */
 
 /* ---------- витрина kit.html ---------- */
@@ -80,7 +80,7 @@
 
 .kit-swatches {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: var(--space-2) var(--space-4);
 }
 

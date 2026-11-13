@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pytest
 
+from app.catalog.sqlite_source import DETAILS_TABLE, SEARCH_TABLE, load_sqlite_catalog, platform_url
 from app.ranking.base import HistoryIndex
 from app.ranking.policy import eligible
-from app.catalog.sqlite_source import DETAILS_TABLE, SEARCH_TABLE, load_sqlite_catalog, platform_url
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 
-from import_alfa_backup import (
+from import_alfa_backup import (  # type: ignore[import-not-found]
     CATALOG_FILE,
     COURSE_INFO_COLUMNS,
     SIGNALS_FILE,
@@ -26,11 +26,11 @@ from import_alfa_backup import (
     write_catalog,
 )
 
-from .test_sqlite_source import base_tables
 from .conftest import client_for
+from .test_sqlite_source import base_tables
 
 
-def test_sqlite_export_keeps_catalog_links_and_only_available_titles(tmp_path):
+def test_sqlite_export_keeps_catalog_links_and_only_available_titles(tmp_path):  # noqa: PLR0915
     source = base_tables()
     article_columns, article_rows = source["Articles"]
     first = list(article_rows[0])
@@ -146,7 +146,7 @@ def test_sqlite_export_keeps_catalog_links_and_only_available_titles(tmp_path):
     assert old_details.course_details is None and old_details.url == course.url and old_details.lesson_count == 22
 
     with closing(sqlite3.connect(tmp_path / CATALOG_FILE)) as database, database:
-        database.execute(f'UPDATE "{DETAILS_TABLE}" SET "PlatformUrl" = ?', ("https://other.example/courses/test/",))
+        database.execute(f'UPDATE "{DETAILS_TABLE}" SET "PlatformUrl" = ?', ("javascript:alert(1)",))
     reloaded = load_sqlite_catalog(tmp_path / CATALOG_FILE)
     assert reloaded.materials[course.id].url is None
 

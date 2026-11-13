@@ -1,14 +1,23 @@
 import json
 from dataclasses import replace
-from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
 from app.catalog.global_search import (
-    DEFAULT_THRESHOLDS, Card, SearchIndex, SearchUnavailable, build, cards_for, configure, digest, fingerprint,
+    DEFAULT_THRESHOLDS,
+    Card,
+    SearchIndex,
+    SearchUnavailable,
+    build,
+    cards_for,
+    configure,
+    digest,
+    fingerprint,
 )
 from app.catalog.models import Catalog, HistoryEvent, Material
 from app.catalog.text_search import TextIndex
+from app.config import Settings
 from app.ranking.base import MaterialFilters, Profile
 from app.ranking.policy import recommend
 
@@ -41,7 +50,7 @@ def test_global_search_scope_filters_and_protected_routes(indexed):
     assert ids(recommend(catalog, replace(query, topic="start"))) == ["cross"]
     filtered = recommend(catalog, replace(query, filters=MaterialFilters(format="document")))
     assert ids(filtered) == ["cross"] and filtered.total_candidates == 1
-    assert "article" in filtered.filter_options.formats
+    assert filtered.filter_options is not None and "article" in filtered.filter_options.formats
     assert ids(recommend(catalog, replace(query, limit=1))) == ids(result)[:1]
     assert "в кратком описании" in filtered.reasons[0][0]
     assert recommend(catalog, Profile(task="Нужна виза")).status == "none"
@@ -65,19 +74,29 @@ def test_constraints_distinguish_negation_and_year(tmp_path):
 
 def test_missing_model_requires_released_lexical_fallback(indexed):
     catalog, cards = indexed
+    assert isinstance(catalog.search_index, SearchIndex)
     directory = catalog.search_index.path.parent
-    settings = SimpleNamespace(catalog_relevance="hybrid", catalog_search_dir=directory,
-                               catalog_search_policy=None, catalog_model_dir=None)
+    settings = Settings(
+        catalog_path=directory / "catalog.sqlite3", catalog_relevance="hybrid", catalog_search_dir=directory
+    )
     catalog.search_index = None
     configure(catalog, settings, cards)
     assert catalog.coverage["relevance"] == {"requested": "hybrid", "effective": "legacy"}
     assert catalog.search_index is None
     policy = directory / "policy.json"
-    policy.write_text(json.dumps({
-        "catalog": fingerprint(cards), "index": digest(directory / "manifest.json"),
-        "thresholds": DEFAULT_THRESHOLDS, "lexical_released": True,
-    }), encoding="utf-8")
-    settings.catalog_search_policy = policy
+    policy.write_text(
+        json.dumps(
+            {
+                "catalog": fingerprint(cards),
+                "index": digest(directory / "manifest.json"),
+                "thresholds": DEFAULT_THRESHOLDS,
+                "lexical_released": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    settings = replace(settings, catalog_search_policy=policy)
     configure(catalog, settings, cards)
     assert catalog.coverage["relevance"]["effective"] == "lexical"
-    assert catalog.search_index.mode == "lexical"
+    fallback = cast(SearchIndex | None, catalog.search_index)
+    assert fallback is not None and fallback.mode == "lexical"
