@@ -36,7 +36,7 @@ COPY backend/data ./data
 COPY --from=frontend /src/frontend/dist /srv/app/frontend/dist
 # Числовые uid и gid: так их проверяют среды запуска без доступа к /etc/passwd образа (hadolint DL3066)
 RUN groupadd --system --gid 10001 appuser \
- && useradd --system --uid 10001 --gid 10001 --no-create-home appuser
+ && useradd --system --uid 10001 --gid 10001 --create-home appuser
 USER 10001:10001
 ENV FRONTEND_DIST=/srv/app/frontend/dist
 # В контейнере сервис всегда слушает 8000. APP_PORT в compose.yaml задаёт только порт на машине пользователя.
@@ -60,10 +60,9 @@ LABEL org.opencontainers.image.revision="${IMAGE_REVISION}" \
 CMD ["python", "-m", "app.serve", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM runtime AS semantic
-USER root
-COPY backend/requirements-search.txt /tmp/requirements-search.txt
-RUN pip install --no-cache-dir -r /tmp/requirements-search.txt && rm /tmp/requirements-search.txt
-USER 10001:10001
+COPY --chown=10001:10001 backend/requirements-search.txt /tmp/requirements-search.txt
+RUN pip install --no-cache-dir --target /home/appuser/semantic-deps -r /tmp/requirements-search.txt
+ENV PYTHONPATH=/home/appuser/semantic-deps
 
 FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime AS gpu
 WORKDIR /srv/app/backend
