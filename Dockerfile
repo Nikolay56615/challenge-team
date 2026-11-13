@@ -32,6 +32,9 @@ COPY backend/requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes --no-deps --only-binary=:all: -r requirements.lock \
  && pip check
 COPY backend/app ./app
+# Синтаксис кода разбирается интерпретатором образа при сборке: несовместимость версий Python
+# видна здесь, а не при запуске контейнера, когда ошибка стоит уже поднятого сервиса.
+RUN python -c "import pathlib; [compile(p.read_bytes(), str(p), 'exec') for p in pathlib.Path('app').rglob('*.py')]"
 COPY backend/data ./data
 COPY --from=frontend /src/frontend/dist /srv/app/frontend/dist
 # Числовые uid и gid: так их проверяют среды запуска без доступа к /etc/passwd образа (hadolint DL3066)
@@ -67,6 +70,9 @@ ENV PYTHONPATH=/home/appuser/semantic-deps
 FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime AS gpu
 WORKDIR /srv/app/backend
 COPY --from=runtime /srv/app /srv/app
+# Здесь интерпретатор базового образа — Python 3.11: синтаксис 3.12 (PEP 695 и подобное) должен
+# ломать сборку GPU-образа, а не запуск контейнера.
+RUN python -c "import pathlib; [compile(p.read_bytes(), str(p), 'exec') for p in pathlib.Path('app').rglob('*.py')]"
 COPY backend/requirements.txt backend/requirements-search.txt backend/requirements-gpu.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-search.txt -r /tmp/requirements-gpu.txt \
     && groupadd --system --gid 10001 appuser \
