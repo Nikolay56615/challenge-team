@@ -124,7 +124,7 @@ DOCS_PATHS = frozenset({"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.js
 # web-share убран: Chrome Headless Shell 158, в котором браузерные проверки идут в CI, его не знает,
 # и check:wcag ловил ошибку консоли (запуск из чистой копии 12 ноября 2026 года); Edge 157 имя знает.
 DISABLED_FEATURES = (
-    "accelerometer", "autoplay", "bluetooth", "camera", "display-capture", "encrypted-media", "fullscreen",
+    "accelerometer", "autoplay", "camera", "display-capture", "encrypted-media", "fullscreen",
     "geolocation", "gyroscope", "hid", "idle-detection", "local-fonts", "magnetometer", "microphone", "midi",
     "payment", "picture-in-picture", "publickey-credentials-get", "screen-wake-lock", "serial", "usb",
     "xr-spatial-tracking",

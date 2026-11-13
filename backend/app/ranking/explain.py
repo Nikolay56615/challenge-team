@@ -39,10 +39,33 @@ HISTORY_TOPIC_PREFIX = "Тема из вашей истории: "
 COURSE_PREFIX = "Курс «"
 
 # Служебные слова, на которых не обрывается сокращённое название
-_DANGLING_WORDS = frozenset({
-    "а", "без", "в", "во", "для", "до", "за", "и", "из", "или", "к", "ко", "на", "не", "но", "о", "об", "от",
-    "по", "при", "с", "со", "у",
-})
+_DANGLING_WORDS = frozenset(
+    {
+        "а",
+        "без",
+        "в",
+        "во",
+        "для",
+        "до",
+        "за",
+        "и",
+        "из",
+        "или",
+        "к",
+        "ко",
+        "на",
+        "не",
+        "но",
+        "о",
+        "об",
+        "от",
+        "по",
+        "при",
+        "с",
+        "со",
+        "у",
+    }
+)
 
 # Подсказка стадии из текста в строке состояния
 STAGE_HINT_LABELS: dict[str, str] = {"start": "старт", "growth": "рост бизнеса"}
@@ -227,8 +250,8 @@ def course_name(title: str) -> str:
     фразе о продолжении.
     """
     text = " ".join(title.split())
-    if text.startswith(COURSE_PREFIX) and text.endswith("»") and _balanced(text[len(COURSE_PREFIX):-1]):
-        text = text[len(COURSE_PREFIX):-1]
+    if text.startswith(COURSE_PREFIX) and text.endswith("»") and _balanced(text[len(COURSE_PREFIX) : -1]):
+        text = text[len(COURSE_PREFIX) : -1]
     return inner_quotes(short_title(text))
 
 
@@ -402,6 +425,14 @@ def step_time(minutes: int) -> str:
     return f"{text} {rest} {plural(rest, 'минуты', 'минут', 'минут')}" if rest else text
 
 
+def text_match_reasons(field: str, ranking_reasons: list[str]) -> list[str]:
+    return _fit([("text", f"Ключевые слова запроса совпали {field}"), *(("ranking", r) for r in ranking_reasons)])
+
+
+def task_match_reasons(field: str, ranking_reasons: list[str]) -> list[str]:
+    return _fit([("text", f"Действие и объект задачи указаны {field}"), *(("ranking", r) for r in ranking_reasons)])
+
+
 def next_step(material: Material) -> str:
     """Следующий шаг: из данных материала, иначе по шаблону формата (docs/plan.md, 3.6).
 
@@ -525,7 +556,7 @@ def _with_tail(head: str, tail: str) -> str:
     return f"{head} {tail}" if tail else head
 
 
-def results_message(
+def results_message(  # noqa: PLR0913 — separate evidence for the status text
     *,
     method: str,
     topics: tuple[str, ...],
@@ -534,6 +565,8 @@ def results_message(
     ctx: Context,
     signal: str | None,
     missing: tuple[str, ...] = (),
+    text_order: bool = False,
+    task_order: bool = False,
 ) -> str:
     """Строка состояния для `strong` и `weak`.
 
@@ -546,6 +579,10 @@ def results_message(
     head = f"Нашли {total} {word} {where}."
     if missing:
         head = f"{head} {no_materials_text(missing)}."
+    if task_order:
+        return f"{head} Сначала показываем материалы, связанные с задачей."
+    if text_order:
+        return f"{head} Сначала показываем совпадения по словам запроса."
     return _with_tail(head, _order_sentence(method=method, ctx=ctx, items=items, total=total, signal=signal))
 
 
@@ -553,7 +590,7 @@ def _about(labels: list[str]) -> str:
     return f"на тему {labels[0]}" if len(labels) == 1 else f"на темы {join_ru(labels)}"
 
 
-def signal_results_message(
+def signal_results_message(  # noqa: PLR0913 — separate evidence for the status text
     *,
     signals: Sequence[str],
     total: int,
@@ -561,6 +598,8 @@ def signal_results_message(
     ctx: Context,
     gaps: Sequence[str] = (),
     missing: Sequence[str] = (),
+    text_order: bool = False,
+    task_order: bool = False,
 ) -> str:
     """Строка состояния, когда задача называет понятие признака, но не тему: «Какую CRM выбрать».
 
@@ -573,11 +612,20 @@ def signal_results_message(
         head = f"{head} Материалов {_about(quoted([vocab.signal_label(s) for s in missing]))} пока нет."
     if gaps:
         head = f"Материалов о {gaps[0]} пока нет. {head}"
+    if task_order:
+        return f"{head} Сначала показываем материалы, связанные с задачей."
+    if text_order:
+        return f"{head} Сначала показываем совпадения по словам запроса."
     return _with_tail(head, _order_sentence(method="personal", ctx=ctx, items=items, total=total, signal=None))
 
 
 def history_results_message(
-    *, topics: Sequence[str], total: int, linked_courses: int, linked_sources: int, items: Sequence[Scored],
+    *,
+    topics: Sequence[str],
+    total: int,
+    linked_courses: int,
+    linked_sources: int,
+    items: Sequence[Scored],
     ctx: Context,
 ) -> str:
     """Строка состояния подбора по истории при пустой задаче (docs/plan.md, раздел 9, решение 2026-11-11).
@@ -613,9 +661,13 @@ def history_results_message(
     return _with_tail(f"{head}.", order)
 
 
-def title_results_message(*, method: str, total: int, items: Sequence[Scored], ctx: Context) -> str:
+def title_results_message(
+    *, method: str, total: int, items: Sequence[Scored], ctx: Context, text_order: bool = False
+) -> str:
     word = plural(total, "материал", "материала", "материалов")
     head = f"Нашли {total} {word} по совпадению в названии."
+    if text_order:
+        return head
     return _with_tail(head, _order_sentence(method=method, ctx=ctx, items=items, total=total, signal=None))
 
 

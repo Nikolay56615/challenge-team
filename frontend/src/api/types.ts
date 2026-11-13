@@ -1,9 +1,9 @@
-// Типы контракта API (docs/plan.md, 4.4). Источник истины — app/backend/app/schemas.py.
-// Совпадение со схемой OpenAPI проверяет при сборке src/api/contract.ts (кандидат W10).
+// Типы контракта API (PLAN.md, 4.4). Источник истины — app/backend/app/schemas.py.
 
 export type StageCode = 'idea' | 'start' | 'growth';
 export type ExperienceCode = 'none' | 'some' | 'experienced';
 export type FormatPrefCode = 'quick' | 'template' | 'course';
+export type MaterialFormatCode = 'checklist' | 'article' | 'template' | 'document' | 'video' | 'course' | 'webinar' | 'podcast';
 export type IndustryCode =
   | 'horeca'
   | 'retail'
@@ -41,6 +41,11 @@ export interface HistoryEvent {
   seq: number;
 }
 
+export interface MaterialFilters {
+  format: MaterialFormatCode | null;
+  access: AccessCode | null;
+}
+
 export interface RecommendRequest {
   task: string;
   stage: StageCode | null;
@@ -53,11 +58,17 @@ export interface RecommendRequest {
   profile_id: string | null;
   limit: number;
   method: MethodCode;
+  filters?: MaterialFilters | null;
 }
 
 export interface Option<T extends string = string> {
   label: string;
   value: T;
+}
+
+export interface FilterOptions {
+  formats: Option<MaterialFormatCode>[];
+  access: Option<AccessCode>[];
 }
 
 export interface Signal {
@@ -83,6 +94,9 @@ export interface Item {
   level_label: string | null;
   industries: string[];
   duration_minutes: number | null;
+  lesson_count?: number | null;
+  has_certificate?: boolean | null;
+  course_details?: { description: string | null; audiences: string[]; outcomes: string[] } | null;
   access: AccessCode;
   access_label: string;
   is_paid: boolean;
@@ -100,7 +114,6 @@ export interface Item {
 export interface Clarification {
   question: string;
   text: string;
-  /** В схеме OpenAPI поле со значением по умолчанию и не обязательно; интерфейс его не читает */
   field?: 'topic';
   options: Option<TopicCode>[];
 }
@@ -133,6 +146,7 @@ export interface RecommendResponse {
   items: Item[];
   route: Route | null;
   total_candidates: number;
+  filter_options?: FilterOptions | null;
 }
 
 export interface CompareResponse {
@@ -142,6 +156,7 @@ export interface CompareResponse {
 }
 
 export interface MetaResponse {
+  catalog: { source: string; available: number };
   topics: Option<TopicCode>[];
   stages: Option<StageCode>[];
   experience: Option<ExperienceCode>[];

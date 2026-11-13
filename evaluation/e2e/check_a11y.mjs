@@ -59,7 +59,7 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
     await audit(page, 'сравнение P02', width);
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
-    await page.getByRole('button', { name: 'Сбросить' }).click();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
     await submit(page);
     await audit(page, 'пустая форма, стартовая подборка', width);
 

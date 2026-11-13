@@ -69,7 +69,7 @@ def test_recommend_p01_contract(client):
     assert body["message"].startswith("Нашли 8 материалов по теме «Продвижение».")
     assert set(body) == {
         "request_id", "method", "catalog", "status", "detected_topics", "message", "clarification", "items", "route",
-        "total_candidates",
+        "total_candidates", "filter_options",
     }
 
 

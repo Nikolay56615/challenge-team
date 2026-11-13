@@ -101,3 +101,27 @@ export function formatLimitNotice(max: number, cut: number): string {
   }
   return typo(`Это предел. ${limit}`);
 }
+
+const materialPlural = new Intl.PluralRules('ru');
+const materialNumber = new Intl.NumberFormat('ru');
+
+export function formatLessonCount(count: number): string {
+  const form = materialPlural.select(count);
+  const noun = form === 'one' ? 'урок' : form === 'few' ? 'урока' : 'уроков';
+  return `${materialNumber.format(count)} ${noun}`;
+}
+
+export function formatAvailableMaterials(total: number): string {
+  const count = materialNumber.format(total);
+  switch (materialPlural.select(total)) {
+    case 'one': return `${count} доступный материал`;
+    case 'few': return `${count} доступных материала`;
+    default: return `${count} доступных материалов`;
+  }
+}
+
+export function formatShownMaterials(shown: number, total: number): string {
+  if (shown === 1 && total === 1) return 'Показан 1\u00a0материал';
+  const noun = materialPlural.select(total) === 'one' ? 'материала' : 'материалов';
+  return `Показано ${materialNumber.format(shown)} из ${materialNumber.format(total)} ${noun}`;
+}

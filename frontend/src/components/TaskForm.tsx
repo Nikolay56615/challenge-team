@@ -1,6 +1,6 @@
 import { useEffect, useId, type Ref } from 'react';
 import type { MetaResponse } from '../api/types';
-import { charsGenitive, typo } from '../format';
+import { charsGenitive, formatAvailableMaterials, typo } from '../format';
 import { Button, Panel, TextAreaField } from '../kit';
 import type { FormValues, RefinementValues } from '../state/useRecommend';
 import { RefinementFields } from './RefinementFields';
@@ -14,6 +14,7 @@ export interface TaskFormProps {
   error: string | null;
   loading: boolean;
   busy?: boolean;
+  headingRef?: Ref<HTMLHeadingElement>;
   submitRef?: Ref<HTMLButtonElement>;
   onTaskChange: (value: string) => void;
   onRefinementsChange: (patch: Partial<RefinementValues>) => void;
@@ -30,6 +31,7 @@ export function TaskForm({
   error,
   loading,
   busy = loading,
+  headingRef,
   submitRef,
   onTaskChange,
   onRefinementsChange,
@@ -47,9 +49,14 @@ export function TaskForm({
 
   return (
     <Panel labelledBy={headingId}>
-      <h1 id={headingId} className="h1">
+      <h1 id={headingId} ref={headingRef} tabIndex={-1} className="h1">
         Подберём материалы под вашу задачу
       </h1>
+      <p className="note catalog-source">
+        {meta?.catalog.source === 'synthetic'
+          ? 'Тестовый каталог'
+          : meta ? `Локальный каталог · ${formatAvailableMaterials(meta.catalog.available)}` : null}
+      </p>
       <TextAreaField
         id={taskId}
         label="Что вы хотите сделать?"

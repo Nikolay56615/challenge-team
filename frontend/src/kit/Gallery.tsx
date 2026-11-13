@@ -434,7 +434,7 @@ function LoadingDemo() {
 function StaleDemo() {
   return (
     <FrameBody>
-      <ResultList status={LOADING_STATUS} stale response={S.STRONG} showTopics={false} onComplete={noop} onMore={noop} />
+      <ResultList status={LOADING_STATUS} stale response={S.STRONG} onComplete={noop} onMore={noop} />
     </FrameBody>
   );
 }
@@ -454,7 +454,7 @@ function WeakDemo() {
           onDismiss={noop}
         />
       ) : null}
-      <ResultList status={S.WEAK.message} response={S.WEAK} showTopics onComplete={noop} onMore={noop} />
+      <ResultList status={S.WEAK.message} response={S.WEAK} onComplete={noop} onMore={noop} />
     </FrameBody>
   );
 }

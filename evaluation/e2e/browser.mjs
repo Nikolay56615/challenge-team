@@ -69,7 +69,7 @@ export async function walkStates(page, width, visit) {
     await methodTab('Подбор по теме').click();
     await visit('сравнение P02: подбор по теме');
   }
-  await page.getByRole('button', { name: 'Сбросить' }).click();
+  await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
   await page.getByLabel(TASK_LABEL).fill('Какую CRM выбрать');
   await compareBox.check();
   await submit(page, '/api/compare');
@@ -80,7 +80,7 @@ export async function walkStates(page, width, visit) {
   }
   await compareBox.uncheck();
 
-  await page.getByRole('button', { name: 'Сбросить' }).click();
+  await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
   await submit(page);
   await visit('пустая форма: стартовая подборка');
   const showAll = page.getByRole('button', { name: /^Показать все/ });

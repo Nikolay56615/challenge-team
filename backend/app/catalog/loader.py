@@ -12,8 +12,10 @@ import logging
 from pathlib import Path
 
 from ..config import DATA_DIR, Settings
+from .global_search import configure
 from .models import Catalog, CatalogError
 from .pairs import load_course_pairs
+from .reranked_search import configure_reranked
 from .synthetic_source import load_json_catalog
 
 log = logging.getLogger("app.catalog")
@@ -50,15 +52,29 @@ def load_catalog(settings: Settings) -> Catalog:
         if settings.catalog_path is None:
             raise CatalogError("Для CATALOG_SOURCE=sqlite нужен CATALOG_PATH")
         # Импорт по требованию: модуль нужен только локально
-        from .sqlite_source import load_sqlite_catalog  # noqa: PLC0415
+        from .sqlite_source import load_sqlite_catalog, search_cards  # noqa: PLC0415
 
         catalog = load_sqlite_catalog(
             settings.catalog_path,
             signals_path=settings.catalog_signals_path,
             mapping_path=settings.catalog_mapping,
+            relevance="task" if settings.catalog_relevance == "task" else "legacy",
         )
+        if settings.catalog_relevance in {"lexical", "hybrid", "reranked"}:
+            cards = search_cards(settings.catalog_path, catalog)
+            if settings.catalog_relevance == "reranked":
+                configure_reranked(catalog, settings, cards)
+            else:
+                configure(catalog, settings, cards)
     else:  # pragma: no cover - значение проверено в config
         raise CatalogError(f"Неизвестный источник каталога: {settings.catalog_source}")
+    catalog.coverage.setdefault(
+        "relevance",
+        {
+            "requested": settings.catalog_relevance,
+            "effective": "task" if catalog.task_index else "legacy",
+        },
+    )
     attach_pairs(catalog, pairs_path(settings), settings.pairs_min_support)
     pairs = catalog.coverage["course_pairs"]
     log.info(

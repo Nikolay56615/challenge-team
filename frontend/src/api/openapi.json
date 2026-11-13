@@ -102,6 +102,42 @@
         "title": "CompareResponse",
         "type": "object"
       },
+      "CourseDetailsOut": {
+        "properties": {
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Audiences",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "outcomes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Outcomes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "description",
+          "audiences",
+          "outcomes"
+        ],
+        "title": "CourseDetailsOut",
+        "type": "object"
+      },
       "ErrorBody": {
         "properties": {
           "code": {
@@ -156,6 +192,74 @@
           "error"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "FilterOptionsOut": {
+        "properties": {
+          "access": {
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "title": "Access",
+            "type": "array"
+          },
+          "formats": {
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "title": "Formats",
+            "type": "array"
+          }
+        },
+        "required": [
+          "formats",
+          "access"
+        ],
+        "title": "FilterOptionsOut",
+        "type": "object"
+      },
+      "FiltersIn": {
+        "additionalProperties": false,
+        "properties": {
+          "access": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "subscription",
+                  "paid"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "enum": [
+                  "checklist",
+                  "article",
+                  "template",
+                  "document",
+                  "video",
+                  "course",
+                  "webinar",
+                  "podcast"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format"
+          }
+        },
+        "title": "FiltersIn",
         "type": "object"
       },
       "FlagOut": {
@@ -322,6 +426,16 @@
             "title": "Contributions",
             "type": "object"
           },
+          "course_details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CourseDetailsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "duration_minutes": {
             "anyOf": [
               {
@@ -348,6 +462,17 @@
             "title": "Format Label",
             "type": "string"
           },
+          "has_certificate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Certificate"
+          },
           "industries": {
             "items": {
               "type": "string"
@@ -358,6 +483,17 @@
           "is_paid": {
             "title": "Is Paid",
             "type": "boolean"
+          },
+          "lesson_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lesson Count"
           },
           "level": {
             "anyOf": [
@@ -484,8 +620,29 @@
         "title": "ItemOut",
         "type": "object"
       },
+      "MetaCatalog": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "available"
+        ],
+        "title": "MetaCatalog",
+        "type": "object"
+      },
       "MetaResponse": {
         "properties": {
+          "catalog": {
+            "$ref": "#/components/schemas/MetaCatalog"
+          },
           "demo_mode": {
             "title": "Demo Mode",
             "type": "boolean"
@@ -531,6 +688,7 @@
           }
         },
         "required": [
+          "catalog",
           "topics",
           "stages",
           "experience",
@@ -721,6 +879,16 @@
             ],
             "title": "Experience"
           },
+          "filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FiltersIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "format_pref": {
             "anyOf": [
               {
@@ -877,6 +1045,16 @@
             },
             "title": "Detected Topics",
             "type": "array"
+          },
+          "filter_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FilterOptionsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "items": {
             "items": {

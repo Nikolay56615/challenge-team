@@ -36,7 +36,7 @@ COPY backend/data ./data
 COPY --from=frontend /src/frontend/dist /srv/app/frontend/dist
 # Числовые uid и gid: так их проверяют среды запуска без доступа к /etc/passwd образа (hadolint DL3066)
 RUN groupadd --system --gid 10001 appuser \
- && useradd --system --uid 10001 --gid 10001 --no-create-home appuser
+ && useradd --system --uid 10001 --gid 10001 --create-home appuser
 USER 10001:10001
 ENV FRONTEND_DIST=/srv/app/frontend/dist
 # В контейнере сервис всегда слушает 8000. APP_PORT в compose.yaml задаёт только порт на машине пользователя.
@@ -57,4 +57,26 @@ LABEL org.opencontainers.image.revision="${IMAGE_REVISION}" \
 # Exec-форма без оболочки: PID 1 — Python, SIGTERM от docker stop получает uvicorn. app.serve проверяет
 # переменные окружения, приводит LOG_LEVEL к нижнему регистру, неверное значение останавливает запуск
 # с сообщением, где названа переменная. Пределы и таймауты uvicorn описаны в backend/app/serve.py.
+CMD ["python", "-m", "app.serve", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM runtime AS semantic
+COPY --chown=10001:10001 backend/requirements-search.txt /tmp/requirements-search.txt
+RUN pip install --no-cache-dir --target /home/appuser/semantic-deps -r /tmp/requirements-search.txt
+ENV PYTHONPATH=/home/appuser/semantic-deps
+
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime AS gpu
+WORKDIR /srv/app/backend
+COPY --from=runtime /srv/app /srv/app
+COPY backend/requirements.txt backend/requirements-search.txt backend/requirements-gpu.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-search.txt -r /tmp/requirements-gpu.txt \
+    && groupadd --system --gid 10001 appuser \
+    && useradd --system --uid 10001 --gid 10001 --no-create-home appuser
+USER 10001:10001
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 FRONTEND_DIST=/srv/app/frontend/dist \
+    HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OPENBLAS_NUM_THREADS=1
+HEALTHCHECK --interval=15s --timeout=3s --start-period=45s --retries=4 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/ready', timeout=2)"]
+CMD ["python", "-m", "app.serve", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM runtime AS default
 CMD ["python", "-m", "app.serve", "--host", "0.0.0.0", "--port", "8000"]

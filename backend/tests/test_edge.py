@@ -35,7 +35,7 @@ REFERENCE_HEADERS = {
     "cross-origin-opener-policy": "same-origin",
     "cross-origin-resource-policy": "same-origin",
     "permissions-policy": (
-        "accelerometer=(), autoplay=(), bluetooth=(), camera=(), display-capture=(), encrypted-media=(), "
+        "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), "
         "fullscreen=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), local-fonts=(), magnetometer=(), "
         "microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), "
         "screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()"

@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeGuard
+
+from .course_details import CourseDetails
+
+if TYPE_CHECKING:
+    from .global_search import SearchIndex
+    from .reranked_search import RerankedIndex
+    from .task_search import TaskIndex
+    from .text_search import TextIndex
 
 # Код материала: одно правило для загрузчика JSON и для истории в запросе (schemas.HistoryEventIn).
 # Материал с другим кодом нельзя было бы отметить изученным: запрос с такой историей получил бы 422.
@@ -43,6 +51,9 @@ class Material:
     url: str | None = None
     short_benefit: str | None = None
     next_step: str | None = None
+    lesson_count: int | None = None
+    has_certificate: bool | None = None
+    course_details: CourseDetails | None = None
 
     @property
     def is_paid(self) -> bool:
@@ -120,6 +131,10 @@ class Catalog:
     version: str
     disabled_features: tuple[str, ...] = ()
     coverage: dict[str, Any] = field(default_factory=dict)
+    text_index: TextIndex | None = None
+    task_index: TaskIndex | None = None
+    search_index: SearchIndex | RerankedIndex | None = None
+    search_fallback: SearchIndex | None = None
     course_pairs: CoursePairs | None = None
 
     @property

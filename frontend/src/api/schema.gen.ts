@@ -10,15 +10,19 @@ export interface ApiSchemas {
   Clarification: Clarification;
   CompareDiff: CompareDiff;
   CompareResponse: CompareResponse;
+  CourseDetailsOut: CourseDetailsOut;
   ErrorBody: ErrorBody;
   ErrorDetail: ErrorDetail;
   ErrorResponse: ErrorResponse;
+  FilterOptionsOut: FilterOptionsOut;
+  FiltersIn: FiltersIn;
   FlagOut: FlagOut;
   HealthCatalog: HealthCatalog;
   HealthResponse: HealthResponse;
   HistoryEventIn: HistoryEventIn;
   HistoryEventOut: HistoryEventOut;
   ItemOut: ItemOut;
+  MetaCatalog: MetaCatalog;
   MetaResponse: MetaResponse;
   Option: Option;
   ProbeResponse: ProbeResponse;
@@ -59,6 +63,7 @@ export interface RecommendResponse {
   catalog: CatalogInfo;
   clarification: Clarification | null;
   detected_topics: string[];
+  filter_options?: FilterOptionsOut | null;
   items: ItemOut[];
   message: string;
   method: 'personal' | 'baseline';
@@ -67,18 +72,25 @@ export interface RecommendResponse {
   status: 'strong' | 'weak' | 'none' | 'cold' | 'empty';
   total_candidates: number;
 }
+export interface FilterOptionsOut {
+  access: Option[];
+  formats: Option[];
+}
 export interface ItemOut {
   access: 'open' | 'subscription' | 'paid';
   access_label: string;
   contributions: {
     [k: string]: number;
   };
+  course_details?: CourseDetailsOut | null;
   duration_minutes: number | null;
   flags: FlagOut[];
   format: string;
   format_label: string;
+  has_certificate?: boolean | null;
   industries: string[];
   is_paid: boolean;
+  lesson_count?: number | null;
   level: string | null;
   level_label: string | null;
   link_allowed: boolean;
@@ -93,6 +105,11 @@ export interface ItemOut {
   topic_labels: string[];
   topics: string[];
   url: string | null;
+}
+export interface CourseDetailsOut {
+  audiences: string[];
+  description: string | null;
+  outcomes: string[];
 }
 export interface FlagOut {
   code: 'in_progress' | 'completed' | 'viewed';
@@ -122,6 +139,10 @@ export interface ErrorDetail {
 export interface ErrorResponse {
   error: ErrorBody;
 }
+export interface FiltersIn {
+  access?: ('open' | 'subscription' | 'paid') | null;
+  format?: ('checklist' | 'article' | 'template' | 'document' | 'video' | 'course' | 'webinar' | 'podcast') | null;
+}
 export interface HealthCatalog {
   coverage: {
     [k: string]: unknown;
@@ -145,7 +166,12 @@ export interface HistoryEventOut {
   material_id: string;
   seq: number;
 }
+export interface MetaCatalog {
+  available: number;
+  source: string;
+}
 export interface MetaResponse {
+  catalog: MetaCatalog;
   demo_mode: boolean;
   experience: Option[];
   formats: Option[];
@@ -189,6 +215,7 @@ export interface ProfilesResponse {
 }
 export interface RecommendRequest {
   experience?: ('none' | 'some' | 'experienced') | null;
+  filters?: FiltersIn | null;
   format_pref?: ('quick' | 'template' | 'course') | null;
   history?: HistoryEventIn[] | null;
   industry?:

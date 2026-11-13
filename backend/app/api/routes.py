@@ -21,7 +21,7 @@ from .. import schemas, vocab
 from ..catalog.coverage import link_allowed
 from ..catalog.models import Catalog, HistoryEvent
 from ..ranking import explain
-from ..ranking.base import HistoryIndex, Profile
+from ..ranking.base import HistoryIndex, MaterialFilters, Profile
 from ..ranking.policy import Outcome, eligible, recommend, topics_with_materials
 
 log = logging.getLogger("app.api")
@@ -128,6 +128,7 @@ def _profile_from_request(body: schemas.RecommendRequest, request: Request) -> P
         topic=body.topic,
         history=history,
         limit=body.limit,
+        filters=MaterialFilters(body.filters.format, body.filters.access) if body.filters else MaterialFilters(),
     )
 
 
@@ -148,6 +149,10 @@ def _item(rank: int, outcome: Outcome, index: int) -> schemas.ItemOut:
         level_label=vocab.level_label(material.level),
         industries=list(material.industries),
         duration_minutes=material.duration_minutes,
+        lesson_count=material.lesson_count,
+        has_certificate=material.has_certificate,
+        course_details=(schemas.CourseDetailsOut.model_validate(material.course_details)
+                        if material.course_details else None),
         # Коды ядро хранит строками; cast только для mypy: pydantic сверяет значение с Literal при создании модели
         access=cast(schemas.AccessCode, material.access),
         access_label=vocab.ACCESS[material.access],
@@ -164,6 +169,12 @@ def _item(rank: int, outcome: Outcome, index: int) -> schemas.ItemOut:
 
 
 def _response(outcome: Outcome, catalog: Catalog, request_id: str) -> schemas.RecommendResponse:
+    filter_options = None
+    if options := outcome.filter_options:
+        filter_options = schemas.FilterOptionsOut(
+            formats=[schemas.Option(value=code, label=vocab.FORMATS[code]) for code in options.formats],
+            access=[schemas.Option(value=code, label=vocab.ACCESS[code]) for code in options.access],
+        )
     clarification = None
     if outcome.clarification:
         clarification = schemas.Clarification(
@@ -188,6 +199,7 @@ def _response(outcome: Outcome, catalog: Catalog, request_id: str) -> schemas.Re
         items=[_item(i + 1, outcome, i) for i in range(len(outcome.items))],
         route=route,
         total_candidates=outcome.total_candidates,
+        filter_options=filter_options,
     )
 
 
@@ -235,6 +247,9 @@ def meta(request: Request) -> Response:
     settings = request.app.state.settings
     topics = topics_with_materials(eligible(catalog, HistoryIndex.build(())))
     body = schemas.MetaResponse(
+        catalog=schemas.MetaCatalog(
+            source=catalog.source, available=sum(m.available for m in catalog.materials.values())
+        ),
         topics=[schemas.Option(label=vocab.topic_label(t), value=t) for t in topics],
         stages=[schemas.Option(label=label, value=code) for code, (label, _) in vocab.STAGES.items()],
         experience=[schemas.Option(label=label, value=code) for code, (label, _) in vocab.EXPERIENCE.items()],

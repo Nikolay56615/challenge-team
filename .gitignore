@@ -28,3 +28,6 @@ frontend/.screenshots/
 *.sqlite3
 *.sqlite3-*
 *.backup
+
+/data/local/
+/data/restricted/

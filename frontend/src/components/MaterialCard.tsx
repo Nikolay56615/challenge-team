@@ -1,11 +1,12 @@
-import type { Ref } from 'react';
+import { useState, type Ref } from 'react';
 import type { ExperienceCode, Item } from '../api/types';
-import { formatDuration, joinReasons, toSentence, typo } from '../format';
-import { Badge, Button, ButtonLink, Card, KeyValue, MatchChips, RankMarker, safeHttpUrl } from '../kit';
+import { formatDuration, formatLessonCount, joinReasons, toSentence, typo } from '../format';
+import { Badge, Button, ButtonLink, Card, Disclosure, KeyValue, MatchChips, RankMarker, safeHttpUrl } from '../kit';
 import { matchLabels } from '../match';
 
 export interface MaterialCardProps {
   item: Item;
+  linkNoteInList?: boolean;
   /** Компактная карточка: позиция, бейджи, «Почему», «Совпало», действия */
   compact?: boolean;
   /** Бейдж темы — только в смешанной (weak) и стартовой (none, cold) выдаче */
@@ -22,6 +23,16 @@ export function isFree(item: Item): boolean {
   return item.access === 'open' && !item.is_paid;
 }
 
+export const MISSING_LINKS_NOTE = typo('У\u00a0материалов в\u00a0этой подборке нет ссылок на платформу.');
+
+function materialHref(item: Item): string | null {
+  return item.link_allowed ? safeHttpUrl(item.url) : null;
+}
+
+export function hasNoMaterialLinks(items: readonly Item[]): boolean {
+  return items.length > 0 && items.every((item) => !materialHref(item));
+}
+
 function linkLabel(item: Item): string {
   if (isFree(item)) return 'Открыть материал';
   return item.format === 'course' ? 'Открыть страницу курса' : 'Открыть страницу материала';
@@ -35,22 +46,41 @@ function linkLabel(item: Item): string {
 export function MaterialCard({
   item,
   compact = false,
-  showTopics = false,
+  showTopics = true,
+  linkNoteInList = false,
   onComplete,
   cardRef,
   experience = null,
 }: MaterialCardProps) {
+  const [copyFeedback, setCopyFeedback] = useState('');
   const free = isFree(item);
   const duration = formatDuration(item.duration_minutes);
+  const lessons = item.format === 'course' ? item.lesson_count : null;
   const completed = item.flags.some((flag) => flag.code === 'completed');
-  const href = item.link_allowed ? safeHttpUrl(item.url) : null;
+  const href = materialHref(item);
   const reasons = typo(joinReasons(item.reasons));
   const nextStep = typo(toSentence(item.next_step));
-  const benefit = !free && item.short_benefit ? typo(toSentence(item.short_benefit)) : '';
+  const course = item.format === 'course' ? item.course_details : null;
+  const description = course?.description ?? (!compact && !free ? item.short_benefit : null);
+  const sections = [
+    { label: 'Кому подойдёт', points: course?.audiences },
+    { label: 'Результаты обучения', points: course?.outcomes },
+  ].filter((section) => section.points?.length);
+
+  const copyTitle = async () => {
+    try {
+      await navigator.clipboard.writeText(item.title);
+      setCopyFeedback('Название скопировано');
+    } catch {
+      setCopyFeedback(typo('Выделите название материала и\u00a0скопируйте его вручную.'));
+    }
+  };
+
+
   const matched = matchLabels(item.contributions, { level: item.level, experience });
 
-  const markButton = completed ? null : (
-    <Button variant="link" size="sm" onClick={() => onComplete?.(item)}>
+  const markButton = completed || !onComplete ? null : (
+    <Button variant="link" size="sm" onClick={() => { onComplete(item); }}>
       Отметить изученным
     </Button>
   );
@@ -64,13 +94,15 @@ export function MaterialCard({
 
       <div className="badges">
         {showTopics &&
-          item.topic_labels.map((label, index) => (
+          item.topic_labels.slice(0, 2).map((label, index) => (
             <Badge key={`topic-${String(index)}`} tone="topic">
               {label}
             </Badge>
           ))}
         <Badge>{item.format_label}</Badge>
         {duration ? <Badge>{duration}</Badge> : null}
+        {lessons ? <Badge>{formatLessonCount(lessons)}</Badge> : null}
+        {item.format === 'course' && item.has_certificate ? <Badge>Сертификат</Badge> : null}
         <Badge tone={free ? 'free' : 'paid'}>{item.access_label}</Badge>
         {item.level_label ? <Badge>{item.level_label}</Badge> : null}
         {item.flags.map((flag) => (
@@ -80,10 +112,20 @@ export function MaterialCard({
         ))}
       </div>
 
-      {!compact && benefit ? <p className="card__benefit">{benefit}</p> : null}
+      {description ? <p className="card__benefit">{typo(toSentence(description))}</p> : null}
+      {sections.length ? (
+        <Disclosure summary={typo('Подробнее о\u00a0курсе')} className="course-details">
+          {sections.map(({ label, points }) => (
+            <div key={label}>
+              <p className="kv__label">{label}</p>
+              <ul>{points?.map((point) => <li key={point}>{point}</li>)}</ul>
+            </div>
+          ))}
+        </Disclosure>
+      ) : null}
       {reasons ? <KeyValue label={compact ? 'Почему' : 'Почему подходит'}>{reasons}</KeyValue> : null}
       <MatchChips items={matched} />
-      {!compact && nextStep ? <KeyValue label="Следующий шаг">{nextStep}</KeyValue> : null}
+      {!compact && href && nextStep ? <KeyValue label="Следующий шаг">{nextStep}</KeyValue> : null}
 
       <div className="card__actions">
         {href ? (
@@ -95,11 +137,13 @@ export function MaterialCard({
           </>
         ) : (
           <>
+            <Button variant="secondary" size="sm" onClick={() => { void copyTitle(); }}>Скопировать название</Button>
             {markButton}
-            <span className="note">Ссылка на платформу не передана</span>
+            {!linkNoteInList ? <span className="note">Ссылка на платформу не передана</span> : null}
           </>
         )}
       </div>
+      {!href ? <p role="status" className={copyFeedback ? 'note' : 'visually-hidden'}>{copyFeedback}</p> : null}
     </Card>
   );
 }

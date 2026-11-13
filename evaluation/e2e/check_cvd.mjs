@@ -502,7 +502,7 @@ await runBrowserChecks('cvd-results.json', results, async (browser) => {
   // Наведение и фокус ссылки-кнопки: состояние меняет не только цвет
   {
     const { context, page } = await openApp(browser, 1120);
-    const reset = page.getByRole('button', { name: 'Сбросить' });
+    const reset = page.getByRole('button', { name: 'Сбросить', exact: true });
     await reset.waitFor();
     const style = () => reset.evaluate((el) => {
       const cs = getComputedStyle(el);

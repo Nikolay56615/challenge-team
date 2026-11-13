@@ -32,6 +32,12 @@ POPULAR_TOP_N = 3
 
 
 @dataclass(frozen=True, slots=True)
+class MaterialFilters:
+    format: str | None = None
+    access: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Profile:
     """Нормализованный запрос: поля анкеты, история и предел выдачи."""
 
@@ -43,6 +49,7 @@ class Profile:
     topic: str | None = None
     history: tuple[HistoryEvent, ...] = ()
     limit: int = 5
+    filters: MaterialFilters = field(default_factory=MaterialFilters)
 
 
 @dataclass(frozen=True, slots=True)

@@ -248,7 +248,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
       JSON.stringify(personalP01) === JSON.stringify(singleP01) && JSON.stringify(personalP02) === JSON.stringify(singleP02));
 
     // E4: задача без темы. Подбор по теме показывает своё сообщение и стартовую подборку, позиции не сравниваются
-    await page.getByRole('button', { name: 'Сбросить' }).click();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
     await page.getByLabel('Что вы хотите сделать?').fill('Какую CRM выбрать');
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
     await submit(page, '/api/compare');
@@ -283,7 +283,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
     // E5: пустая форма
-    await page.getByRole('button', { name: 'Сбросить' }).click();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
     check('E5', `«Сбросить» очищает задачу (${width})`, (await page.getByLabel('Что вы хотите сделать?').inputValue()) === '');
     await submit(page);
     const coldHeading = await page.getByRole('heading', { name: 'С чего хотите начать?' }).count();
@@ -537,7 +537,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await field.press('End');
     await field.press('Control+V');
     const again = await state();
-    await page.getByRole('button', { name: 'Сбросить' }).click();
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
     const reset = await state();
     check('ИИ-5', '«Сбросить» после обрезанной вставки: подсказка по умолчанию, живая область пуста',
       again.hint === cutText && reset.length === 0 && reset.hint === defaultHint && reset.live === '', JSON.stringify({ again: again.hint, reset }));
