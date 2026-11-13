@@ -12,6 +12,10 @@ services:
     volumes:
       - ${LOCAL_RERANK_MODEL_DIR:?Укажите папку модели}:/reranker:ro
       - ${LOCAL_RERANK_ENCODER_DIR:-./backend/data}:/encoder:ro
+    # Базовые 512 МБ рассчитаны на лексический подбор. Реранкер загружает веса модели и CUDA-контекст
+    # в память процесса, и с этим лимитом контейнер получал OOMKill (код 137) до первой строки журнала.
+    mem_limit: 8g
+    memswap_limit: 8g
     deploy:
       resources:
         reservations:
