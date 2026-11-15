@@ -38,7 +38,6 @@ export function IntroPanel({ id, disabled = false, onExample }: IntroPanelProps)
   return (
     <Panel labelledBy={headingId}>
       <div>
-        <p className="note">{task === null ? 'Шаг 1\u00a0из 2' : 'Шаг 2\u00a0из 2'}</p>
         <h2 id={headingId} ref={heading} tabIndex={-1} className="h2">
           {task === null ? 'Что хотите сделать?' : 'На каком этапе ваш бизнес?'}
         </h2>

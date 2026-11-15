@@ -202,7 +202,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const m02 = list[0];
     check('E3', `P02: первым курс M02 с пользой и переходом (${width})`, m02.title === T.M02 && m02.text.includes('Воронка') && m02.links.some((l) => l.text.includes('Открыть страницу курса')));
     const m05 = list.find((c) => c.title === T.M05);
-    check('E3', `P02: у M05 нет перехода и есть примечание (${width})`, m05 && m05.links.length === 0 && m05.text.includes('Ссылка на платформу не передана'));
+    check('E3', `P02: у M05 нет перехода (${width})`, m05 && m05.links.length === 0 && !m05.text.includes('Ссылка на платформу'));
     check('E3', `P02: пометки истории видны (${width})`, list.some((c) => c.text.includes('Вы уже открывали')));
     const external = list.flatMap((c) => c.links);
     check('E3', `Внешние ссылки с rel noopener noreferrer (${width})`, external.every((l) => l.rel.includes('noopener') && l.rel.includes('noreferrer')));
@@ -264,7 +264,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const starterCards = (await starterGroup.count()) === 1 ? await cards(page, starterGroup) : [];
     check('E4', `Без темы: подбор по теме показывает своё сообщение и стартовую подборку (${width})`, (await baselineNote.isVisible()) && (await starterGroup.isVisible()) && starterCards.length === 5 && (await baselineCol.getByText('порядок одинаков').count()) === 0, `карточек ${starterCards.length}`);
     const compareStatus = ((await page.locator('p.status-line').textContent()) || '').replace(/\u00a0/g, ' ');
-    check('E4', `Без темы: строка состояния не называет изменённые позиции (${width})`, compareStatus === 'Сравнение готово. Подбор по теме не нашёл материалов по запросу.' && (await page.getByText('Изменились позиции').count()) === 0, compareStatus);
+    check('E4', `Без темы: строка состояния не называет изменённые позиции (${width})`, compareStatus === 'Подбор по теме не нашёл материалов.' && (await page.getByText('Изменились позиции').count()) === 0, compareStatus);
     check('E4', `Без темы: нет горизонтальной прокрутки (${width})`, !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
     await shot(page, `compare-no-topic${tag}`);
 
@@ -274,8 +274,8 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await submit(page, '/api/compare');
     const historyStatus = await statusText(page);
     const historyCards = await comparisonCards(page, width, 'Персональный подбор');
-    check('E4', `P11 без задачи: строка состояния называет стартовую подборку и подбор по истории (${width})`,
-      historyStatus === 'Сравнение готово. Без задачи подбор по теме показывает стартовую подборку, персональный — подбор по истории.' &&
+    check('E4', `P11 без задачи: строка состояния называет стартовую подборку (${width})`,
+      historyStatus === 'Без задачи: стартовая подборка и подбор по истории.' &&
         (await page.getByText('Изменились позиции').count()) === 0,
       historyStatus);
     check('D09', `P11: пометки «Совпало» подбора по истории (${width})`,
@@ -533,7 +533,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
       over.length === 300 && over.hint === 'Это предел. Поле вмещает 300 символов.' && over.live === over.hint, JSON.stringify(over));
 
     // Сообщение о вставке относится к значению, которое она дала: «Сбросить» и выбор профиля его снимают
-    const defaultHint = 'До 300 символов. Можно своими словами, без терминов';
+    const defaultHint = 'До 300 символов';
     await field.fill('а'.repeat(290));
     await field.press('End');
     await field.press('Control+V');

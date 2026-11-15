@@ -21,14 +21,14 @@ from app.config import Settings
 from app.model_card import load_model_card
 from app.profiles.clients import Client, Clients, load_json_clients
 from app.ranking.base import Profile
-from app.ranking.feed import FEED_MAX_LIMIT, FEED_WEIGHTS, LISTENERS_NOTE, SOURCES, _popularity_phrase, build_feed
+from app.ranking.feed import FEED_MAX_LIMIT, FEED_WEIGHTS, SOURCES, _popularity_phrase, build_feed
 
 from .conftest import client_for, error_of, read_json
 from .test_sqlite_source import base_tables, write_db
 
 WITH_HISTORY = ["P02", "P06", "P08", "P11", "P12"]
 ALL_PROFILES = [f"P{n:02d}" for n in range(1, 13)]
-CO_PHRASE = "Этот курс выбрали 48 из 120 слушателей курса «Старт продвижения за 7 дней» из истории клиента"
+CO_PHRASE = "Этот курс выбрали 48 из 120 слушателей курса «Старт продвижения за 7 дней»"
 
 
 def feed_of(catalog, history=(), limit=FEED_MAX_LIMIT, **fields):
@@ -77,8 +77,7 @@ def test_p11_feed_explains_itself_by_history(catalog, profiles):
     weight = catalog.course_pairs.weight(anchor, "L02")
     assert weight > 0 and parts_of(by_id["L02"])["history"] == round(FEED_WEIGHTS["co_enrollment"] * weight, 2)
     assert by_id["L02"].reason == CO_PHRASE
-    notes = {part.source: part.note for part in by_id["L02"].parts}
-    assert notes.pop("history") == LISTENERS_NOTE and not any(notes.values())
+    assert all(part.note is None for part in by_id["L02"].parts)
     assert "content" not in parts_of(by_id["L02"])  # у курса с журналом записей сходство содержания не начисляется
     template = by_id["M03"]
     assert parts_of(template)["links"] == FEED_WEIGHTS["continuation"] and "history" not in parts_of(template)
@@ -105,7 +104,7 @@ def test_listeners_choice_without_model_weights_is_the_share_and_evidence_follow
 
     lower = next(part for part in card({anchor: {"L02": -0.05}}).parts if part.source == "history")
     assert lower.value == -0.6
-    assert lower.evidence.startswith("Слушатели курсов из истории клиента выбирают этот курс реже")
+    assert lower.evidence.startswith("Слушатели курсов выбирают этот курс реже")
 
     # Курс без пары от порога поддержки: модель даёт вес, счётчиков во фразе нет
     unpaired = next(
@@ -261,7 +260,7 @@ def test_api_feed_contract(feed_catalog, clients):
         too_many = service.post("/api/feed", json={"limit": FEED_MAX_LIMIT + 1})
         unknown = service.post("/api/feed", json={"method": "baseline"})
     assert body["status"] == "history" and len(body["items"]) == 5 and body["total_candidates"] == total
-    assert body["message"] == f"Лента построена по истории. Показаны первые 5 из {total} материалов."
+    assert body["message"] == "Лента по истории клиента."
     assert body["catalog"]["size"] == feed_catalog.size
     first = body["items"][0]
     assert first["rank"] == 1 and first["score"] == round(sum(p["value"] for p in first["parts"]), 2)
@@ -345,9 +344,9 @@ def test_cold_message_names_what_orders_the_feed():
         plain = message(history=[])
         answered = message(history=[], stage="growth")
         unknown = message(history=[{"material_id": "ZZZ", "event": "view", "seq": 1}])
-    assert plain == "Истории нет, поэтому первыми идут популярные материалы. Показаны первые 5 из 165."
-    assert answered == "Истории нет, поэтому порядок задают ответы анкеты и популярность. Показаны первые 5 из 165."
-    assert unknown.startswith("Материалов из истории нет в каталоге, поэтому первыми идут популярные материалы.")
+    assert plain == "Порядок задают популярные материалы."
+    assert answered == "Порядок задают ответы анкеты и популярность."
+    assert unknown == "Материалов из истории нет в каталоге."
 
 
 def test_popularity_phrase_agrees_the_count_and_codes_differ_by_case(catalog):

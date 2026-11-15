@@ -1,5 +1,5 @@
 import type { FeedResponse } from '../api/types';
-import { FAMILY_LABEL, formatScore, formatShare, shareSegments, sharedCards } from '../feed';
+import { FAMILY_LABEL, formatScore, formatShare, shareSegments } from '../feed';
 import { typo } from '../format';
 
 const ROWS = 10;
@@ -47,16 +47,10 @@ export function ClientCompare({ own, other }: ClientCompareProps) {
   return (
     <section className="client-compare" aria-label={typo(`Клиенты ${a} и\u00A0${b} рядом`)}>
       <h2 className="client-compare__title">{typo(`Клиенты ${a} и\u00A0${b} рядом`)}</h2>
-      <p className="client-compare__count">
-        {typo(
-          `Общих карточек в\u00A0первых ${String(rows.length)}: ${String(sharedCards(own.items, other.items, rows.length))}, в\u00A0первых ${String(depth)}: ${String(sharedCards(own.items, other.items, depth))}.`,
-        )}
-      </p>
-      <p className="feed-aside__subtitle">Доли источников в&nbsp;оценках</p>
       <ShareBar feed={own} name={a} />
       <ShareBar feed={other} name={b} />
       <table className="compare-table client-compare__table">
-        <caption>{typo(`Первые ${String(rows.length)} карточек каждой ленты`)}</caption>
+        <caption className="visually-hidden">{typo(`Первые ${String(rows.length)} карточек каждой ленты`)}</caption>
         <thead>
           <tr>
             <th scope="col">Место</th>

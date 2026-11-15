@@ -19,21 +19,19 @@ function hasResults(response: RecommendResponse): boolean {
  */
 export function compareStatus(response: CompareResponse): string {
   const { baseline, personal, diff } = response;
-  const ready = 'Сравнение готово.';
   if (hasResults(baseline) && hasResults(personal)) {
-    return typo(`${ready} Изменились позиции: ${String(diff.changed_positions)} из ${String(diff.compared_positions)}.`);
+    return typo(`Изменились позиции: ${String(diff.changed_positions)} из ${String(diff.compared_positions)}.`);
   }
-  // Пустая задача и история профиля: подбор по теме отвечает cold со стартовой подборкой, персональный
-  // подбирает по истории. Запроса нет, поэтому о «не нашёл» речи нет
+  // Пустая задача: подбор по теме показывает стартовую подборку, персональный подбирает по истории
   if (baseline.status === 'cold' && hasResults(personal)) {
-    return `${ready} Без задачи подбор по теме показывает стартовую подборку, персональный\u00A0— подбор по истории.`;
+    return 'Без задачи: стартовая подборка и\u00A0подбор по истории.';
   }
-  if (hasResults(personal)) return `${ready} Подбор по теме не нашёл материалов по запросу.`;
-  if (hasResults(baseline)) return `${ready} Персональный подбор не нашёл материалов по запросу.`;
+  if (hasResults(personal)) return 'Подбор по теме не нашёл материалов.';
+  if (hasResults(baseline)) return 'Персональный подбор не нашёл материалов.';
   if (baseline.status === 'cold' && personal.status === 'cold' && baseline.items.length && personal.items.length) {
-    return `${ready} Без задачи оба метода показывают стартовую подборку.`;
+    return 'Без задачи: стартовая подборка.';
   }
-  return `${ready} Ни один метод не нашёл материалов по запросу.`;
+  return 'Материалов по запросу нет.';
 }
 
 interface ColumnProps {
@@ -119,20 +117,13 @@ export function CompareView({ response, onComplete, tab, onTabChange, headingRef
   const personal = (
     <Column title="Персональный подбор" response={response.personal} onComplete={onComplete} experience={experience} />
   );
-  // Позиции сравниваются только между двумя выдачами по запросу
-  const diff = hasResults(response.baseline) && hasResults(response.personal) ? response.diff : null;
 
   return (
     <div ref={rootRef} className="results">
       <Panel labelledBy={headingId}>
         <h2 id={headingId} ref={headingRef} className="h2" tabIndex={-1}>
-          Сравнение методов на одном профиле и&nbsp;каталоге
+          Сравнение
         </h2>
-        {diff ? (
-          <p className="note">
-            {typo(`Изменились позиции: ${String(diff.changed_positions)} из ${String(diff.compared_positions)}.`)}
-          </p>
-        ) : null}
       </Panel>
 
       {wide ? (

@@ -112,10 +112,7 @@ export function MaterialCard({
             {markButton}
           </>
         ) : (
-          <>
-            {markButton}
-            <span className="note">Ссылка на платформу не передана</span>
-          </>
+          markButton
         )}
       </div>
     </Card>

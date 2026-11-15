@@ -5,15 +5,17 @@ import { cx } from '../kit';
 
 export interface CompareTableProps {
   caption: string;
+  /** Подпись нужна экранному диктору, но не видна: таблица говорит сама за себя */
+  captionHidden?: boolean;
   a: FeedItem;
   b: FeedItem;
 }
 
 /** Две карточки рядом: вклады источников у каждой и разница. Вывод читатель делает сам по числам. */
-export function CompareTable({ caption, a, b }: CompareTableProps) {
+export function CompareTable({ caption, captionHidden = false, a, b }: CompareTableProps) {
   return (
     <table className="compare-table">
-      <caption>{typo(caption)}</caption>
+      <caption className={captionHidden ? 'visually-hidden' : undefined}>{typo(caption)}</caption>
       <thead>
         <tr>
           <th scope="col">Источник</th>

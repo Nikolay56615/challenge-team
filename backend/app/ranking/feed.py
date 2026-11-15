@@ -256,8 +256,8 @@ class _Interests:
 
 
 def _client_wording(phrase: str | None) -> str | None:
-    """Фразы подбора по задаче обращены к пользователю; ленту смотрят со стороны, поэтому история — клиента."""
-    return phrase.replace("из вашей истории", "из истории клиента") if phrase else phrase
+    """Фразы подбора по задаче обращены к пользователю; ленту смотрят со стороны, поэтому местоимение снимается."""
+    return phrase.replace(" из вашей истории", "") if phrase else phrase
 
 
 def _content_phrase(shared: list[str]) -> str:
@@ -346,29 +346,19 @@ def _listeners_phrase(item: Scored, ctx: Context) -> str | None:
     if pair is None:
         return None
     if item.contributions.get("co_enrollment", 0.0) < 0:
-        return "Слушатели курсов из истории клиента выбирают этот курс реже, чем следует из остальных их записей"
+        return "Слушатели курсов выбирают этот курс реже, чем следует из остальных их записей"
     if pair.together > 0:
         return _client_wording(explain.feature_phrase("co_enrollment", item, ctx))
     source = ctx.catalog.get(pair.anchor)
     if source is None:
         return None
-    return f"По журналу записей курс связан с курсом «{explain.course_name(source.title)}» из истории клиента"
-
-
-# Пояснение к вкладу, который считает модель: фраза-свидетельство называет запись, а не формулу вклада
-LISTENERS_NOTE = (
-    "Величину вклада считает модель по журналу записей. Она учитывает все курсы истории и то, как часто этот "
-    "курс выбирают слушатели остальных курсов, поэтому вклад не равен доле из свидетельства"
-)
+    return f"По журналу записей курс связан с курсом «{explain.course_name(source.title)}»"
 
 
 def _parts(
-    item: Scored, ctx: Context, evidence: dict[str, str | None], notes: dict[str, str] | None = None
+    item: Scored, ctx: Context, evidence: dict[str, str | None]
 ) -> tuple[Part, ...]:
-    """Вклады по источникам. Сумма значений равна оценке: и вклады, и оценка округлены до сотых.
-
-    `notes` — пояснения к источникам, вклад которых считает модель: источник → текст.
-    """
+    """Вклады по источникам. Сумма значений равна оценке: и вклады, и оценка округлены до сотых."""
     parts: list[Part] = []
     for source, _, features in SOURCES:
         present = {f: item.contributions[f] for f in features if f in item.contributions}
@@ -381,8 +371,7 @@ def _parts(
         phrase = next((p for p in phrases if p), None)
         if phrase is None and source == "profile":
             phrase = f"Совпадает с анкетой: {explain.join_ru([PROFILE_FIELDS[f] for f in ordered])}"
-        note = notes.get(source) if notes else None
-        parts.append(Part(source=source, value=round(sum(present.values()), 2), evidence=phrase, note=note))
+        parts.append(Part(source=source, value=round(sum(present.values()), 2), evidence=phrase))
     parts.sort(key=lambda p: -p.value)
     return tuple(parts)
 
@@ -568,10 +557,8 @@ def build_feed(catalog: Catalog, profile: Profile, limit: int = 20, price_weight
     if not 1 <= limit <= FEED_MAX_LIMIT:
         raise ValueError(f"limit вне диапазона 1–{FEED_MAX_LIMIT}")
     ranking = rank(catalog, profile, price_weight, limit=limit)
-    pairs = ranking.signals.pairs
-    notes = {"history": LISTENERS_NOTE} if pairs is not None and pairs.weights else None
     items = [
-        FeedItem(scored=item, parts=_parts(item, ranking.ctx, ranking.evidence(item), notes)) for item in ranking.items
+        FeedItem(scored=item, parts=_parts(item, ranking.ctx, ranking.evidence(item))) for item in ranking.items
     ]
     positive: dict[str, float] = {}
     for entry in items:

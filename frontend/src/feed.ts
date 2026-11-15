@@ -84,14 +84,6 @@ export function sharedCards(a: readonly FeedItem[], b: readonly FeedItem[], dept
   return a.slice(0, depth).filter((item) => other.has(item.material_id)).length;
 }
 
-/**
- * Причина в виде клиента: сервис пишет свидетельства для того, кто смотрит на клиента со стороны,
- * а сам клиент читает их о себе.
- */
-export function clientReason(text: string): string {
-  return text.replace('из истории клиента', 'из вашей истории');
-}
-
 /** Текст полосы для вспомогательных технологий: «Оценка 2,27: совет редакции 1,50; …» */
 export function scoreLabel(item: FeedItem): string {
   const parts = item.parts.map((part) => `${lowerFirst(part.label)} ${formatScore(part.value)}`);

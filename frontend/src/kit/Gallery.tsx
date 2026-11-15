@@ -237,7 +237,7 @@ function TextAreaDemo() {
         onChange={setEmpty}
         maxLength={300}
         placeholder="Например: запустить первую рекламу"
-        hint="До 300 символов. Можно своими словами, без терминов"
+        hint="До 300 символов"
       />
       <TextAreaField id="kit-task-filled" label="Заполнено: счётчик" value={filled} onChange={setFilled} maxLength={300} />
       <TextAreaField
