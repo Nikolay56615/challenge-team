@@ -353,16 +353,14 @@ def _feed_profile(body: schemas.FeedRequest, request: Request) -> tuple[Profile,
 
 
 def _feed_message(result: feed.Feed, profile: Profile) -> str:
-    """Строка состояния ленты: что задаёт порядок и сколько карточек показано."""
-    shown, total = len(result.items), result.total_candidates
-    materials = explain.plural(total, "материала", "материалов", "материалов")
+    """Строка состояния ленты: что задаёт порядок карточек."""
     if result.status == "history":
-        return f"Лента построена по истории. Показаны первые {shown} из {total} {materials}."
+        return "Лента по истории клиента."
+    if result.history:
+        return "Материалов из истории нет в каталоге."
     # Без истории порядок задают ответы анкеты и задача, если они есть, иначе одна популярность
     answered = any((profile.task.strip(), profile.stage, profile.experience, profile.format_pref, profile.industry))
-    lead = "Материалов из истории нет в каталоге" if result.history else "Истории нет"
-    order = "порядок задают ответы анкеты и популярность" if answered else "первыми идут популярные материалы"
-    return f"{lead}, поэтому {order}. Показаны первые {shown} из {total}."
+    return "Порядок задают ответы анкеты и популярность." if answered else "Порядок задают популярные материалы."
 
 
 def _feed_item(rank: int, entry: feed.FeedItem) -> schemas.FeedItemOut:

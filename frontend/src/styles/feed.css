@@ -46,11 +46,6 @@
   font-size: var(--font-size-h2);
 }
 
-.feed-note {
-  margin: 0;
-  font-size: var(--font-size-sm);
-}
-
 .feed-aside__subtitle {
   margin: var(--space-2) 0 0;
   font-size: var(--font-size-xs);
@@ -310,11 +305,6 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.client-compare__count {
-  margin: 0;
-  font-size: var(--font-size-sm);
-}
-
 .client-compare__bar {
   display: grid;
   grid-template-columns: 5.5rem minmax(0, 1fr);
@@ -428,11 +418,6 @@
   display: none;
 }
 
-.feed-details__title {
-  margin: 0;
-  font-weight: var(--font-weight-semibold);
-}
-
 .feed-details__step {
   margin: 0;
   font-size: var(--font-size-sm);
@@ -459,12 +444,6 @@
 
 .feed-parts__evidence {
   color: var(--color-muted);
-}
-
-/* Пояснение к вкладу, который считает модель: отдельной строкой под свидетельством */
-.feed-parts__note {
-  display: block;
-  margin-top: var(--space-1);
 }
 
 /* На узком экране свидетельство уходит на отдельную строку под подписью и числом */

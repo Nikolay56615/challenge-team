@@ -66,7 +66,7 @@ export function TaskForm({
         onChange={onTaskChange}
         maxLength={maxLength}
         placeholder="Например: запустить первую рекламу"
-        hint={typo(`До ${String(maxLength)} ${charsGenitive(maxLength)}. Можно своими словами, без терминов`)}
+        hint={typo(`До ${String(maxLength)} ${charsGenitive(maxLength)}`)}
         error={error}
         disabled={busy}
         rows={3}

@@ -4,7 +4,7 @@ import { typo } from '../format';
 import { Banner, Button, ChipGroup } from '../kit';
 
 export const ERROR_TITLE = 'Не удалось получить подборку';
-export const NETWORK_ERROR_TEXT = 'Сервис не ответил. Введённые данные сохранены\u00A0— повторите запрос.';
+export const NETWORK_ERROR_TEXT = 'Сервис не ответил. Введённые данные сохранены.';
 
 export type StateBannerProps =
   | {

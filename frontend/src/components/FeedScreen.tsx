@@ -23,7 +23,7 @@ import { ModelPassport } from './ModelPassport';
 const FIRST_PAGE = 20;
 const FULL_FEED = 50;
 const LOADING_TEXT = 'Считаем ленту…';
-const NETWORK_ERROR_TEXT = 'Сервис не ответил. Повторите запрос.';
+const NETWORK_ERROR_TEXT = 'Сервис не ответил.';
 /** Код клиента: те же знаки и длина, что принимает сервис */
 const CODE_PATTERN = /^[A-Za-z0-9:_-]{1,64}$/;
 
@@ -32,14 +32,13 @@ export interface FeedScreenProps {
   mode: 'history' | 'new';
   /** Первые клиенты журнала в порядке показа; остальных открывает ввод кода */
   clients: readonly User[];
-  clientsTotal: number;
   meta: MetaResponse | null;
   onOpenTask: () => void;
   /** client — вид клиента: только карточки с причиной; product — оценки, расчёт и панели */
   audience: 'product' | 'client';
 }
 
-export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audience }: FeedScreenProps) {
+export function FeedScreen({ mode, clients, meta, onOpenTask, audience }: FeedScreenProps) {
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   // На узком экране сначала идут карточки: история и состав оценки переезжают под ленту
@@ -268,7 +267,6 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
               label: user.label,
             }))}
             emptyLabel="Выберите клиента"
-            hint="Лента строится по истории выбранного клиента, без ввода текста."
           />
           <form onSubmit={onSubmitCode} noValidate>
             <TextField
@@ -280,13 +278,6 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
                 setCodeError(null);
               }}
               error={codeError}
-              hint={
-                clientsTotal > clients.length
-                  ? typo(
-                      `В\u00A0списке первые ${clients.length.toLocaleString('ru-RU')} из ${clientsTotal.toLocaleString('ru-RU')} клиентов, остальные открываются по коду.`,
-                    )
-                  : undefined
-              }
               autoComplete="off"
               spellCheck={false}
               maxLength={64}
@@ -307,19 +298,10 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
               .filter((user) => user.id !== clientId)
               .map((user) => ({ value: user.id, label: user.label }))}
             emptyLabel="Не сравнивать"
-            hint={
-              compareWith && compared?.key === compareKey && !compared.feed
-                ? 'Лента второго клиента не загрузилась. Выберите его ещё раз.'
-                : undefined
-            }
           />
         </>
       ) : (
         <>
-          <p className="feed-note">
-            У&nbsp;нового клиента истории нет, поэтому лента начинается с&nbsp;популярных материалов. Стадию
-            и&nbsp;сферу можно указать, тогда подходящие материалы поднимутся выше.
-          </p>
           <SelectField
             id="feed-stage"
             label="Стадия бизнеса"
@@ -366,9 +348,6 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
       {mode === 'history' || addedEntries.length > 0 ? (
         <Panel tone="subtle">
           <h2 className="kv__label">История клиента</h2>
-          {mode === 'history' && baseHistory.length > 0 ? (
-            <p className="field__hint">Снимите отметку и&nbsp;посмотрите, какой была бы лента без этого события.</p>
-          ) : null}
           <ul className="feed-history">
             {mode === 'history'
               ? baseHistory.map((entry) => (
@@ -458,7 +437,6 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
             });
           }}
         />
-        <p className="field__hint">Ранжирование работает без языковой модели. Оценка равна сумме вкладов.</p>
         <ModelPassport />
       </Panel>
     </>
@@ -498,7 +476,7 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
         </Banner>
       ) : null}
       {other && response && !loading ? <ClientCompare own={response} other={other} /> : null}
-      {first && last ? <CompareTable caption="Первая и&nbsp;последняя карточки ленты" a={first} b={last} /> : null}
+      {first && last ? <CompareTable captionHidden caption="Первая и&nbsp;последняя карточки ленты" a={first} b={last} /> : null}
       {items.length > 0 ? <h2 className="visually-hidden">Материалы ленты</h2> : null}
       <div className={cx('feed-list', loading && 'feed-list--stale')} aria-busy={loading}>
         {items.map((item) => (

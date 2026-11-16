@@ -5,7 +5,7 @@ import { MAX_LIMIT } from '../state/useRecommend';
 import { MaterialCard } from './MaterialCard';
 import { RouteBlock } from './RouteBlock';
 
-export const LOADING_STATUS = 'Подбираем материалы… Обычно это занимает меньше секунды.';
+export const LOADING_STATUS = 'Подбираем материалы…';
 
 export interface ResultListProps {
   /** Текст строки состояния */
