@@ -141,8 +141,7 @@ export function TaskScreen({ metaState }: { metaState: ReturnType<typeof useMeta
   const { outcome, failure } = state;
   // Опыт из запроса, по которому получена выдача: пометка «уровень» только при точном совпадении (src/match.ts)
   const experience = state.resultCall?.body.experience ?? null;
-  // D10: строка состояния говорит о загрузке сразу. Скелетоны появляются, только если ответ дольше
-  // SKELETON_DELAY_MS; до этого прежнее содержимое остаётся на месте, неактивное (Stale), и колонка не схлопывается
+  // До появления скелетонов прежняя выдача остаётся видимой и неактивной.
   const slow = useDelayedFlag(state.loading, SKELETON_DELAY_MS);
   const holding = state.loading && !slow;
 

@@ -274,7 +274,6 @@ export function useRecommend() {
       dispatch({ type: 'compare', value });
     },
 
-    /** «Подобрать материалы»: тело из формы, limit 5; при включённом сравнении — /api/compare */
     submit: () => {
       if (state.loading) return;
       run({ kind: state.compare ? 'compare' : 'recommend', body: bodyFromForm() }, true);
@@ -298,7 +297,6 @@ export function useRecommend() {
       run({ kind: base.kind, body: { ...base.body, topic, limit: DEFAULT_LIMIT } });
     },
 
-    /** «Показать ещё»: тот же запрос с limit 10 */
     showMore: () => {
       const base = state.resultCall;
       if (base) run({ kind: base.kind, body: { ...base.body, limit: MAX_LIMIT } });
@@ -312,7 +310,6 @@ export function useRecommend() {
       if (base) run({ kind: base.kind, body: { ...base.body, history } });
     },
 
-    /** «Повторить»: точное тело последнего запроса */
     retry: () => {
       if (state.lastCall) run(state.lastCall);
     },
@@ -321,7 +318,6 @@ export function useRecommend() {
       dispatch({ type: 'hideClarification' });
     },
 
-    /** «Сбросить»: форма, тема, история сеанса, профиль, сравнение и выдача */
     reset: () => {
       cancel();
       dispatch({ type: 'reset' });

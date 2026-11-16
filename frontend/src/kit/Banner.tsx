@@ -10,7 +10,7 @@ export interface BannerProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title
   ref?: Ref<HTMLDivElement> | undefined;
 }
 
-/** Строка роли над заголовком ошибки: роль видна текстом, а не только цветом (docs/ui-kit.md, D03) */
+/** Подпись позволяет отличить ошибку по тексту. */
 export const ERROR_KICKER = 'Ошибка';
 
 /** div.banner: информационный — role="status", ошибка — role="alert" со строкой роли «Ошибка». Фокус не переносится. */

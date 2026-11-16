@@ -238,8 +238,7 @@ def _title_match_outcome(request: _Request) -> Outcome:
     route: list[Material] = []
     if method == "personal" and _start_like(profile, parsed.stage_hint):
         route = explain.build_route(_route_window(ranked, profile.limit), catalog.materials)
-    # Персональная причина сокращается вместе с фразой отбора по названию: правило о фразе D01 (explain.py)
-    # тогда видит итоговую причину
+    # Фраза о названии занимает часть общего лимита длины объяснения.
     lead = explain.title_match_phrase(parsed.gaps)
     reasons = (
         [explain.personal_reasons(item, ctx, lead=lead) for item in items]
