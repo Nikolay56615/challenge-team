@@ -1,0 +1,642 @@
+{
+ "version": "synthetic-feed-1",
+ "note": "Вымышленные клиенты для ленты по профилю, выбраны из того же журнала, по которому посчитаны пары. История — код материала, событие и порядковый номер. Статьи в истории есть только у сегмента с задачей: в обезличенной копии журнала просмотров статей нет, и на ней история состоит из курсов.",
+ "segments": {
+  "beginner": {
+   "label": "Начинающий предприниматель",
+   "checks": "Короткая история на старте: лента продолжает тему первого курса и предлагает первый платный шаг"
+  },
+  "task": {
+   "label": "Малый бизнес с конкретной задачей",
+   "checks": "История вокруг одной задачи: лента держится её темы и добавляет смежную"
+  },
+  "systemic": {
+   "label": "Развивает бизнес системно",
+   "checks": "Длинная история: курсы других тем по выбору слушателей и платные материалы выше"
+  }
+ },
+ "clients": [
+  {
+   "id": "U0039",
+   "label": "U0039 · 3 курса · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "taxes_law",
+   "history": [
+    {
+     "material_id": "C003",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C005",
+     "event": "complete",
+     "seq": 2
+    },
+    {
+     "material_id": "C004",
+     "event": "complete",
+     "seq": 3
+    }
+   ]
+  },
+  {
+   "id": "U0239",
+   "label": "U0239 · 3 курса · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "start",
+   "history": [
+    {
+     "material_id": "C002",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "C003",
+     "event": "start",
+     "seq": 2
+    },
+    {
+     "material_id": "C003",
+     "event": "purchase",
+     "seq": 2
+    },
+    {
+     "material_id": "C008",
+     "event": "start",
+     "seq": 3
+    },
+    {
+     "material_id": "C008",
+     "event": "purchase",
+     "seq": 3
+    }
+   ]
+  },
+  {
+   "id": "U0003",
+   "label": "U0003 · 2 курса · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "marketing",
+   "history": [
+    {
+     "material_id": "C007",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C008",
+     "event": "view",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0022",
+   "label": "U0022 · 2 курса · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "marketplaces",
+   "history": [
+    {
+     "material_id": "C023",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C024",
+     "event": "view",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0024",
+   "label": "U0024 · 2 курса · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "start",
+   "history": [
+    {
+     "material_id": "C002",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C007",
+     "event": "start",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0002",
+   "label": "U0002 · 1 курс · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "start",
+   "history": [
+    {
+     "material_id": "C002",
+     "event": "start",
+     "seq": 1
+    }
+   ]
+  },
+  {
+   "id": "U0004",
+   "label": "U0004 · 1 курс · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "sales",
+   "history": [
+    {
+     "material_id": "C010",
+     "event": "view",
+     "seq": 1
+    }
+   ]
+  },
+  {
+   "id": "U0006",
+   "label": "U0006 · 1 курс · начинающий предприниматель",
+   "segment": "beginner",
+   "main_topic": "start",
+   "history": [
+    {
+     "material_id": "C001",
+     "event": "view",
+     "seq": 1
+    }
+   ]
+  },
+  {
+   "id": "U0514",
+   "label": "U0514 · 4 курса · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "operations",
+   "history": [
+    {
+     "material_id": "F052",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "C011",
+     "event": "complete",
+     "seq": 2
+    },
+    {
+     "material_id": "C009",
+     "event": "complete",
+     "seq": 3
+    },
+    {
+     "material_id": "C009",
+     "event": "purchase",
+     "seq": 3
+    },
+    {
+     "material_id": "C019",
+     "event": "complete",
+     "seq": 4
+    },
+    {
+     "material_id": "C016",
+     "event": "view",
+     "seq": 5
+    }
+   ]
+  },
+  {
+   "id": "U0617",
+   "label": "U0617 · 4 курса · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "marketing",
+   "history": [
+    {
+     "material_id": "C007",
+     "event": "start",
+     "seq": 1
+    },
+    {
+     "material_id": "C020",
+     "event": "view",
+     "seq": 2
+    },
+    {
+     "material_id": "C008",
+     "event": "complete",
+     "seq": 3
+    },
+    {
+     "material_id": "C008",
+     "event": "purchase",
+     "seq": 3
+    },
+    {
+     "material_id": "C009",
+     "event": "start",
+     "seq": 4
+    },
+    {
+     "material_id": "C009",
+     "event": "purchase",
+     "seq": 4
+    }
+   ]
+  },
+  {
+   "id": "U0008",
+   "label": "U0008 · 2 курса · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "service",
+   "history": [
+    {
+     "material_id": "F048",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "F050",
+     "event": "view",
+     "seq": 2
+    },
+    {
+     "material_id": "F046",
+     "event": "view",
+     "seq": 3
+    },
+    {
+     "material_id": "C020",
+     "event": "start",
+     "seq": 4
+    },
+    {
+     "material_id": "C020",
+     "event": "purchase",
+     "seq": 4
+    },
+    {
+     "material_id": "C007",
+     "event": "view",
+     "seq": 5
+    }
+   ]
+  },
+  {
+   "id": "U0012",
+   "label": "U0012 · 2 курса · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "marketing",
+   "history": [
+    {
+     "material_id": "F042",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "F044",
+     "event": "view",
+     "seq": 2
+    },
+    {
+     "material_id": "C007",
+     "event": "start",
+     "seq": 3
+    },
+    {
+     "material_id": "C007",
+     "event": "purchase",
+     "seq": 3
+    },
+    {
+     "material_id": "C009",
+     "event": "start",
+     "seq": 4
+    },
+    {
+     "material_id": "C009",
+     "event": "purchase",
+     "seq": 4
+    }
+   ]
+  },
+  {
+   "id": "U0019",
+   "label": "U0019 · 2 курса · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "taxes_law",
+   "history": [
+    {
+     "material_id": "C004",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "C013",
+     "event": "view",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0001",
+   "label": "U0001 · 1 курс · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "strategy",
+   "history": [
+    {
+     "material_id": "F031",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "C016",
+     "event": "view",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0005",
+   "label": "U0005 · 1 курс · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "marketplaces",
+   "history": [
+    {
+     "material_id": "F114",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "C023",
+     "event": "view",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0007",
+   "label": "U0007 · 1 курс · малый бизнес с конкретной задачей",
+   "segment": "task",
+   "main_topic": "finance",
+   "history": [
+    {
+     "material_id": "F018",
+     "event": "view",
+     "seq": 1
+    },
+    {
+     "material_id": "C006",
+     "event": "start",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0060",
+   "label": "U0060 · 6 курсов · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "team",
+   "history": [
+    {
+     "material_id": "C013",
+     "event": "start",
+     "seq": 1
+    },
+    {
+     "material_id": "C013",
+     "event": "purchase",
+     "seq": 1
+    },
+    {
+     "material_id": "C014",
+     "event": "start",
+     "seq": 2
+    },
+    {
+     "material_id": "C014",
+     "event": "purchase",
+     "seq": 2
+    },
+    {
+     "material_id": "C015",
+     "event": "start",
+     "seq": 3
+    },
+    {
+     "material_id": "C015",
+     "event": "purchase",
+     "seq": 3
+    },
+    {
+     "material_id": "C005",
+     "event": "complete",
+     "seq": 4
+    },
+    {
+     "material_id": "C005",
+     "event": "purchase",
+     "seq": 4
+    },
+    {
+     "material_id": "C006",
+     "event": "complete",
+     "seq": 5
+    },
+    {
+     "material_id": "C006",
+     "event": "purchase",
+     "seq": 5
+    },
+    {
+     "material_id": "C016",
+     "event": "view",
+     "seq": 6
+    }
+   ]
+  },
+  {
+   "id": "U0159",
+   "label": "U0159 · 6 курсов · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "operations",
+   "history": [
+    {
+     "material_id": "C020",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C020",
+     "event": "purchase",
+     "seq": 1
+    },
+    {
+     "material_id": "C007",
+     "event": "start",
+     "seq": 2
+    },
+    {
+     "material_id": "C007",
+     "event": "purchase",
+     "seq": 2
+    },
+    {
+     "material_id": "C015",
+     "event": "complete",
+     "seq": 3
+    },
+    {
+     "material_id": "C015",
+     "event": "purchase",
+     "seq": 3
+    },
+    {
+     "material_id": "C011",
+     "event": "view",
+     "seq": 4
+    },
+    {
+     "material_id": "C012",
+     "event": "start",
+     "seq": 5
+    },
+    {
+     "material_id": "C012",
+     "event": "purchase",
+     "seq": 5
+    },
+    {
+     "material_id": "C013",
+     "event": "view",
+     "seq": 6
+    }
+   ]
+  },
+  {
+   "id": "U0096",
+   "label": "U0096 · 2 курса · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "strategy",
+   "history": [
+    {
+     "material_id": "C016",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C016",
+     "event": "purchase",
+     "seq": 1
+    },
+    {
+     "material_id": "C006",
+     "event": "start",
+     "seq": 2
+    },
+    {
+     "material_id": "C006",
+     "event": "purchase",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0169",
+   "label": "U0169 · 2 курса · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "finance",
+   "history": [
+    {
+     "material_id": "C006",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C006",
+     "event": "purchase",
+     "seq": 1
+    },
+    {
+     "material_id": "C016",
+     "event": "complete",
+     "seq": 2
+    },
+    {
+     "material_id": "C016",
+     "event": "purchase",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0182",
+   "label": "U0182 · 2 курса · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "strategy",
+   "history": [
+    {
+     "material_id": "C015",
+     "event": "start",
+     "seq": 1
+    },
+    {
+     "material_id": "C005",
+     "event": "start",
+     "seq": 2
+    },
+    {
+     "material_id": "C005",
+     "event": "purchase",
+     "seq": 2
+    }
+   ]
+  },
+  {
+   "id": "U0011",
+   "label": "U0011 · 1 курс · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "sales",
+   "history": [
+    {
+     "material_id": "C009",
+     "event": "view",
+     "seq": 1
+    }
+   ]
+  },
+  {
+   "id": "U0017",
+   "label": "U0017 · 1 курс · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "team",
+   "history": [
+    {
+     "material_id": "C013",
+     "event": "complete",
+     "seq": 1
+    },
+    {
+     "material_id": "C013",
+     "event": "purchase",
+     "seq": 1
+    }
+   ]
+  },
+  {
+   "id": "U0030",
+   "label": "U0030 · 1 курс · развивает бизнес системно",
+   "segment": "systemic",
+   "main_topic": "finance",
+   "history": [
+    {
+     "material_id": "C005",
+     "event": "start",
+     "seq": 1
+    },
+    {
+     "material_id": "C005",
+     "event": "purchase",
+     "seq": 1
+    }
+   ]
+  }
+ ]
+}

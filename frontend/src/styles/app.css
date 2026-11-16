@@ -1,0 +1,115 @@
+/* Компоновка поверх UI-кита: только сетка и отступы на токенах (docs/ui-kit.md, раздел 1).
+   Цвета, шрифты и вид компонентов задают tokens.css и kit.css. */
+
+/* ---------- витрина kit.html ---------- */
+.kit-page {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-5);
+}
+
+.kit-page__head,
+.kit-section,
+.kit-stack {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+.kit-section {
+  gap: var(--space-4);
+}
+
+.kit-stack--tight {
+  gap: var(--space-1);
+}
+
+/* Колонка не шире страницы: на 390 px образцы не выходят за край */
+.kit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.kit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Рамка 1120 px шире страницы на 1120 px и рамка 390 px — на 390 px: прокручивается ряд рамок, а не страница.
+   position: relative — ряд становится контейнером для скрытых элементов (.visually-hidden абсолютны),
+   иначе они выходят из-под обрезки и растягивают страницу. Нижний отступ оставляет место тени рамки. */
+.kit-frames {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-5);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+.kit-figure {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+/* Рамка витрины одновременно контейнер .screen: высота по содержимому, фон экрана */
+.kit-frame.screen {
+  min-height: 0;
+  background: var(--color-bg);
+}
+
+.kit-frame__body {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+}
+
+@container screen (min-width: 800px) {
+  .kit-frame__body {
+    padding: var(--space-5);
+  }
+}
+
+.kit-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+
+.kit-swatch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.kit-swatch__chip {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+}
+
+.kit-measure {
+  flex: none;
+  height: var(--space-4);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-line);
+}
+
+.kit-radius {
+  flex: none;
+  width: 56px;
+  height: var(--control-min-height);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line-strong);
+}

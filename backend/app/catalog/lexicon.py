@@ -1,0 +1,668 @@
+"""Словарь запроса и разбор задачи.
+
+Задача приводится к нижнему регистру, «ё» заменяется на «е», текст делится на слова из букв и цифр,
+дефис внутри слова сохраняется. Шаблон — одно или несколько слов подряд. Слово шаблона задаёт условие
+для слова задачи:
+- основа: слово начинается с неё («продвиг» — «продвигать», «продвигаю»);
+- основа с дефисом на конце: любое составное слово с этой первой частью («кафе-» — «кафе-бар»,
+  «кафе-пекарня», но не «кафеля»);
+- «=слово»: точное совпадение («=кафе» не совпадает с «кафеля»);
+- варианты через «|»: подходит любой («=ип|=ооо» — «ИП» или «ООО»);
+- «*»: любое одно слово («открыть * кофейн» — «открыть небольшую кофейню»).
+
+Шаблон с «!» в начале — исключение записи. Совпадение другого шаблона той же записи, которое
+пересекается с совпадением исключения, не засчитывается. Так «декларация соответствия» не даёт тему
+«Налоги и законы», а «регистрация товарного знака» — тему «Старт бизнеса».
+
+Подсказки стадии, уровня и формата учитывают отрицание: совпадение сразу после «не» не засчитывается
+(«не новичок», «не с нуля»). «Не опытный» и «неопытный» — отдельные шаблоны вводного уровня.
+
+Признаки и понятия. Признак (SIGNAL_PATTERNS) поднимает материал внутри распознанной темы. Понятие —
+признак, который задача называет конкретно: «CRM», «ниша», «юнит-экономика». Без темы материалы отбирает
+только понятие. Широкие слова признаков (BROAD_SIGNAL_WORDS) — «эффективно», «окупаемость», «цена»,
+«объявление», «отпуск», «первые шаги», «спрос» — встречаются в задачах о чём угодно и понятия не дают:
+«Как эффективно планировать день» не о рекламном бюджете. В сочетании с контекстом широкое слово снова
+называет понятие: «цена товара», «график отпусков», «оценить спрос». Шаблоны понятий (CONCEPT_PATTERNS)
+строже шаблонов признаков, поэтому каждое понятие — один из найденных признаков.
+
+Тема понятия. Если ни одна тема не распознана, а понятия найдены, темами разбора становятся темы этих
+понятий из `vocab.SIGNAL_HOME_TOPIC` без повторов, в порядке TOPIC_ORDER, и разбор помечается флагом
+`topics_from_signals`: «Какую CRM выбрать» даёт понятие crm и тему «Продажи». Такую тему задача не
+называет, поэтому подбор ищет кандидатов по самому понятию (ranking/policy.py). Задача с одними широкими
+словами остаётся без темы. Распознанную тему признаки не дополняют: материал другой темы с тем же
+признаком в кандидаты не попадает.
+
+Цитата признака. `signal_quote` возвращает
+слова задачи, по которым найден признак, в том виде, как их написал пользователь: «CRM», «налоговый
+режим», «декларацию». Берётся первое слева совпадение шаблонов признака, которое не отменено
+исключением. Условие то же, что у разбора, поэтому цитата есть ровно тогда, когда признак найден.
+Если задача называет признак как понятие, цитируются слова понятия (CONCEPT_PATTERNS): по ним подбор
+отбирает материалы, а широкое слово рядом понятия не называет. Знаки между словами совпадения
+заменяются одним пробелом. Разбор задачи от цитаты не зависит.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterator
+from dataclasses import dataclass
+
+from .. import vocab
+
+_WORD = re.compile(r"[a-zа-я0-9]+(?:-[a-zа-я0-9]+)*")
+
+
+def tokenize(text: str) -> list[str]:
+    return _WORD.findall(text.lower().replace("ё", "е"))
+
+
+@dataclass(frozen=True, slots=True)
+class _Word:
+    """Слово шаблона: точные формы, основы или любое слово."""
+
+    exact: frozenset[str] = frozenset()
+    stems: tuple[str, ...] = ()
+    anything: bool = False
+
+    def matches(self, token: str) -> bool:
+        return self.anything or token in self.exact or token.startswith(self.stems)
+
+
+_Pattern = tuple[_Word, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Patterns:
+    """Шаблоны записи словаря и её исключения."""
+
+    include: tuple[_Pattern, ...]
+    exclude: tuple[_Pattern, ...] = ()
+
+
+def _valid_variant(variant: str) -> bool:
+    """Точная форма — целое слово задачи; основа может кончаться дефисом («кафе-»)."""
+    if variant.startswith("="):
+        return bool(_WORD.fullmatch(variant[1:]))
+    return bool(_WORD.fullmatch(variant.removesuffix("-")))
+
+
+def _word(text: str) -> _Word:
+    if text == "*":
+        return _Word(anything=True)
+    variants = text.split("|")
+    for variant in variants:
+        if not _valid_variant(variant):
+            raise ValueError(f"Слово шаблона «{variant}» не совпадёт ни с одним словом задачи")
+    return _Word(
+        exact=frozenset(v[1:] for v in variants if v.startswith("=")),
+        stems=tuple(v for v in variants if not v.startswith("=")),
+    )
+
+
+def _compile(patterns: tuple[str, ...]) -> Patterns:
+    """Однословные шаблоны записи сливаются в одно слово, чтобы задача просматривалась за один проход."""
+    include: list[_Pattern] = []
+    exclude: list[_Pattern] = []
+    for text in patterns:
+        words = tuple(_word(w) for w in text.removeprefix("!").split())
+        if not words:
+            raise ValueError("Пустой шаблон словаря")
+        (exclude if text.startswith("!") else include).append(words)
+    single = [p[0] for p in include if len(p) == 1 and not p[0].anything]
+    rest = [p for p in include if len(p) > 1 or p[0].anything]
+    if single:
+        merged = _Word(
+            exact=frozenset().union(*(w.exact for w in single)),
+            stems=tuple(stem for w in single for stem in w.stems),
+        )
+        rest.insert(0, (merged,))
+    return Patterns(include=tuple(rest), exclude=tuple(exclude))
+
+
+def _exact(*words: str) -> str:
+    """Точные формы как варианты одного слова: _exact("виза", "визы") -> "=виза|=визы"."""
+    return "|".join(f"={w}" for w in words)
+
+
+# Открытие бизнеса: «открыть», «открытие», «открываю», «открою», «откроем»
+_OPEN = "открыть|открыти|открыва|открою|откроем"
+_OWN = _exact("свой", "свою", "свое", "своего", "своей")
+# Что открывают как бизнес: «открыть бар», «открытие пекарни», «открываю цветочный магазин»
+_BUSINESS = "|".join((
+    "бизнес", "компани", "фирм", "предприяти", "агентств", "франшиз", "производств", "=цех", "=цеха",
+    "магазин", "интернет-магазин", "онлайн-магазин", "точк", "киоск", "ларек", "павильон",
+    "кофейн", "=кафе", "кафе-", "кафешк", "ресторан", "=бар", "=бара", "пекарн", "кондитерск", "столов", "пиццери",
+    "салон", "студи", "мастерск", "=ателье", "барбершоп", "парикмахерск", "автосервис", "автомойк",
+    "шиномонтаж", "клиник", "аптек", "хостел", "гостиниц", "отел", "фитнес", "школ", "онлайн-школ",
+))
+# Что открывают не как бизнес: «открыть счёт», «открыть свой вклад»
+_NOT_BUSINESS = "счет|вклад|депозит|кредит|" + _exact("карту", "карта", "карты")
+# Регистрация: «регистрация», «зарегистрировать», «регистрировать». Регистрируют и товарный знак, и кассу
+_REGISTER = "регистрац|зарегистр|регистриров"
+_MARKETPLACES = (
+    "маркетплейс",
+    "wildberries|вайлдбер|мегамаркет|" + _exact("wb", "вб", "ozon", "озон", "озона", "озоне", "озону", "озоном"),
+    "яндекс маркет",
+    "яндекс-маркет",
+)
+_CONTRACT = _exact(
+    "договор", "договора", "договору", "договором", "договоре", "договоры", "договоров", "договорам", "договорами",
+    "договорах",
+)
+_LOAN = _exact("займ", "займа", "займу", "займом", "займе", "займы", "займов", "займам", "займами", "займах", "заем")
+# Кого привлекает продвижение: «привлечь покупателей», «привлекать новых гостей»
+_ATTRACTED = "покупател|посетител|гост|подписчик|заказчик|внимани"
+# Объекты учёта: «учитывать расходы», «учитывать товар»; «что учитывать при выборе» — не об учёте
+_ACCOUNTED = "расход|доход|затрат|выручк|деньг|денежн|товар|остатк|платеж|операци|поступлен"
+
+TOPIC_PATTERNS: dict[str, Patterns] = {
+    "marketing": _compile((
+        "продвиг", "продвиж",
+        # Глагол «продвинуть»; «продвинутый» — подсказка уровня
+        _exact("продвинуть", "продвину", "продвинешь", "продвинет", "продвинем", "продвинете"), "продвинь",
+        "продвинул",
+        "маркетинг", "реклам", "таргет", "smm", "смм", "соцсет", "социальн сет", "контент", "трафик", "аудитори",
+        # «Привлечь» — только с теми, кого привлекают: «привлечь инвестиции» — финансы
+        f"привлеч|привлек {_ATTRACTED}", f"привлеч|привлек * {_ATTRACTED}",
+        "раскрут", "seo", "сео", "клиент",
+        "!персональн данн клиент",
+    )),
+    "sales": _compile((
+        "прода", "сделк", "переговор", "покупател", "воронк", "клиент", "возражен", "выручк", "холодн звон",
+        "!персональн данн клиент|покупател",
+    )),
+    "taxes_law": _compile((
+        "налог", "декларац", "штраф", "=ндс", "ндфл", "усн", "=осно", "патент", "закон", "юрист", "юридич",
+        # Существительное «договор»; «договориться» — переговоры
+        _CONTRACT, "договорн", "отчетност", "=фнс",
+        "страхов взнос", "фиксированн взнос", _exact("взносы", "взносов", "взносам", "взносами", "взносах"),
+        "!декларац соответств",
+    )),
+    "finance": _compile((
+        "финанс", "учет", "бухгалт", "бухучет", "деньг", "денежн", "касс", "онлайн-касс", "кредит", _LOAN,
+        "микрозайм", "инвест", "=банк", "банков", "эквайринг", "прибыл", "рентабельн", "маржинал", "себестоимост",
+        "расход", "расчетн счет", f"{_OPEN} счет|вклад|депозит", f"{_OPEN} * счет", f"учитыва {_ACCOUNTED}",
+        # Не о финансах: «доходы минус расходы» — объект налога, «расходные материалы», «учётная запись»
+        "!доход минус расход", "!расходн материал", "!расходник", "!учетн запис",
+    )),
+    "team": _compile((
+        "сотрудник", _exact("персонал", "персонала", "персоналу", "персоналом", "персонале"), "команд", "найм",
+        "нанят", "нанима", "уволь", "увольн", "трудов", "зарплат", "кадр", "вакан", "собеседован", "мотивац",
+    )),
+    "operations": _compile((
+        # Наведение порядка; «порядок регистрации» — процедура
+        "навест|навод|навож|навел порядок", "наведени порядк",
+        "порядок =в задач|дел|бизнес|работ|компани|команд|документ",
+        "регламент", "делегир", "автоматиз", "бизнес-процесс", "процесс", "тайм-менедж", "планирован",
+        "список задач", "управлени задач",
+    )),
+    "start": _compile((
+        _REGISTER, "бизнес-план", "бизнес план", "самозанят", "форм бизнес", "свое дело", "собственн дело|бизнес",
+        "=ип|=ооо =или =ип|=ооо|самозанят",
+        f"{_OPEN}|оформ =ип|=ооо", f"{_OPEN} {_OWN}", f"{_OPEN} {_BUSINESS}", f"{_OPEN} * {_BUSINESS}",
+        "начать|запустить|запуск бизнес", f"начать|запустить|запуск {_OWN} бизнес|дело",
+        # Регистрируют и открывают не только бизнес: «регистрация товарного знака», «открыть счёт»
+        f"!{_REGISTER} товарн|знак|бренд|касс|онлайн-касс|ккт|ккм", f"!{_REGISTER} * товарн|знак|бренд",
+        f"!{_OPEN} {_NOT_BUSINESS}", f"!{_OPEN} * {_NOT_BUSINESS}",
+    )),
+    "strategy": _compile(("стратеги", "бизнес-модел", "бизнес модел", "масштабир", "конкурент")),
+    "tech": _compile(("=ии", "нейросет", "искусствен интеллект", "чат-бот", "цифров")),
+    "service": _compile(("сервис", "удержан", "отзыв", "жалоб", "лояльн", "обслуживан клиент")),
+    "marketplaces": _compile(_MARKETPLACES),
+    "abroad": _compile(("за рубеж", "зарубеж", "экспорт", "импорт", "внешнеэконом", "релокац")),
+}
+
+SIGNAL_PATTERNS: dict[str, Patterns] = {
+    "tax_reporting": _compile((
+        "декларац", "отчетност", "сдать отчет", "налогов отчет", "штраф", "!декларац соответств",
+    )),
+    "employment": _compile((
+        "трудов", "увольн", "уволь", "больничн", "оформ сотрудник",
+        # «Отпуск» и «отпускные»; «отпускная цена» — цена товара
+        _exact("отпуск", "отпуска", "отпуску", "отпуском", "отпуске", "отпусков", "отпускам", "отпусками", "отпусках"),
+        "отпускн", "!отпускн цен",
+    )),
+    "tax_regime": _compile((
+        "налогов режим", "режим налогооблож", "систем налогооблож", "усн", "=осно", "патент", "аусн", "енвд",
+    )),
+    "marketplace": _compile(_MARKETPLACES),
+    "contracts": _compile((_CONTRACT, "договорн", "контрагент", "оферт")),
+    "registration": _compile((
+        _REGISTER, f"{_OPEN}|оформ =ип|=ооо",
+        f"!{_REGISTER} товарн|знак|бренд|касс|онлайн-касс|ккт|ккм", f"!{_REGISTER} * товарн|знак|бренд",
+    )),
+    "accounting": _compile(("бухгалт", "бухучет", "учет доход|расход", "учитыва доход|расход", "первичк", "проводк")),
+    "self_employment": _compile(("самозанят", "=нпд")),
+    "trademark": _compile((
+        "товарн знак", "прав на бренд", "защит бренд", f"{_REGISTER} бренд", f"{_REGISTER} * бренд",
+    )),
+    "ai": _compile(("=ии", "нейросет", "искусствен интеллект", "gpt")),
+    "cash_register": _compile((
+        "касс", "онлайн-касс", "эквайринг", "прием платеж", "прием оплат", "!кассов разрыв|метод",
+    )),
+    "launch": _compile((
+        f"запуск|запустить|начать|{_OPEN} бизнес", f"запуск|запустить|начать|{_OPEN} {_OWN} бизнес|дело",
+        "первые шаги", "свое дело",
+    )),
+    "franchise": _compile(("франшиз", "франчайз")),
+    "personal_data": _compile(("персональн данн", "152-фз")),
+    "logistics": _compile((
+        "доставк", "логистик", "грузоперевоз", "складск",
+        # Существительное «склад»; «складывается» — не о складе
+        _exact("склад", "склада", "складу", "складом", "складе", "склады", "складов", "складам", "складами", "складах"),
+    )),
+    "procurement": _compile(("закупк", "тендер", "госзакуп", "44-фз", "223-фз")),
+    "negotiation": _compile((
+        "переговор", "возражен",
+        # Глагол «договориться»: «договориться с поставщиком о скидке»
+        "договорит|договорил|договорю|договоря|договорим|договарива|договоренност",
+    )),
+    "audience": _compile(("аудитори", "портрет клиент")),
+    "business_plan": _compile((
+        "бизнес-план", "бизнес план", "бизнес-модел", "бизнес модел", "финмодел", "финансов модел",
+    )),
+    "crm": _compile(("crm", "срм", "клиентск баз", "баз клиент")),
+    "fraud": _compile((
+        "мошенн", "безопасн",
+        "!пожарн|пищев|санитарн безопасн", "!техник безопасн", "!безопасн труд|продукт|продукц|пищ",
+    )),
+    "hiring": _compile(("найм", "нанят", "нанима", "вакан", "собеседован", "подбор персонал", "найти сотрудник")),
+    "automation": _compile(("автоматиз",)),
+    "demand": _compile((
+        # Существительное «спрос»; «спросить» — не о спросе
+        _exact("спрос", "спроса", "спросу", "спросом", "спросе"), "ниш",
+    )),
+    "online_store": _compile(("интернет-магазин", "интернет магазин", "онлайн магазин", "онлайн-магазин")),
+    "profitability": _compile(("прибыл", "рентабельн", "маржинал", "юнит-эконом", "юнит эконом")),
+    # «Сколько стоит» не входит: так спрашивают о любой цене, а не о цене своего товара
+    "pricing": _compile(("=цена", "=цену", "=цены", "=ценой", "ценообраз", "наценк")),
+    "social_media": _compile(("соцсет", "социальн сет", "smm", "смм", "контент-план", "контент план")),
+    "ad_campaign": _compile(("реклам кампан", "таргет", "первую реклам", "запустить реклам", "объявлен")),
+    "cash_flow": _compile(("денежн поток", "кассов разрыв", "cash-flow")),
+    "customer_service": _compile(("удержан", "лояльн", "отзыв", "жалоб", "клиентск сервис")),
+    "foreign_trade": _compile(("экспорт", "импорт", "за рубеж", "зарубеж", "валют")),
+    "ad_budget": _compile(("реклам бюджет", "окупаем", "эффективн", "romi", "=cac", "стоимост привлечен")),
+    "financing": _compile((
+        "кредит", _LOAN, "микрозайм", "инвестор", "инвестиц", "грант", "субсид", "финансирован",
+    )),
+    "product_positioning": _compile(("позиционир", "ценностн предложен", "=утп")),
+    "search_promotion": _compile(("seo", "сео", "поисков продвижен")),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class _Broad:
+    """Широкие шаблоны признака, записанные как в SIGNAL_PATTERNS, и сочетания, в которых широкое слово
+    называет понятие. Каждое сочетание сужает один из широких шаблонов того же признака; сочетание с «!»
+    в начале — исключение понятия."""
+
+    words: tuple[str, ...]
+    contexts: tuple[str, ...] = ()
+
+
+_VACATION = _exact(
+    "отпуск", "отпуска", "отпуску", "отпуском", "отпуске", "отпусков", "отпускам", "отпусками", "отпусках"
+)
+_DEMAND = _exact("спрос", "спроса", "спросу", "спросом", "спросе")
+_PRICE = _exact("цена", "цену", "цены", "ценой")
+# Что делают со своей ценой: «поставить цену», «поднять цены», «как складывается цена». Глагол «поставить»
+# записан точными формами: основа «постав» задела бы «поставщик» и «поставки»
+_PRICE_ACTION = (
+    "=поставить|=поставлю|=поставим|=поставил|=поставила|=ставить|=ставлю|=ставим|назнач|установ|выстав|"
+    "подня|подним|повыс|повыш|сниз|сниж|определ|рассчита|расчит|посчита|формир|сформир|пересмотр|складыва"
+)
+# Чужая цена: «цена квартиры», «снизить цену на бензин», «цена на мой автомобиль»
+_NOT_PRICED = (
+    "аренд|квартир|автомобил|машин|бензин|топлив|акци|недвижим|жиль|земл|участк|золот|валют|биткоин|нефт|"
+    "билет|путевк|сырь|комплектующ"
+)
+# Цена поставщика — закупочная, не своя: «поставщик поднял цены»
+_SUPPLIER = "поставщик|поставк"
+_PRICE_ACTION_AFTER = _exact(
+    "ставить", "поставить", "назначить", "установить", "выставить", "поднять", "поднимать", "повысить", "повышать",
+    "снизить", "снижать",
+)
+# Что продают: «цена товара», «цены на блюда». Услуг здесь нет: «цена услуг курьера» — о чужой цене
+_PRICED = "товар|продукт|продукц|блюд|меню"
+_MINE = _exact("свой", "свои", "свою", "своих", "мой", "мои", "мою", "моих")
+_BIZ = _exact("бизнес", "бизнеса", "бизнесу", "бизнесом", "бизнесе")
+# Как изучают спрос: «оценить спрос», «анализ спроса»
+_STUDY = "оцен|изуч|анализ|провер|исслед|измер|прогноз|определ|узна|выяв"
+
+# Широкие слова признаков (см. описание модуля): код -> широкие шаблоны и сочетания, в которых широкое
+# слово снова называет понятие. Признаки без записи названы конкретно каждым своим шаблоном.
+BROAD_SIGNAL_WORDS: dict[str, _Broad] = {
+    # Штрафуют не только за отчётность
+    "tax_reporting": _Broad(("штраф",)),
+    # В отпуск уходит и сам владелец: «Как спланировать отпуск»
+    "employment": _Broad(
+        (_VACATION, "отпускн"),
+        (
+            f"оформ|график|рассчита|расчет|перенос|перенест|ежегодн|оплачиваем|декретн|учебн|неиспользован|"
+            f"дополнительн {_VACATION}",
+            f"{_VACATION} =по =уходу|=беременности", f"{_VACATION} =без =сохранения", f"{_VACATION} =за =свой =счет",
+            f"{_VACATION} работник|подчиненн", f"работник|подчиненн * {_VACATION}",
+            # «Отпускные» — выплата; «отпускной сезон» не о сотрудниках
+            _exact("отпускные", "отпускных", "отпускным", "отпускными"),
+        ),
+    ),
+    # «Проводка» бывает и электрической
+    "accounting": _Broad(
+        ("проводк",), ("=какие|типов проводк", "проводк =в|=по =1с|=1c|=учету|=учете|=счету|=счетам")
+    ),
+    # «Первые шаги в Excel» — не о запуске бизнеса. «Бизнес» — точными формами: «бизнес-аналитика» не о запуске
+    "launch": _Broad(
+        ("первые шаги",),
+        (
+            f"первые шаги {_BIZ}|предпринимател|бизнесмен|=ип", f"первые шаги * {_BIZ}|предпринимател|бизнесмен|=ип",
+            f"первые шаги * * {_BIZ}|предпринимател",
+        ),
+    ),
+    # «Безопасность в офисе», «как безопасно переехать» — не о мошенничестве
+    "fraud": _Broad(
+        ("безопасн",),
+        (
+            "безопасн платеж|онлайн-платеж|оплат|расчет|данн|аккаунт|сайт|бизнес|компани|предприят",
+            "безопасн * платеж|онлайн-платеж|оплат|данн", "безопасн =ли * платеж|онлайн-платеж|оплат|перевод|данн",
+            "информационн|экономическ безопасн",
+        ),
+    ),
+    # «Как повысить спрос» — уже о продвижении, а не об оценке спроса
+    "demand": _Broad(
+        (_DEMAND,),
+        (
+            f"{_DEMAND} =на", f"{_STUDY} {_DEMAND}", f"{_STUDY} * {_DEMAND}", f"=есть|=будет =ли {_DEMAND}",
+            f"сезонн {_DEMAND}",
+        ),
+    ),
+    # «Цена аренды», «цена ошибки» — не о цене своего товара
+    "pricing": _Broad(
+        (_PRICE,),
+        (
+            f"{_PRICE_ACTION} {_PRICE}", f"{_PRICE_ACTION} * {_PRICE}", f"{_PRICE} {_PRICE_ACTION_AFTER}",
+            f"{_PRICE} {_PRICED}", f"{_PRICE} =на|=для {_PRICED}|{_MINE}",
+            f"розничн|оптов|отпускн|закупочн|оптимальн|правильн {_PRICE}",
+            # «Снизить цену аренды», «цена на мой автомобиль» — о чужой цене
+            f"!{_PRICE} {_NOT_PRICED}", f"!{_PRICE} =на|=за {_NOT_PRICED}", f"!{_PRICE} =на|=за * {_NOT_PRICED}",
+            f"!{_SUPPLIER} {_PRICE}", f"!{_SUPPLIER} * {_PRICE}", f"!{_PRICE} =у|=от {_SUPPLIER}",
+        ),
+    ),
+    # «Объявление о банкротстве» — не реклама
+    "ad_campaign": _Broad(
+        ("объявлен",), ("реклам|доск объявлен", "объявлен =на|=в|=для =авито|=юле|=юлу|=юла")
+    ),
+    # Без рекламы «эффективно» и «окупаемость» — о любом деле: «Как эффективно планировать день»
+    "ad_budget": _Broad(
+        ("окупаем", "эффективн"),
+        ("окупаем|эффективн реклам|кампан|канал|продвижен|маркетинг|таргет|трафик|объявлен",),
+    ),
+}
+
+
+def _covers(wider: _Word, word: _Word) -> bool:
+    """Подходит ли под `wider` каждое слово задачи, которое подходит под `word`."""
+    if wider.anything:
+        return True
+    if word.anything:
+        return False
+    return all(wider.matches(form) for form in word.exact) and all(stem.startswith(wider.stems) for stem in word.stems)
+
+
+def _narrows(pattern: _Pattern, wider: _Pattern) -> bool:
+    """Содержит ли каждое совпадение `pattern` совпадение `wider`: «оценить спрос» содержит «спрос»."""
+    return any(
+        all(_covers(wider[k], pattern[start + k]) for k in range(len(wider)))
+        for start in range(len(pattern) - len(wider) + 1)
+    )
+
+
+def _split(patterns: tuple[_Pattern, ...]) -> list[_Pattern]:
+    """Шаблоны записи по одному: слитое однословное слово (_compile) делится на варианты."""
+    parts: list[_Pattern] = []
+    for pattern in patterns:
+        word = pattern[0]
+        if len(pattern) == 1 and not word.anything:
+            parts += [(_Word(exact=frozenset({form})),) for form in sorted(word.exact)]
+            parts += [(_Word(stems=(stem,)),) for stem in word.stems]
+        else:
+            parts.append(pattern)
+    return parts
+
+
+def _concept_patterns(code: str, broad: _Broad) -> Patterns:
+    """Шаблоны понятия: шаблоны признака без широких и сочетания. Исключения признака действуют и здесь.
+
+    Широкий шаблон должен быть шаблоном признака, а сочетание — сужать широкий шаблон: так понятие не
+    находится там, где нет признака, а расхождение с SIGNAL_PATTERNS обнаруживается при импорте."""
+    if code not in SIGNAL_PATTERNS:
+        raise ValueError(f"Широкие слова у неизвестного признака {code}")
+    signal, wide = SIGNAL_PATTERNS[code], _compile(broad.words)
+    own, wide_parts = _split(signal.include), _split(wide.include)
+    if wide.exclude or any(part not in own for part in wide_parts):
+        raise ValueError(f"Широкие слова признака {code} должны быть его шаблонами")
+    for text in broad.contexts:
+        context = tuple(_word(w) for w in text.removeprefix("!").split())
+        if not text.startswith("!") and not any(_narrows(context, w) for w in wide.include):
+            raise ValueError(f"Сочетание «{text}» не сужает широкие шаблоны признака {code}")
+    contexts = _compile(broad.contexts)
+    kept = tuple(part for part in own if part not in wide_parts)
+    return Patterns(include=kept + contexts.include, exclude=signal.exclude + contexts.exclude)
+
+
+# Шаблоны понятий: у признака без широких слов они совпадают с шаблонами признака
+CONCEPT_PATTERNS: dict[str, Patterns] = {
+    **SIGNAL_PATTERNS,
+    **{code: _concept_patterns(code, broad) for code, broad in BROAD_SIGNAL_WORDS.items()},
+}
+
+# Сфера из текста: проверяется по порядку, берётся первая. Интернет-торговля раньше розницы.
+INDUSTRY_PATTERNS: tuple[tuple[str, Patterns], ...] = (
+    ("ecom", _compile((
+        "интернет-магазин", "интернет магазин", "онлайн магазин", "онлайн-магазин", *_MARKETPLACES, "e-commerce",
+        "ecom", "онлайн-продаж",
+    ))),
+    ("horeca", _compile((
+        "кофейн", "=кафе", "кафе-", "кафешк", "кафетери", "ресторан", "=бар", "общепит", "столов", "пекарн",
+        "кондитерск", "кулинар", "horeca", "хорека",
+    ))),
+    ("services", _compile(("салон", "=услуги", "=услуг", "парикмахер", "клининг", "репетитор", "фитнес"))),
+    ("construction", _compile(("стройк", "строител", "ремонт", "недвижим", "риелтор"))),
+    ("logistics", _compile(("грузоперевоз", "логистик", "транспорт", "перевоз"))),
+    ("manufacturing", _compile(("производств", "=цех", "фабрик", "завод"))),
+    ("wholesale", _compile(("оптов", "=опт", "дистрибу"))),
+    ("b2g", _compile(("госзаказ", "госзакуп", "b2g"))),
+    # «Для бизнеса» не входит: так говорят о любом бизнесе, а не о продажах бизнесу
+    ("b2b", _compile(("b2b", "корпоративн клиент"))),
+    ("retail", _compile(("розниц", "магазин", "=лавка", "бутик"))),
+)
+
+# Подсказки стадии: код подсказки -> подходящие стадии материала
+STAGE_HINTS: dict[str, tuple[frozenset[str], Patterns]] = {
+    "start": (frozenset({"idea", "start"}), _compile((
+        "с чего начать", "только начина", "начинающ", "хочу открыть", "планирую открыть", "открыть бизнес",
+        "с нуля", "впервые", "первый раз", "первые шаги",
+    ))),
+    "growth": (frozenset({"growth"}), _compile((
+        "масштаб", "растущ", "развит бизнес", "расширить", "системн",
+    ))),
+}
+
+LEVEL_HINTS: dict[str, Patterns] = {
+    "intro": _compile((
+        "новичок", "новичк", "с нуля", "впервые", "не разбира", "начинающ", "=азы", "основы",
+        "неопытн", "не опытн", "не очень|слишком|особо|совсем|самый|самая опытн",
+    )),
+    # Только прилагательное «продвинутый»: «продвинуть кофейню» — тема продвижения, а не уровень
+    "advanced": _compile((
+        _exact(
+            "продвинутый", "продвинутого", "продвинутому", "продвинутым", "продвинутом", "продвинутая",
+            "продвинутой", "продвинутую", "продвинутое", "продвинутые", "продвинутых", "продвинутыми",
+        ),
+        "углубл", "опытн", "уже есть опыт",
+    )),
+}
+
+FORMAT_HINTS: dict[str, Patterns] = {
+    "template": _compile(("шаблон", "образец", "=бланк")),
+    "course": _compile(("курс", "обучени", "вебинар")),
+    "quick": _compile(("быстро", "кратко", "коротко", "чек-лист", "памятк")),
+}
+
+# Узкие темы, которые требуют подтверждения при подборе.
+# Подпись после «о» -> шаблоны для задачи и названий материалов.
+GAP_PATTERNS: dict[str, Patterns] = {
+    "лицензировании": _compile(("лицензи",)),
+    "продаже алкоголя": _compile(("алкогол",)),
+    "сертификации": _compile((
+        "сертификац", "сертифицир", "сертификат соответств|качеств", "сертификат =на продукц|товар",
+        "декларац соответств", "!подарочн сертификат",
+    )),
+    "визах": _compile((_exact("виза", "визы", "визе", "визу", "визой", "виз", "визам", "визами", "визах"), "визов")),
+}
+
+TOPIC_ORDER: tuple[str, ...] = vocab.CHIP_TOPICS + tuple(t for t in vocab.TOPICS if t not in vocab.CHIP_TOPICS)
+
+
+def _spans(tokens: tuple[str, ...], pattern: _Pattern) -> Iterator[tuple[int, int]]:
+    first, size = pattern[0], len(pattern)
+    for start in range(len(tokens) - size + 1):
+        if first.matches(tokens[start]) and all(pattern[k].matches(tokens[start + k]) for k in range(1, size)):
+            yield start, start + size
+
+
+def _found(tokens: tuple[str, ...], patterns: Patterns, *, negatable: bool = False) -> bool:
+    """Есть ли совпадение, которое не отменяют исключения записи, а у подсказок — «не» перед ним."""
+    blocked: list[tuple[int, int]] | None = None
+    for pattern in patterns.include:
+        for start, end in _spans(tokens, pattern):
+            if negatable and start and tokens[start - 1] == "не":
+                continue
+            if patterns.exclude:
+                if blocked is None:
+                    blocked = [span for p in patterns.exclude for span in _spans(tokens, p)]
+                if any(start < stop and begin < end for begin, stop in blocked):
+                    continue
+            return True
+    return False
+
+
+def _first_span(tokens: tuple[str, ...], patterns: Patterns) -> tuple[int, int] | None:
+    """Первое слева совпадение, которое не отменяют исключения записи; при равном начале берётся самое
+    длинное. Совпадение есть тогда же, когда `_found` без отрицания возвращает True."""
+    blocked = [span for p in patterns.exclude for span in _spans(tokens, p)]
+    spans = [
+        (start, end)
+        for pattern in patterns.include
+        for start, end in _spans(tokens, pattern)
+        if not any(start < stop and begin < end for begin, stop in blocked)
+    ]
+    return min(spans, key=lambda span: (span[0], -span[1]), default=None)
+
+
+def _token_bounds(text: str) -> list[tuple[int, int]] | None:
+    """Границы слов `tokenize(text)` в исходном тексте.
+
+    Буквы приводятся к нижнему регистру по одной, «ё» заменяется на «е», каждый знак помнит позицию в
+    исходном тексте. Если слова так разобранного текста разошлись с `tokenize`, возвращается None.
+    """
+    normal: list[str] = []
+    origin: list[int] = []
+    for index, char in enumerate(text):
+        low = char.lower().replace("ё", "е")
+        normal.append(low)
+        origin.extend([index] * len(low))
+    matches = list(_WORD.finditer("".join(normal)))
+    if [m.group() for m in matches] != tokenize(text):
+        return None
+    return [(origin[m.start()], origin[m.end() - 1] + 1) for m in matches]
+
+
+def signal_quote(text: str, code: str, *, concept: bool = False) -> str | None:
+    """Слова задачи, по которым найден признак `code`, как их написал пользователь; None — признака нет.
+
+    «Какую CRM выбрать» и crm → «CRM»; «Какой налоговый режим выбрать» и tax_regime → «налоговый режим».
+    `concept` — задача называет признак как понятие (`ParsedTask.concepts`): цитируются слова понятия
+    по CONCEPT_PATTERNS, а не первое широкое слово. «Как эффективно снизить CAC» и ad_budget → «CAC»,
+    а не «эффективно». Если слов понятия нет, цитируются слова признака.
+    """
+    if code not in SIGNAL_PATTERNS:
+        return None
+    text = text or ""
+    tokens = tuple(tokenize(text))
+    span = _first_span(tokens, CONCEPT_PATTERNS[code]) if concept else None
+    if span is None:
+        span = _first_span(tokens, SIGNAL_PATTERNS[code])
+    bounds = _token_bounds(text) if span else None
+    if span is None or bounds is None:
+        return None
+    start, end = span
+    return " ".join(text[begin:stop] for begin, stop in bounds[start:end])
+
+
+def title_matches_gaps(title: str, gaps: tuple[str, ...]) -> bool:
+    """Все признаки узкой задачи должны встретиться в одном названии."""
+    tokens = tuple(tokenize(title))
+    return all(_found(tokens, GAP_PATTERNS[label]) for label in gaps)
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedTask:
+    """Что удалось распознать в задаче. Пустая задача даёт пустой разбор.
+
+    Темы без тематических слов берутся из найденных понятий, тогда `topics_from_signals` истинно
+    (см. описание модуля).
+    """
+
+    tokens: tuple[str, ...]
+    topics: tuple[str, ...]
+    signals: tuple[str, ...]
+    industry: str | None
+    stage_hint: str | None
+    level_hint: str | None
+    format_hint: str | None
+    gaps: tuple[str, ...]
+    topics_from_signals: bool = False
+    # Понятия: признаки, найденные шаблоном из CONCEPT_PATTERNS. Подмножество `signals`
+    concepts: tuple[str, ...] = ()
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.tokens
+
+
+def parse_task(text: str) -> ParsedTask:
+    tokens = tuple(tokenize(text or ""))
+    topics = tuple(t for t in TOPIC_ORDER if t in TOPIC_PATTERNS and _found(tokens, TOPIC_PATTERNS[t]))
+    signals = tuple(code for code, patterns in SIGNAL_PATTERNS.items() if _found(tokens, patterns))
+    concepts = tuple(code for code in signals if _found(tokens, CONCEPT_PATTERNS[code]))
+    from_signals = not topics and bool(concepts)
+    if from_signals:
+        homes = {vocab.SIGNAL_HOME_TOPIC[code] for code in concepts}
+        topics = tuple(t for t in TOPIC_ORDER if t in homes)
+    industry = next((code for code, patterns in INDUSTRY_PATTERNS if _found(tokens, patterns)), None)
+    stage_hint = next(
+        (code for code, (_, patterns) in STAGE_HINTS.items() if _found(tokens, patterns, negatable=True)), None
+    )
+    level_hint = next(
+        (code for code, patterns in LEVEL_HINTS.items() if _found(tokens, patterns, negatable=True)), None
+    )
+    format_hint = next(
+        (code for code, patterns in FORMAT_HINTS.items() if _found(tokens, patterns, negatable=True)), None
+    )
+    gaps = tuple(label for label, patterns in GAP_PATTERNS.items() if _found(tokens, patterns))
+    return ParsedTask(
+        tokens=tokens,
+        topics=topics,
+        signals=signals,
+        industry=industry,
+        stage_hint=stage_hint,
+        level_hint=level_hint,
+        format_hint=format_hint,
+        gaps=gaps,
+        topics_from_signals=from_signals,
+        concepts=concepts,
+    )
+
+
+def stage_hint_set(code: str | None) -> frozenset[str]:
+    return STAGE_HINTS[code][0] if code in STAGE_HINTS else frozenset()

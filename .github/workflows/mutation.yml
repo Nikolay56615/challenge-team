@@ -1,0 +1,65 @@
+# Мутационное тестирование ядра подбора (W21): mutmut 3 по app/ranking/, раз в неделю и вручную.
+# Настройки — в backend/pyproject.toml, раздел [tool.mutmut]. Порог — 70 % убитых мутантов, отчёт — в артефакте
+# mutation-ranking. Рассчитан на репозиторий, в корне которого лежат backend/ и frontend/, как docker-check.yml.
+name: mutation
+
+on:
+  schedule:
+    # Понедельник, 03:17 UTC
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ranking:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Зависимости
+        working-directory: backend
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: mutmut по app/ranking/
+        # Каждый мутант проверяют только тесты, которые вызывают изменённую функцию. Свойства Hypothesis вызывают
+        # почти весь подбор и попадают к каждому мутанту, поэтому здесь у них 30 примеров вместо 120.
+        # Контракт API по Schemathesis исключён в [tool.mutmut]: подбор он видит только через HTTP.
+        working-directory: backend
+        env:
+          PROPERTY_MAX_EXAMPLES: "30"
+        run: |
+          mutmut run --max-children "$(nproc)"
+          mutmut export-cicd-stats
+          mutmut results > mutants/survivors.txt || true
+      - name: Порог 70 %
+        # Доля = (убитые + превысившие время) / (все − пропущенные), как в mutmut badge. Мутанты без тестов
+        # и подозрительные считаются выжившими.
+        working-directory: backend
+        env:
+          MIN_SCORE: "70"
+        run: |
+          python3 - <<'EOF'
+          import json
+          import os
+
+          stats = json.load(open("mutants/mutmut-cicd-stats.json"))
+          print(json.dumps(stats, indent=2))
+          tested = stats["total"] - stats["skipped"]
+          score = 100 * (stats["killed"] + stats["timeout"]) / tested if tested else 0.0
+          print(f"Доля убитых мутантов: {score:.1f} % из {tested}, порог {os.environ['MIN_SCORE']} %")
+          if score < float(os.environ["MIN_SCORE"]):
+              raise SystemExit(1)
+          EOF
+      - name: Отчёт mutmut
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-ranking
+          path: |
+            backend/mutants/mutmut-cicd-stats.json
+            backend/mutants/survivors.txt
+          if-no-files-found: ignore

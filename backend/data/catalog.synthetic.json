@@ -1,0 +1,174 @@
+{
+  "version": "synthetic-2026-11-09",
+  "note": "Вымышленный каталог для демонстрации и тестов. Ссылки ведут на зарезервированный домен example.org и не являются адресами платформы. Популярность задана в одной шкале.",
+  "popularity_scale": "single",
+  "materials": [
+    {
+      "id": "M01", "title": "Чек-лист: первые шаги в продвижении", "format": "checklist",
+      "topics": ["marketing"], "signals": ["launch", "audience"], "stage": ["idea", "start"], "level": "intro",
+      "industries": ["horeca", "retail", "services"], "duration_minutes": 15, "access": "open",
+      "url": "https://example.org/materials/m01", "short_benefit": null, "popularity": 850,
+      "recommended_next": ["M04", "M03"], "next_step": "Отметьте три пункта, которые сделаете на этой неделе"
+    },
+    {
+      "id": "M02", "title": "Курс «Системный маркетинг для растущего бизнеса»", "format": "course",
+      "topics": ["marketing"], "signals": ["ad_budget", "profitability"], "stage": ["growth"], "level": "advanced",
+      "industries": [], "duration_minutes": 360, "access": "paid",
+      "url": "https://example.org/courses/m02",
+      "short_benefit": "Воронка, план каналов и измеримые цели на квартал. Подробная программа — на странице курса",
+      "popularity": 1100, "recommended_next": ["M06"], "next_step": "Откройте страницу курса: программа, сроки и условия"
+    },
+    {
+      "id": "M03", "title": "Шаблон: контент-план на месяц", "format": "template",
+      "topics": ["marketing"], "signals": ["social_media"], "stage": ["start", "growth"], "level": "practical",
+      "industries": ["ecom", "retail"], "duration_minutes": 20, "access": "open",
+      "url": "https://example.org/materials/m03", "short_benefit": null, "popularity": 1400,
+      "recommended_next": ["M06", "M02"], "next_step": "Скопируйте шаблон и заполните первую неделю"
+    },
+    {
+      "id": "M04", "title": "Статья: как выбрать аудиторию и первый рекламный канал", "format": "article",
+      "topics": ["marketing"], "signals": ["audience", "ad_campaign"], "stage": ["idea", "start"], "level": "intro",
+      "industries": ["retail", "ecom"], "duration_minutes": 10, "access": "open",
+      "url": "https://example.org/materials/m04", "short_benefit": null, "popularity": 600,
+      "recommended_next": ["M05"], "next_step": "Запишите один сегмент аудитории и один канал для первой рекламы"
+    },
+    {
+      "id": "M05", "title": "Вебинар: таргетированная реклама с бюджетом до 10 тысяч", "format": "webinar",
+      "topics": ["marketing"], "signals": ["ad_campaign", "ad_budget"], "stage": ["start", "growth"], "level": "practical",
+      "industries": ["ecom"], "duration_minutes": 90, "access": "paid",
+      "url": null, "short_benefit": "Настройка первой кампании и чтение статистики без агентства",
+      "popularity": 700, "recommended_next": ["M06"], "next_step": "Посмотрите запись и выпишите одну настройку для своей кампании"
+    },
+    {
+      "id": "M06", "title": "Шаблон: расчёт стоимости привлечения клиента", "format": "template",
+      "topics": ["marketing"], "signals": ["ad_budget", "profitability"], "stage": ["growth"], "level": "advanced",
+      "industries": [], "duration_minutes": 30, "access": "open",
+      "url": "https://example.org/materials/m06", "short_benefit": null, "popularity": 300,
+      "recommended_next": ["M02"], "next_step": "Подставьте расходы за месяц и число новых клиентов"
+    },
+    {
+      "id": "M07", "title": "Видео: пять ошибок в продвижении малого бизнеса", "format": "video",
+      "topics": ["marketing"], "signals": ["launch"], "stage": ["idea", "start", "growth"], "level": "intro",
+      "industries": [], "duration_minutes": 12, "access": "open",
+      "url": "https://example.org/materials/m07", "short_benefit": null, "popularity": 800,
+      "recommended_next": ["M01"], "next_step": "Посмотрите и отметьте, какие ошибки уже есть у вас"
+    },
+    {
+      "id": "M08", "title": "Курс «Старт продвижения за 7 дней»", "format": "course",
+      "topics": ["marketing"], "signals": ["ad_campaign", "social_media"], "stage": ["idea", "start"], "level": "intro",
+      "industries": [], "duration_minutes": 180, "access": "paid",
+      "url": "https://example.org/courses/m08",
+      "short_benefit": "Программа на неделю: аудитория, канал, первое объявление и проверка результата",
+      "popularity": 250, "recommended_next": ["M03"], "next_step": "Откройте страницу курса и посмотрите программу первого дня"
+    },
+    {
+      "id": "L01", "title": "Чек-лист: выбрать форму бизнеса и зарегистрироваться", "format": "checklist",
+      "topics": ["start"], "signals": ["registration"], "stage": ["idea"], "level": "intro",
+      "industries": [], "duration_minutes": 20, "access": "open",
+      "url": "https://example.org/materials/l01", "short_benefit": null, "popularity": 1300,
+      "recommended_next": ["L03", "L04", "L02"], "next_step": "Пройдите пункты и выберите форму регистрации"
+    },
+    {
+      "id": "L02", "title": "Курс «Бизнес-план за выходные»", "format": "course",
+      "topics": ["start"], "signals": ["business_plan"], "stage": ["idea"], "level": "intro",
+      "industries": [], "duration_minutes": 240, "access": "paid",
+      "url": "https://example.org/courses/l02",
+      "short_benefit": "Шаблон плана, расчёт выручки и расходов, проверка идеи на первых клиентах",
+      "popularity": 500, "recommended_next": ["L03"], "next_step": "Откройте страницу курса и посмотрите программу первого занятия"
+    },
+    {
+      "id": "L03", "title": "Шаблон: расчёт стартовых затрат", "format": "template",
+      "topics": ["start"], "signals": ["business_plan", "profitability"], "stage": ["idea", "start"], "level": "practical",
+      "industries": [], "duration_minutes": 25, "access": "open",
+      "url": "https://example.org/materials/l03", "short_benefit": null, "popularity": 900,
+      "recommended_next": ["A01"], "next_step": "Внесите расходы на запуск и сравните их с бюджетом"
+    },
+    {
+      "id": "L04", "title": "Статья: первые 30 дней после регистрации", "format": "article",
+      "topics": ["start"], "signals": ["launch", "registration"], "stage": ["start"], "level": "intro",
+      "industries": [], "duration_minutes": 12, "access": "open",
+      "url": "https://example.org/materials/l04", "short_benefit": null, "popularity": 700,
+      "recommended_next": ["A01"], "next_step": "Отметьте задачи первого месяца и поставьте сроки"
+    },
+    {
+      "id": "A01", "title": "Статья: как выбрать налоговый режим", "format": "article",
+      "topics": ["taxes_law"], "signals": ["tax_regime"], "stage": ["idea", "start"], "level": "intro",
+      "industries": [], "duration_minutes": 15, "access": "open",
+      "url": "https://example.org/materials/a01", "short_benefit": null, "popularity": 1500,
+      "recommended_next": ["A02", "A03"], "next_step": "Сравните режимы по таблице в статье и отметьте подходящий"
+    },
+    {
+      "id": "A02", "title": "Шаблон: календарь отчётности на год", "format": "template",
+      "topics": ["taxes_law"], "signals": ["tax_reporting"], "stage": ["start", "growth"], "level": "practical",
+      "industries": [], "duration_minutes": 20, "access": "open",
+      "url": "https://example.org/materials/a02", "short_benefit": null, "popularity": 1000,
+      "recommended_next": ["A04"], "next_step": "Внесите в календарь сроки отчётов своего режима"
+    },
+    {
+      "id": "A03", "title": "Курс «Учёт без бухгалтера»", "format": "course",
+      "topics": ["finance"], "signals": ["accounting", "tax_reporting"], "stage": ["start"], "level": "practical",
+      "industries": [], "duration_minutes": 300, "access": "paid",
+      "url": "https://example.org/courses/a03",
+      "short_benefit": "Учёт доходов и расходов, сроки отчётов и проверка налогов без бухгалтера",
+      "popularity": 650, "recommended_next": ["A02"], "next_step": "Откройте страницу курса и посмотрите программу"
+    },
+    {
+      "id": "A04", "title": "Видео: как не получить штраф в первый год", "format": "video",
+      "topics": ["taxes_law"], "signals": ["tax_reporting"], "stage": ["start"], "level": "intro",
+      "industries": [], "duration_minutes": 14, "access": "open",
+      "url": "https://example.org/materials/a04", "short_benefit": null, "popularity": 800,
+      "recommended_next": ["A02"], "next_step": "Посмотрите и выпишите сроки, которые касаются вас"
+    },
+    {
+      "id": "S01", "title": "Чек-лист: первая продажа за неделю", "format": "checklist",
+      "topics": ["sales"], "signals": ["demand", "pricing"], "stage": ["idea", "start"], "level": "intro",
+      "industries": [], "duration_minutes": 15, "access": "open",
+      "url": "https://example.org/materials/s01", "short_benefit": null, "popularity": 900,
+      "recommended_next": ["S02", "S04"], "next_step": "Выберите один канал и назначьте три разговора с клиентами"
+    },
+    {
+      "id": "S02", "title": "Шаблон: скрипт разговора с клиентом", "format": "template",
+      "topics": ["sales"], "signals": ["negotiation", "crm"], "stage": ["start", "growth"], "level": "practical",
+      "industries": ["services", "b2b"], "duration_minutes": 20, "access": "open",
+      "url": "https://example.org/materials/s02", "short_benefit": null, "popularity": 1150,
+      "recommended_next": ["S03"], "next_step": "Адаптируйте скрипт под свой продукт и проверьте его на трёх звонках"
+    },
+    {
+      "id": "S03", "title": "Курс «Отдел продаж с нуля»", "format": "course",
+      "topics": ["sales"], "signals": ["hiring", "crm"], "stage": ["growth"], "level": "advanced",
+      "industries": ["b2b"], "duration_minutes": 420, "access": "paid",
+      "url": "https://example.org/courses/s03",
+      "short_benefit": "Найм первых менеджеров, скрипты, CRM и план продаж на квартал",
+      "popularity": 700, "recommended_next": [], "next_step": "Откройте страницу курса и посмотрите программу"
+    },
+    {
+      "id": "S04", "title": "Статья: как считать воронку продаж", "format": "article",
+      "topics": ["sales"], "signals": ["profitability"], "stage": ["start", "growth"], "level": "practical",
+      "industries": ["ecom"], "duration_minutes": 12, "access": "open",
+      "url": "https://example.org/materials/s04", "short_benefit": null, "popularity": 600,
+      "recommended_next": ["S02"], "next_step": "Посчитайте конверсию на каждом шаге своей воронки"
+    },
+    {
+      "id": "O01", "title": "Чек-лист: порядок в задачах за один вечер", "format": "checklist",
+      "topics": ["operations"], "signals": ["automation"], "stage": ["idea", "start", "growth"], "level": "intro",
+      "industries": [], "duration_minutes": 20, "access": "open",
+      "url": "https://example.org/materials/o01", "short_benefit": null, "popularity": 800,
+      "recommended_next": ["O02"], "next_step": "Пройдите пункты и выберите один инструмент для задач"
+    },
+    {
+      "id": "O02", "title": "Шаблон: регламент для первого сотрудника", "format": "template",
+      "topics": ["operations"], "signals": ["hiring", "employment"], "stage": ["growth"], "level": "practical",
+      "industries": [], "duration_minutes": 30, "access": "open",
+      "url": "https://example.org/materials/o02", "short_benefit": null, "popularity": 500,
+      "recommended_next": ["O03"], "next_step": "Заполните регламент для одной должности"
+    },
+    {
+      "id": "O03", "title": "Курс «Делегирование и процессы»", "format": "course",
+      "topics": ["operations"], "signals": ["automation", "hiring"], "stage": ["growth"], "level": "advanced",
+      "industries": [], "duration_minutes": 300, "access": "paid",
+      "url": "https://example.org/courses/o03",
+      "short_benefit": "Описание процессов, передача задач и контроль без микроменеджмента",
+      "popularity": 400, "recommended_next": [], "next_step": "Откройте страницу курса и посмотрите программу"
+    }
+  ]
+}

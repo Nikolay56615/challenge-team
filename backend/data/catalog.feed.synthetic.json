@@ -1,0 +1,4449 @@
+{
+ "version": "synthetic-feed-1",
+ "note": "Вымышленный каталог для ленты по профилю: 23 материала размеченного каталога без изменений и 143 новых по 13 темам. Собран скриптом evaluation/build_feed_synthetic.py, зерно 20261115. Ссылки ведут на зарезервированный домен example.org. Популярность новых курсов — число записей в вымышленном журнале, остальных новых материалов — случайная в шкале исходного каталога.",
+ "popularity_scale": "single",
+ "materials": [
+  {
+   "id": "M01",
+   "title": "Чек-лист: первые шаги в продвижении",
+   "format": "checklist",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "launch",
+    "audience"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/m01",
+   "short_benefit": null,
+   "popularity": 850,
+   "recommended_next": [
+    "M04",
+    "M03"
+   ],
+   "next_step": "Отметьте три пункта, которые сделаете на этой неделе"
+  },
+  {
+   "id": "M02",
+   "title": "Курс «Системный маркетинг для растущего бизнеса»",
+   "format": "course",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_budget",
+    "profitability"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 360,
+   "access": "paid",
+   "url": "https://example.org/courses/m02",
+   "short_benefit": "Воронка, план каналов и измеримые цели на квартал. Подробная программа — на странице курса",
+   "popularity": 1100,
+   "recommended_next": [
+    "M06"
+   ],
+   "next_step": "Откройте страницу курса: программа, сроки и условия"
+  },
+  {
+   "id": "M03",
+   "title": "Шаблон: контент-план на месяц",
+   "format": "template",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "social_media"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom",
+    "retail"
+   ],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/m03",
+   "short_benefit": null,
+   "popularity": 1400,
+   "recommended_next": [
+    "M06",
+    "M02"
+   ],
+   "next_step": "Скопируйте шаблон и заполните первую неделю"
+  },
+  {
+   "id": "M04",
+   "title": "Статья: как выбрать аудиторию и первый рекламный канал",
+   "format": "article",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "audience",
+    "ad_campaign"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "retail",
+    "ecom"
+   ],
+   "duration_minutes": 10,
+   "access": "open",
+   "url": "https://example.org/materials/m04",
+   "short_benefit": null,
+   "popularity": 600,
+   "recommended_next": [
+    "M05"
+   ],
+   "next_step": "Запишите один сегмент аудитории и один канал для первой рекламы"
+  },
+  {
+   "id": "M05",
+   "title": "Вебинар: таргетированная реклама с бюджетом до 10 тысяч",
+   "format": "webinar",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_campaign",
+    "ad_budget"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 90,
+   "access": "paid",
+   "url": null,
+   "short_benefit": "Настройка первой кампании и чтение статистики без агентства",
+   "popularity": 700,
+   "recommended_next": [
+    "M06"
+   ],
+   "next_step": "Посмотрите запись и выпишите одну настройку для своей кампании"
+  },
+  {
+   "id": "M06",
+   "title": "Шаблон: расчёт стоимости привлечения клиента",
+   "format": "template",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_budget",
+    "profitability"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 30,
+   "access": "open",
+   "url": "https://example.org/materials/m06",
+   "short_benefit": null,
+   "popularity": 300,
+   "recommended_next": [
+    "M02"
+   ],
+   "next_step": "Подставьте расходы за месяц и число новых клиентов"
+  },
+  {
+   "id": "M07",
+   "title": "Видео: пять ошибок в продвижении малого бизнеса",
+   "format": "video",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "launch"
+   ],
+   "stage": [
+    "idea",
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/m07",
+   "short_benefit": null,
+   "popularity": 800,
+   "recommended_next": [
+    "M01"
+   ],
+   "next_step": "Посмотрите и отметьте, какие ошибки уже есть у вас"
+  },
+  {
+   "id": "M08",
+   "title": "Курс «Старт продвижения за 7 дней»",
+   "format": "course",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_campaign",
+    "social_media"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 180,
+   "access": "paid",
+   "url": "https://example.org/courses/m08",
+   "short_benefit": "Программа на неделю: аудитория, канал, первое объявление и проверка результата",
+   "popularity": 250,
+   "recommended_next": [
+    "M03"
+   ],
+   "next_step": "Откройте страницу курса и посмотрите программу первого дня"
+  },
+  {
+   "id": "L01",
+   "title": "Чек-лист: выбрать форму бизнеса и зарегистрироваться",
+   "format": "checklist",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "registration"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/l01",
+   "short_benefit": null,
+   "popularity": 1300,
+   "recommended_next": [
+    "L03",
+    "L04",
+    "L02"
+   ],
+   "next_step": "Пройдите пункты и выберите форму регистрации"
+  },
+  {
+   "id": "L02",
+   "title": "Курс «Бизнес-план за выходные»",
+   "format": "course",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "business_plan"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "paid",
+   "url": "https://example.org/courses/l02",
+   "short_benefit": "Шаблон плана, расчёт выручки и расходов, проверка идеи на первых клиентах",
+   "popularity": 500,
+   "recommended_next": [
+    "L03"
+   ],
+   "next_step": "Откройте страницу курса и посмотрите программу первого занятия"
+  },
+  {
+   "id": "L03",
+   "title": "Шаблон: расчёт стартовых затрат",
+   "format": "template",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "business_plan",
+    "profitability"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 25,
+   "access": "open",
+   "url": "https://example.org/materials/l03",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "A01"
+   ],
+   "next_step": "Внесите расходы на запуск и сравните их с бюджетом"
+  },
+  {
+   "id": "L04",
+   "title": "Статья: первые 30 дней после регистрации",
+   "format": "article",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "launch",
+    "registration"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/l04",
+   "short_benefit": null,
+   "popularity": 700,
+   "recommended_next": [
+    "A01"
+   ],
+   "next_step": "Отметьте задачи первого месяца и поставьте сроки"
+  },
+  {
+   "id": "A01",
+   "title": "Статья: как выбрать налоговый режим",
+   "format": "article",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_regime"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/a01",
+   "short_benefit": null,
+   "popularity": 1500,
+   "recommended_next": [
+    "A02",
+    "A03"
+   ],
+   "next_step": "Сравните режимы по таблице в статье и отметьте подходящий"
+  },
+  {
+   "id": "A02",
+   "title": "Шаблон: календарь отчётности на год",
+   "format": "template",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_reporting"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/a02",
+   "short_benefit": null,
+   "popularity": 1000,
+   "recommended_next": [
+    "A04"
+   ],
+   "next_step": "Внесите в календарь сроки отчётов своего режима"
+  },
+  {
+   "id": "A03",
+   "title": "Курс «Учёт без бухгалтера»",
+   "format": "course",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "accounting",
+    "tax_reporting"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 300,
+   "access": "paid",
+   "url": "https://example.org/courses/a03",
+   "short_benefit": "Учёт доходов и расходов, сроки отчётов и проверка налогов без бухгалтера",
+   "popularity": 650,
+   "recommended_next": [
+    "A02"
+   ],
+   "next_step": "Откройте страницу курса и посмотрите программу"
+  },
+  {
+   "id": "A04",
+   "title": "Видео: как не получить штраф в первый год",
+   "format": "video",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_reporting"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/materials/a04",
+   "short_benefit": null,
+   "popularity": 800,
+   "recommended_next": [
+    "A02"
+   ],
+   "next_step": "Посмотрите и выпишите сроки, которые касаются вас"
+  },
+  {
+   "id": "S01",
+   "title": "Чек-лист: первая продажа за неделю",
+   "format": "checklist",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "demand",
+    "pricing"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/s01",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "S02",
+    "S04"
+   ],
+   "next_step": "Выберите один канал и назначьте три разговора с клиентами"
+  },
+  {
+   "id": "S02",
+   "title": "Шаблон: скрипт разговора с клиентом",
+   "format": "template",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "negotiation",
+    "crm"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "services",
+    "b2b"
+   ],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/s02",
+   "short_benefit": null,
+   "popularity": 1150,
+   "recommended_next": [
+    "S03"
+   ],
+   "next_step": "Адаптируйте скрипт под свой продукт и проверьте его на трёх звонках"
+  },
+  {
+   "id": "S03",
+   "title": "Курс «Отдел продаж с нуля»",
+   "format": "course",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "hiring",
+    "crm"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "b2b"
+   ],
+   "duration_minutes": 420,
+   "access": "paid",
+   "url": "https://example.org/courses/s03",
+   "short_benefit": "Найм первых менеджеров, скрипты, CRM и план продаж на квартал",
+   "popularity": 700,
+   "recommended_next": [],
+   "next_step": "Откройте страницу курса и посмотрите программу"
+  },
+  {
+   "id": "S04",
+   "title": "Статья: как считать воронку продаж",
+   "format": "article",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "profitability"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/s04",
+   "short_benefit": null,
+   "popularity": 600,
+   "recommended_next": [
+    "S02"
+   ],
+   "next_step": "Посчитайте конверсию на каждом шаге своей воронки"
+  },
+  {
+   "id": "O01",
+   "title": "Чек-лист: порядок в задачах за один вечер",
+   "format": "checklist",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "automation"
+   ],
+   "stage": [
+    "idea",
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/o01",
+   "short_benefit": null,
+   "popularity": 800,
+   "recommended_next": [
+    "O02"
+   ],
+   "next_step": "Пройдите пункты и выберите один инструмент для задач"
+  },
+  {
+   "id": "O02",
+   "title": "Шаблон: регламент для первого сотрудника",
+   "format": "template",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "hiring",
+    "employment"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 30,
+   "access": "open",
+   "url": "https://example.org/materials/o02",
+   "short_benefit": null,
+   "popularity": 500,
+   "recommended_next": [
+    "O03"
+   ],
+   "next_step": "Заполните регламент для одной должности"
+  },
+  {
+   "id": "O03",
+   "title": "Курс «Делегирование и процессы»",
+   "format": "course",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "automation",
+    "hiring"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 300,
+   "access": "paid",
+   "url": "https://example.org/courses/o03",
+   "short_benefit": "Описание процессов, передача задач и контроль без микроменеджмента",
+   "popularity": 400,
+   "recommended_next": [],
+   "next_step": "Откройте страницу курса и посмотрите программу"
+  },
+  {
+   "id": "C001",
+   "title": "Курс «Первый бизнес: от идеи до первых клиентов»",
+   "format": "course",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "launch",
+    "demand"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 300,
+   "access": "open",
+   "url": "https://example.org/courses/c001",
+   "short_benefit": null,
+   "popularity": 1200,
+   "recommended_next": [
+    "C002",
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C002",
+   "title": "Курс «Франшиза под ключ»",
+   "format": "course",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "franchise"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 180,
+   "access": "paid",
+   "url": "https://example.org/courses/c002",
+   "short_benefit": "Выбор франшизы, расчёт вложений и договор с владельцем. Программа на странице курса",
+   "popularity": 950,
+   "recommended_next": [
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F001",
+   "title": "Статья: что выбрать новичку, ИП или ООО",
+   "format": "article",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "registration"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f001",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "F002"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F002",
+   "title": "Чек-лист: документы для регистрации ИП",
+   "format": "checklist",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "registration"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 19,
+   "access": "open",
+   "url": "https://example.org/materials/f002",
+   "short_benefit": null,
+   "popularity": 450,
+   "recommended_next": [
+    "F003"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F003",
+   "title": "Видео: регистрация бизнеса за один день",
+   "format": "video",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "registration"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/video/f003",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "C001"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F004",
+   "title": "Статья: как проверить спрос до запуска",
+   "format": "article",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "demand"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 11,
+   "access": "open",
+   "url": "https://example.org/materials/f004",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F005",
+   "title": "Шаблон: опрос будущих клиентов",
+   "format": "template",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "demand"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/f005",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "C001"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F006",
+   "title": "Статья: из чего состоит бизнес-модель",
+   "format": "article",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "business_plan"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 10,
+   "access": "open",
+   "url": "https://example.org/materials/f006",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "F007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F007",
+   "title": "Шаблон: финансовая модель на первый год",
+   "format": "template",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "business_plan"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 27,
+   "access": "open",
+   "url": "https://example.org/materials/f007",
+   "short_benefit": null,
+   "popularity": 1000,
+   "recommended_next": [
+    "C001"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F008",
+   "title": "Статья: как выбрать франшизу",
+   "format": "article",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "franchise"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "horeca"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f008",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "F009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F009",
+   "title": "Чек-лист: вопросы к владельцу франшизы",
+   "format": "checklist",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "franchise"
+   ],
+   "stage": [
+    "idea"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "horeca"
+   ],
+   "duration_minutes": 17,
+   "access": "open",
+   "url": "https://example.org/materials/f009",
+   "short_benefit": null,
+   "popularity": 1200,
+   "recommended_next": [
+    "C001"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F010",
+   "title": "Статья: когда самозанятому пора открывать ИП",
+   "format": "article",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "self_employment"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "services"
+   ],
+   "duration_minutes": 10,
+   "access": "open",
+   "url": "https://example.org/materials/f010",
+   "short_benefit": null,
+   "popularity": 1150,
+   "recommended_next": [
+    "F011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F011",
+   "title": "Видео: самозанятость простыми словами",
+   "format": "video",
+   "topics": [
+    "start"
+   ],
+   "signals": [
+    "self_employment"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "services"
+   ],
+   "duration_minutes": 13,
+   "access": "subscription",
+   "url": "https://example.org/video/f011",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "C001"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C003",
+   "title": "Курс «Налоги для предпринимателя без бухгалтера»",
+   "format": "course",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_reporting",
+    "tax_regime"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 300,
+   "access": "subscription",
+   "url": "https://example.org/courses/c003",
+   "short_benefit": "Режимы, сроки платежей и отчёты ИП. Доступ по подписке",
+   "popularity": 1200,
+   "recommended_next": [
+    "C004",
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C004",
+   "title": "Курс «Договоры и претензии: практикум»",
+   "format": "course",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "contracts"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 300,
+   "access": "paid",
+   "url": "https://example.org/courses/c004",
+   "short_benefit": "Разбор договоров, претензий и споров с контрагентами. Программа на странице курса",
+   "popularity": 800,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F012",
+   "title": "Статья: патент или упрощёнка для небольшого магазина",
+   "format": "article",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_regime"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "retail"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f012",
+   "short_benefit": null,
+   "popularity": 700,
+   "recommended_next": [
+    "F013"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F013",
+   "title": "Чек-лист: смена налогового режима",
+   "format": "checklist",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_regime"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "retail"
+   ],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f013",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "C003"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F014",
+   "title": "Статья: какие отчёты сдаёт ИП без сотрудников",
+   "format": "article",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_reporting"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f014",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F015",
+   "title": "Шаблон: график платежей в бюджет",
+   "format": "template",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "tax_reporting"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 27,
+   "access": "open",
+   "url": "https://example.org/materials/f015",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "C003"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F016",
+   "title": "Статья: пять пунктов договора, которые защищают от споров",
+   "format": "article",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "contracts"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "services",
+    "b2b"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f016",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F017"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F017",
+   "title": "Шаблон: договор оказания услуг",
+   "format": "template",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "contracts"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "services",
+    "b2b"
+   ],
+   "duration_minutes": 23,
+   "access": "open",
+   "url": "https://example.org/materials/f017",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "C003"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F018",
+   "title": "Статья: как зарегистрировать товарный знак",
+   "format": "article",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "trademark"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f018",
+   "short_benefit": null,
+   "popularity": 600,
+   "recommended_next": [
+    "F019"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F019",
+   "title": "Видео: кому нужен товарный знак",
+   "format": "video",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "trademark"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/video/f019",
+   "short_benefit": null,
+   "popularity": 200,
+   "recommended_next": [
+    "C003"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F020",
+   "title": "Статья: персональные данные клиентов и требования закона",
+   "format": "article",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "personal_data"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom",
+    "services"
+   ],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f020",
+   "short_benefit": null,
+   "popularity": 650,
+   "recommended_next": [
+    "F021"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F021",
+   "title": "Чек-лист: согласие на обработку данных на сайте",
+   "format": "checklist",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "personal_data"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom",
+    "services"
+   ],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/f021",
+   "short_benefit": null,
+   "popularity": 1200,
+   "recommended_next": [
+    "C003"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F022",
+   "title": "Статья: как оформить первого сотрудника",
+   "format": "article",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "employment"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 10,
+   "access": "open",
+   "url": "https://example.org/materials/f022",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "F023"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F023",
+   "title": "Шаблон: трудовой договор для малого бизнеса",
+   "format": "template",
+   "topics": [
+    "taxes_law"
+   ],
+   "signals": [
+    "employment"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 25,
+   "access": "open",
+   "url": "https://example.org/materials/f023",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "C003"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C005",
+   "title": "Курс «Финансы малого бизнеса»",
+   "format": "course",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "cash_flow",
+    "profitability"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 420,
+   "access": "paid",
+   "url": "https://example.org/courses/c005",
+   "short_benefit": "Прибыль, денежный поток и платёжный календарь на своих цифрах. Программа на странице курса",
+   "popularity": 1300,
+   "recommended_next": [
+    "C006",
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C006",
+   "title": "Курс «Управленческий учёт с нуля»",
+   "format": "course",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "accounting"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "subscription",
+   "url": "https://example.org/courses/c006",
+   "short_benefit": "Учёт доходов и расходов в таблице. Доступ по подписке",
+   "popularity": 900,
+   "recommended_next": [
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F024",
+   "title": "Статья: откуда берётся кассовый разрыв",
+   "format": "article",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "cash_flow"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f024",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F025"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F025",
+   "title": "Шаблон: платёжный календарь на месяц",
+   "format": "template",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "cash_flow"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 28,
+   "access": "open",
+   "url": "https://example.org/materials/f025",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "F026"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F026",
+   "title": "Видео: как читать отчёт о движении денег",
+   "format": "video",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "cash_flow"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/video/f026",
+   "short_benefit": null,
+   "popularity": 650,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F027",
+   "title": "Статья: как посчитать прибыль небольшого бизнеса",
+   "format": "article",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "profitability"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 9,
+   "access": "open",
+   "url": "https://example.org/materials/f027",
+   "short_benefit": null,
+   "popularity": 1100,
+   "recommended_next": [
+    "F028"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F028",
+   "title": "Шаблон: расчёт точки безубыточности",
+   "format": "template",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "profitability"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 26,
+   "access": "open",
+   "url": "https://example.org/materials/f028",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F029",
+   "title": "Статья: как назначить цену на услугу",
+   "format": "article",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "pricing"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "services"
+   ],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/materials/f029",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "F030"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F030",
+   "title": "Чек-лист: проверка цены перед повышением",
+   "format": "checklist",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "pricing"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "services"
+   ],
+   "duration_minutes": 16,
+   "access": "open",
+   "url": "https://example.org/materials/f030",
+   "short_benefit": null,
+   "popularity": 600,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F031",
+   "title": "Статья: кредит, лизинг или грант для малого бизнеса",
+   "format": "article",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "financing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/materials/f031",
+   "short_benefit": null,
+   "popularity": 850,
+   "recommended_next": [
+    "F032"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F032",
+   "title": "Чек-лист: документы для заявки на кредит",
+   "format": "checklist",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "financing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f032",
+   "short_benefit": null,
+   "popularity": 500,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F033",
+   "title": "Статья: управленческий учёт в таблице",
+   "format": "article",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "accounting"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 14,
+   "access": "subscription",
+   "url": "https://example.org/materials/f033",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "F034"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F034",
+   "title": "Шаблон: учёт доходов и расходов",
+   "format": "template",
+   "topics": [
+    "finance"
+   ],
+   "signals": [
+    "accounting"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 21,
+   "access": "open",
+   "url": "https://example.org/materials/f034",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C007",
+   "title": "Курс «Реклама в соцсетях для локального бизнеса»",
+   "format": "course",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "social_media",
+    "ad_campaign"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "paid",
+   "url": "https://example.org/courses/c007",
+   "short_benefit": "Запуск рекламы, тексты и расчёт окупаемости. Программа на странице курса",
+   "popularity": 1400,
+   "recommended_next": [
+    "C008",
+    "C009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C008",
+   "title": "Курс «Бренд небольшой компании»",
+   "format": "course",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "product_positioning"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 420,
+   "access": "subscription",
+   "url": "https://example.org/courses/c008",
+   "short_benefit": "Позиционирование, название и оформление. Доступ по подписке",
+   "popularity": 1350,
+   "recommended_next": [
+    "C009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F035",
+   "title": "Статья: о чём писать в соцсетях небольшому бизнесу",
+   "format": "article",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "social_media"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "services"
+   ],
+   "duration_minutes": 11,
+   "access": "open",
+   "url": "https://example.org/materials/f035",
+   "short_benefit": null,
+   "popularity": 600,
+   "recommended_next": [
+    "F036"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F036",
+   "title": "Шаблон: рубрикатор постов",
+   "format": "template",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "social_media"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "services"
+   ],
+   "duration_minutes": 22,
+   "access": "open",
+   "url": "https://example.org/materials/f036",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "F037"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F037",
+   "title": "Видео: первые сто подписчиков",
+   "format": "video",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "social_media"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "services"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/video/f037",
+   "short_benefit": null,
+   "popularity": 450,
+   "recommended_next": [
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F038",
+   "title": "Статья: как запустить первую рекламную кампанию",
+   "format": "article",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_campaign"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/materials/f038",
+   "short_benefit": null,
+   "popularity": 950,
+   "recommended_next": [
+    "F039"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F039",
+   "title": "Чек-лист: запуск рекламы в поиске",
+   "format": "checklist",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_campaign"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f039",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F040",
+   "title": "Статья: как попасть на карты и в поиск по району",
+   "format": "article",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "search_promotion"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f040",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F041"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F041",
+   "title": "Чек-лист: карточка компании на картах",
+   "format": "checklist",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "search_promotion"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 18,
+   "access": "open",
+   "url": "https://example.org/materials/f041",
+   "short_benefit": null,
+   "popularity": 550,
+   "recommended_next": [
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F042",
+   "title": "Статья: чем вы отличаетесь от конкурентов",
+   "format": "article",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "product_positioning"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f042",
+   "short_benefit": null,
+   "popularity": 200,
+   "recommended_next": [
+    "F043"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F043",
+   "title": "Шаблон: ценностное предложение",
+   "format": "template",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "product_positioning"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 29,
+   "access": "open",
+   "url": "https://example.org/materials/f043",
+   "short_benefit": null,
+   "popularity": 600,
+   "recommended_next": [
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F044",
+   "title": "Статья: сколько тратить на рекламу",
+   "format": "article",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_budget"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f044",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F045"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F045",
+   "title": "Шаблон: расчёт окупаемости рекламы",
+   "format": "template",
+   "topics": [
+    "marketing"
+   ],
+   "signals": [
+    "ad_budget"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 27,
+   "access": "open",
+   "url": "https://example.org/materials/f045",
+   "short_benefit": null,
+   "popularity": 500,
+   "recommended_next": [
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C009",
+   "title": "Курс «Продажи без скидок»",
+   "format": "course",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "negotiation",
+    "pricing"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 180,
+   "access": "paid",
+   "url": "https://example.org/courses/c009",
+   "short_benefit": "Переговоры о цене и работа с возражениями. Программа на странице курса",
+   "popularity": 1000,
+   "recommended_next": [
+    "C010",
+    "C019"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C010",
+   "title": "Курс «Отдел продаж с нуля»",
+   "format": "course",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "crm",
+    "hiring"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "paid",
+   "url": "https://example.org/courses/c010",
+   "short_benefit": "Структура отдела, план и контроль сделок. Программа на странице курса",
+   "popularity": 500,
+   "recommended_next": [
+    "C019"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F046",
+   "title": "Статья: как отвечать на возражение о цене",
+   "format": "article",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "negotiation"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "services",
+    "b2b"
+   ],
+   "duration_minutes": 11,
+   "access": "open",
+   "url": "https://example.org/materials/f046",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "F047"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F047",
+   "title": "Шаблон: скрипт первого звонка",
+   "format": "template",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "negotiation"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "services",
+    "b2b"
+   ],
+   "duration_minutes": 21,
+   "access": "open",
+   "url": "https://example.org/materials/f047",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "C009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F048",
+   "title": "Статья: зачем небольшому бизнесу CRM",
+   "format": "article",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "crm"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f048",
+   "short_benefit": null,
+   "popularity": 450,
+   "recommended_next": [
+    "F049"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F049",
+   "title": "Чек-лист: выбор CRM для отдела из трёх человек",
+   "format": "checklist",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "crm"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f049",
+   "short_benefit": null,
+   "popularity": 450,
+   "recommended_next": [
+    "C009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F050",
+   "title": "Статья: как вернуть клиентов, которые перестали покупать",
+   "format": "article",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "crm",
+    "customer_service"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 12,
+   "access": "subscription",
+   "url": "https://example.org/materials/f050",
+   "short_benefit": null,
+   "popularity": 500,
+   "recommended_next": [
+    "F051"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F051",
+   "title": "Шаблон: письмо постоянному клиенту",
+   "format": "template",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "crm",
+    "customer_service"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 27,
+   "access": "open",
+   "url": "https://example.org/materials/f051",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "C009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F052",
+   "title": "Статья: как малому бизнесу участвовать в тендерах",
+   "format": "article",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "procurement"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "b2g"
+   ],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f052",
+   "short_benefit": null,
+   "popularity": 950,
+   "recommended_next": [
+    "F053"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F053",
+   "title": "Чек-лист: заявка на первый тендер",
+   "format": "checklist",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "procurement"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "b2g"
+   ],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/f053",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "C009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F054",
+   "title": "Статья: коммерческое предложение для корпоративного клиента",
+   "format": "article",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "pricing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "b2b",
+    "wholesale"
+   ],
+   "duration_minutes": 10,
+   "access": "open",
+   "url": "https://example.org/materials/f054",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "F055"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F055",
+   "title": "Шаблон: коммерческое предложение",
+   "format": "template",
+   "topics": [
+    "sales"
+   ],
+   "signals": [
+    "pricing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "b2b",
+    "wholesale"
+   ],
+   "duration_minutes": 29,
+   "access": "open",
+   "url": "https://example.org/materials/f055",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "C009"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C011",
+   "title": "Курс «Процессы малого бизнеса»",
+   "format": "course",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "automation"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 180,
+   "access": "subscription",
+   "url": "https://example.org/courses/c011",
+   "short_benefit": "Описание процессов и регламенты. Доступ по подписке",
+   "popularity": 900,
+   "recommended_next": [
+    "C012",
+    "C013"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C012",
+   "title": "Курс «Склад и доставка для интернет-магазина»",
+   "format": "course",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "logistics",
+    "online_store"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 420,
+   "access": "paid",
+   "url": "https://example.org/courses/c012",
+   "short_benefit": "Хранение, упаковка и доставка заказов. Программа на странице курса",
+   "popularity": 400,
+   "recommended_next": [
+    "C013"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F056",
+   "title": "Статья: какие процессы автоматизировать первыми",
+   "format": "article",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "automation"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f056",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "F057"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F057",
+   "title": "Чек-лист: аудит рутинных задач",
+   "format": "checklist",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "automation"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 17,
+   "access": "open",
+   "url": "https://example.org/materials/f057",
+   "short_benefit": null,
+   "popularity": 650,
+   "recommended_next": [
+    "C011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F058",
+   "title": "Статья: как организовать доставку без своего склада",
+   "format": "article",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "logistics"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom",
+    "logistics"
+   ],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f058",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "F059"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F059",
+   "title": "Шаблон: расчёт стоимости доставки",
+   "format": "template",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "logistics"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom",
+    "logistics"
+   ],
+   "duration_minutes": 23,
+   "access": "open",
+   "url": "https://example.org/materials/f059",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "C011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F060",
+   "title": "Статья: онлайн-касса и способы оплаты",
+   "format": "article",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "cash_register"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "retail",
+    "horeca"
+   ],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f060",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "F061"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F061",
+   "title": "Чек-лист: подключение приёма платежей",
+   "format": "checklist",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "cash_register"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "retail",
+    "horeca"
+   ],
+   "duration_minutes": 17,
+   "access": "open",
+   "url": "https://example.org/materials/f061",
+   "short_benefit": null,
+   "popularity": 1000,
+   "recommended_next": [
+    "C011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F062",
+   "title": "Статья: как защитить бизнес от мошенников",
+   "format": "article",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "fraud"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f062",
+   "short_benefit": null,
+   "popularity": 450,
+   "recommended_next": [
+    "F063"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F063",
+   "title": "Чек-лист: безопасность расчётного счёта",
+   "format": "checklist",
+   "topics": [
+    "operations"
+   ],
+   "signals": [
+    "fraud"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f063",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "C011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F064",
+   "title": "Статья: регламент, который будут читать",
+   "format": "article",
+   "topics": [
+    "operations"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "manufacturing",
+    "services"
+   ],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f064",
+   "short_benefit": null,
+   "popularity": 550,
+   "recommended_next": [
+    "F065"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F065",
+   "title": "Шаблон: инструкция для нового сотрудника",
+   "format": "template",
+   "topics": [
+    "operations"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "manufacturing",
+    "services"
+   ],
+   "duration_minutes": 22,
+   "access": "open",
+   "url": "https://example.org/materials/f065",
+   "short_benefit": null,
+   "popularity": 550,
+   "recommended_next": [
+    "C011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C013",
+   "title": "Курс «Наём и адаптация сотрудников»",
+   "format": "course",
+   "topics": [
+    "team"
+   ],
+   "signals": [
+    "hiring",
+    "employment"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "paid",
+   "url": "https://example.org/courses/c013",
+   "short_benefit": "Вакансия, собеседование и первые недели сотрудника. Программа на странице курса",
+   "popularity": 450,
+   "recommended_next": [
+    "C014",
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C014",
+   "title": "Курс «Руководитель небольшой команды»",
+   "format": "course",
+   "topics": [
+    "team"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 420,
+   "access": "subscription",
+   "url": "https://example.org/courses/c014",
+   "short_benefit": "Постановка задач, обратная связь и делегирование. Доступ по подписке",
+   "popularity": 450,
+   "recommended_next": [
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F066",
+   "title": "Статья: где искать первого сотрудника",
+   "format": "article",
+   "topics": [
+    "team"
+   ],
+   "signals": [
+    "hiring"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f066",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "F067"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F067",
+   "title": "Шаблон: текст вакансии",
+   "format": "template",
+   "topics": [
+    "team"
+   ],
+   "signals": [
+    "hiring"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 23,
+   "access": "open",
+   "url": "https://example.org/materials/f067",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "F068"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F068",
+   "title": "Видео: собеседование за тридцать минут",
+   "format": "video",
+   "topics": [
+    "team"
+   ],
+   "signals": [
+    "hiring"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/video/f068",
+   "short_benefit": null,
+   "popularity": 500,
+   "recommended_next": [
+    "C013"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F069",
+   "title": "Статья: испытательный срок без конфликтов",
+   "format": "article",
+   "topics": [
+    "team"
+   ],
+   "signals": [
+    "employment"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f069",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F070"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F070",
+   "title": "Чек-лист: первый день нового сотрудника",
+   "format": "checklist",
+   "topics": [
+    "team"
+   ],
+   "signals": [
+    "employment"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 19,
+   "access": "open",
+   "url": "https://example.org/materials/f070",
+   "short_benefit": null,
+   "popularity": 800,
+   "recommended_next": [
+    "C013"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F071",
+   "title": "Статья: как платить продавцам",
+   "format": "article",
+   "topics": [
+    "team"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "b2b"
+   ],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/materials/f071",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "F072"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F072",
+   "title": "Шаблон: система премий",
+   "format": "template",
+   "topics": [
+    "team"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail",
+    "b2b"
+   ],
+   "duration_minutes": 27,
+   "access": "open",
+   "url": "https://example.org/materials/f072",
+   "short_benefit": null,
+   "popularity": 700,
+   "recommended_next": [
+    "C013"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F073",
+   "title": "Статья: что предпринимателю передать команде",
+   "format": "article",
+   "topics": [
+    "team"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 9,
+   "access": "open",
+   "url": "https://example.org/materials/f073",
+   "short_benefit": null,
+   "popularity": 550,
+   "recommended_next": [
+    "F074"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F074",
+   "title": "Чек-лист: делегирование задачи",
+   "format": "checklist",
+   "topics": [
+    "team"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 18,
+   "access": "open",
+   "url": "https://example.org/materials/f074",
+   "short_benefit": null,
+   "popularity": 1200,
+   "recommended_next": [
+    "C013"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C015",
+   "title": "Курс «Стратегия роста малого бизнеса»",
+   "format": "course",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "business_plan"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 420,
+   "access": "paid",
+   "url": "https://example.org/courses/c015",
+   "short_benefit": "Цели на год, рынок и план действий. Программа на странице курса",
+   "popularity": 850,
+   "recommended_next": [
+    "C016",
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C016",
+   "title": "Курс «Вторая точка: масштабирование»",
+   "format": "course",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "financing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "paid",
+   "url": "https://example.org/courses/c016",
+   "short_benefit": "Расчёт новой точки, команда и контроль. Программа на странице курса",
+   "popularity": 700,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F075",
+   "title": "Статья: план развития на год",
+   "format": "article",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "business_plan"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/materials/f075",
+   "short_benefit": null,
+   "popularity": 650,
+   "recommended_next": [
+    "F076"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F076",
+   "title": "Шаблон: цели на квартал",
+   "format": "template",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "business_plan"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 21,
+   "access": "open",
+   "url": "https://example.org/materials/f076",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F077",
+   "title": "Статья: как выбрать новую нишу",
+   "format": "article",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "demand"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f077",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "F078"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F078",
+   "title": "Чек-лист: анализ конкурентов",
+   "format": "checklist",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "demand"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 16,
+   "access": "open",
+   "url": "https://example.org/materials/f078",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F079",
+   "title": "Статья: когда бизнесу нужен инвестор",
+   "format": "article",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "financing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f079",
+   "short_benefit": null,
+   "popularity": 350,
+   "recommended_next": [
+    "F080"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F080",
+   "title": "Шаблон: презентация для инвестора",
+   "format": "template",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [
+    "financing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 26,
+   "access": "open",
+   "url": "https://example.org/materials/f080",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F081",
+   "title": "Статья: как открыть вторую точку",
+   "format": "article",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "retail",
+    "horeca"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f081",
+   "short_benefit": null,
+   "popularity": 1000,
+   "recommended_next": [
+    "F082"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F082",
+   "title": "Чек-лист: готовность к масштабированию",
+   "format": "checklist",
+   "topics": [
+    "strategy"
+   ],
+   "signals": [],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "retail",
+    "horeca"
+   ],
+   "duration_minutes": 16,
+   "access": "open",
+   "url": "https://example.org/materials/f082",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C017",
+   "title": "Курс «ИИ в работе предпринимателя»",
+   "format": "course",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "ai",
+    "automation"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "subscription",
+   "url": "https://example.org/courses/c017",
+   "short_benefit": "Тексты, таблицы и ответы клиентам с ИИ-помощником. Доступ по подписке",
+   "popularity": 250,
+   "recommended_next": [
+    "C018",
+    "C011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C018",
+   "title": "Курс «Интернет-магазин за месяц»",
+   "format": "course",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "online_store"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "paid",
+   "url": "https://example.org/courses/c018",
+   "short_benefit": "Сайт, оплата и доставка первого заказа. Программа на странице курса",
+   "popularity": 250,
+   "recommended_next": [
+    "C011"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F083",
+   "title": "Статья: где ИИ экономит время предпринимателя",
+   "format": "article",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "ai"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f083",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "F084"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F084",
+   "title": "Чек-лист: задачи для ИИ-помощника",
+   "format": "checklist",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "ai"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 18,
+   "access": "open",
+   "url": "https://example.org/materials/f084",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "F085"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F085",
+   "title": "Видео: ИИ для текстов и картинок",
+   "format": "video",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "ai"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/video/f085",
+   "short_benefit": null,
+   "popularity": 300,
+   "recommended_next": [
+    "C017"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F086",
+   "title": "Статья: как запустить интернет-магазин",
+   "format": "article",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "online_store"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f086",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "F087"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F087",
+   "title": "Чек-лист: запуск интернет-магазина",
+   "format": "checklist",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "online_store"
+   ],
+   "stage": [
+    "start"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/f087",
+   "short_benefit": null,
+   "popularity": 1000,
+   "recommended_next": [
+    "C017"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F088",
+   "title": "Статья: таблицы вместо дорогих программ",
+   "format": "article",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "automation"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f088",
+   "short_benefit": null,
+   "popularity": 850,
+   "recommended_next": [
+    "F089"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F089",
+   "title": "Шаблон: учёт заказов в таблице",
+   "format": "template",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "automation"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 22,
+   "access": "open",
+   "url": "https://example.org/materials/f089",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "C017"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F090",
+   "title": "Статья: резервные копии и пароли в небольшой компании",
+   "format": "article",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "fraud",
+    "personal_data"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f090",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "F091"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F091",
+   "title": "Чек-лист: цифровая безопасность",
+   "format": "checklist",
+   "topics": [
+    "tech"
+   ],
+   "signals": [
+    "fraud",
+    "personal_data"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 15,
+   "access": "subscription",
+   "url": "https://example.org/materials/f091",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "C017"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C019",
+   "title": "Курс «Клиентский сервис без больших затрат»",
+   "format": "course",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 300,
+   "access": "subscription",
+   "url": "https://example.org/courses/c019",
+   "short_benefit": "Стандарты общения и работа с жалобами. Доступ по подписке",
+   "popularity": 550,
+   "recommended_next": [
+    "C020",
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C020",
+   "title": "Курс «Удержание клиентов»",
+   "format": "course",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service",
+    "crm"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [],
+   "duration_minutes": 240,
+   "access": "paid",
+   "url": "https://example.org/courses/c020",
+   "short_benefit": "Повторные продажи и программа лояльности. Программа на странице курса",
+   "popularity": 600,
+   "recommended_next": [
+    "C007"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F092",
+   "title": "Статья: как отвечать на жалобы клиентов",
+   "format": "article",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f092",
+   "short_benefit": null,
+   "popularity": 450,
+   "recommended_next": [
+    "F093"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F093",
+   "title": "Шаблон: ответы на отзывы",
+   "format": "template",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 24,
+   "access": "open",
+   "url": "https://example.org/materials/f093",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "F094"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F094",
+   "title": "Видео: сервис, за которым возвращаются",
+   "format": "video",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [
+    "horeca",
+    "retail",
+    "services"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/video/f094",
+   "short_benefit": null,
+   "popularity": 750,
+   "recommended_next": [
+    "C019"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F095",
+   "title": "Статья: программа лояльности для небольшого магазина",
+   "format": "article",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f095",
+   "short_benefit": null,
+   "popularity": 950,
+   "recommended_next": [
+    "F096"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F096",
+   "title": "Чек-лист: запуск бонусной программы",
+   "format": "checklist",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "retail"
+   ],
+   "duration_minutes": 18,
+   "access": "open",
+   "url": "https://example.org/materials/f096",
+   "short_benefit": null,
+   "popularity": 500,
+   "recommended_next": [
+    "C019"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F097",
+   "title": "Статья: как собирать отзывы",
+   "format": "article",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 10,
+   "access": "open",
+   "url": "https://example.org/materials/f097",
+   "short_benefit": null,
+   "popularity": 200,
+   "recommended_next": [
+    "F098"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F098",
+   "title": "Шаблон: анкета после покупки",
+   "format": "template",
+   "topics": [
+    "service"
+   ],
+   "signals": [
+    "customer_service"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 21,
+   "access": "open",
+   "url": "https://example.org/materials/f098",
+   "short_benefit": null,
+   "popularity": 1100,
+   "recommended_next": [
+    "C019"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C021",
+   "title": "Курс «Разборы бизнеса: что сработало»",
+   "format": "course",
+   "topics": [
+    "stories"
+   ],
+   "signals": [],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 360,
+   "access": "open",
+   "url": "https://example.org/courses/c021",
+   "short_benefit": null,
+   "popularity": 400,
+   "recommended_next": [
+    "C001"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F099",
+   "title": "Статья: как семейная пекарня пережила первый год",
+   "format": "article",
+   "topics": [
+    "stories"
+   ],
+   "signals": [],
+   "stage": [
+    "start"
+   ],
+   "level": null,
+   "industries": [
+    "horeca"
+   ],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/materials/f099",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "F100"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F100",
+   "title": "Видео: история мастерской мебели",
+   "format": "video",
+   "topics": [
+    "stories"
+   ],
+   "signals": [],
+   "stage": [
+    "start"
+   ],
+   "level": null,
+   "industries": [
+    "horeca"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/video/f100",
+   "short_benefit": null,
+   "popularity": 1100,
+   "recommended_next": [
+    "C021"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F101",
+   "title": "Статья: ошибки при открытии магазина одежды",
+   "format": "article",
+   "topics": [
+    "stories"
+   ],
+   "signals": [],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": null,
+   "industries": [
+    "retail"
+   ],
+   "duration_minutes": 10,
+   "access": "open",
+   "url": "https://example.org/materials/f101",
+   "short_benefit": null,
+   "popularity": 600,
+   "recommended_next": [
+    "F102"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F102",
+   "title": "Видео: предприниматель о смене ниши",
+   "format": "video",
+   "topics": [
+    "stories"
+   ],
+   "signals": [],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": null,
+   "industries": [
+    "retail"
+   ],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/video/f102",
+   "short_benefit": null,
+   "popularity": 900,
+   "recommended_next": [
+    "C021"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F103",
+   "title": "Статья: путь от самозанятого до компании из десяти человек",
+   "format": "article",
+   "topics": [
+    "stories"
+   ],
+   "signals": [
+    "self_employment"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": null,
+   "industries": [],
+   "duration_minutes": 13,
+   "access": "open",
+   "url": "https://example.org/materials/f103",
+   "short_benefit": null,
+   "popularity": 650,
+   "recommended_next": [
+    "F104"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F104",
+   "title": "Вебинар: встреча с владельцами малого бизнеса",
+   "format": "webinar",
+   "topics": [
+    "stories"
+   ],
+   "signals": [
+    "self_employment"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": null,
+   "industries": [],
+   "duration_minutes": 89,
+   "access": "subscription",
+   "url": "https://example.org/webinars/f104",
+   "short_benefit": null,
+   "popularity": 200,
+   "recommended_next": [
+    "C021"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C022",
+   "title": "Курс «Экспорт для малого бизнеса»",
+   "format": "course",
+   "topics": [
+    "abroad"
+   ],
+   "signals": [
+    "foreign_trade"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 420,
+   "access": "paid",
+   "url": "https://example.org/courses/c022",
+   "short_benefit": "Поиск покупателей, расчёты и документы. Программа на странице курса",
+   "popularity": 150,
+   "recommended_next": [
+    "C015"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F105",
+   "title": "Статья: как принять оплату из-за рубежа",
+   "format": "article",
+   "topics": [
+    "abroad"
+   ],
+   "signals": [
+    "foreign_trade"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "ecom",
+    "wholesale"
+   ],
+   "duration_minutes": 11,
+   "access": "subscription",
+   "url": "https://example.org/materials/f105",
+   "short_benefit": null,
+   "popularity": 550,
+   "recommended_next": [
+    "F106"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F106",
+   "title": "Чек-лист: первая поставка за границу",
+   "format": "checklist",
+   "topics": [
+    "abroad"
+   ],
+   "signals": [
+    "foreign_trade"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "ecom",
+    "wholesale"
+   ],
+   "duration_minutes": 16,
+   "access": "open",
+   "url": "https://example.org/materials/f106",
+   "short_benefit": null,
+   "popularity": 950,
+   "recommended_next": [
+    "C022"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F107",
+   "title": "Статья: как найти покупателей в соседних странах",
+   "format": "article",
+   "topics": [
+    "abroad"
+   ],
+   "signals": [
+    "foreign_trade"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "b2b",
+    "manufacturing"
+   ],
+   "duration_minutes": 10,
+   "access": "subscription",
+   "url": "https://example.org/materials/f107",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "F108"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F108",
+   "title": "Шаблон: письмо зарубежному партнёру",
+   "format": "template",
+   "topics": [
+    "abroad"
+   ],
+   "signals": [
+    "foreign_trade"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "b2b",
+    "manufacturing"
+   ],
+   "duration_minutes": 29,
+   "access": "open",
+   "url": "https://example.org/materials/f108",
+   "short_benefit": null,
+   "popularity": 1000,
+   "recommended_next": [
+    "C022"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F109",
+   "title": "Статья: доставка товаров за границу",
+   "format": "article",
+   "topics": [
+    "abroad"
+   ],
+   "signals": [
+    "foreign_trade",
+    "logistics"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "logistics"
+   ],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f109",
+   "short_benefit": null,
+   "popularity": 1050,
+   "recommended_next": [
+    "F110"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F110",
+   "title": "Чек-лист: документы для экспорта",
+   "format": "checklist",
+   "topics": [
+    "abroad"
+   ],
+   "signals": [
+    "foreign_trade",
+    "logistics"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [
+    "logistics"
+   ],
+   "duration_minutes": 18,
+   "access": "open",
+   "url": "https://example.org/materials/f110",
+   "short_benefit": null,
+   "popularity": 700,
+   "recommended_next": [
+    "C022"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C023",
+   "title": "Курс «Маркетплейсы: первые продажи»",
+   "format": "course",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [],
+   "duration_minutes": 420,
+   "access": "paid",
+   "url": "https://example.org/courses/c023",
+   "short_benefit": "Выбор товара, карточка и первая поставка. Программа на странице курса",
+   "popularity": 500,
+   "recommended_next": [
+    "C024",
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "C024",
+   "title": "Курс «Аналитика продаж на маркетплейсе»",
+   "format": "course",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace",
+    "pricing"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "advanced",
+   "industries": [],
+   "duration_minutes": 180,
+   "access": "subscription",
+   "url": "https://example.org/courses/c024",
+   "short_benefit": "Юнит-экономика и отчёты площадки. Доступ по подписке",
+   "popularity": 600,
+   "recommended_next": [
+    "C005"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F111",
+   "title": "Статья: с чего начать продажи на маркетплейсе",
+   "format": "article",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 14,
+   "access": "open",
+   "url": "https://example.org/materials/f111",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "F112"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F112",
+   "title": "Чек-лист: карточка товара",
+   "format": "checklist",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 18,
+   "access": "open",
+   "url": "https://example.org/materials/f112",
+   "short_benefit": null,
+   "popularity": 250,
+   "recommended_next": [
+    "F113"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F113",
+   "title": "Видео: первая поставка на маркетплейс",
+   "format": "video",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace"
+   ],
+   "stage": [
+    "idea",
+    "start"
+   ],
+   "level": "intro",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 15,
+   "access": "open",
+   "url": "https://example.org/video/f113",
+   "short_benefit": null,
+   "popularity": 1250,
+   "recommended_next": [
+    "C023"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F114",
+   "title": "Статья: как считать прибыль на маркетплейсе",
+   "format": "article",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace",
+    "pricing"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 11,
+   "access": "open",
+   "url": "https://example.org/materials/f114",
+   "short_benefit": null,
+   "popularity": 950,
+   "recommended_next": [
+    "F115"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F115",
+   "title": "Шаблон: юнит-экономика товара",
+   "format": "template",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace",
+    "pricing"
+   ],
+   "stage": [
+    "start",
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 20,
+   "access": "open",
+   "url": "https://example.org/materials/f115",
+   "short_benefit": null,
+   "popularity": 550,
+   "recommended_next": [
+    "C023"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F116",
+   "title": "Статья: реклама внутри маркетплейса",
+   "format": "article",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace",
+    "ad_campaign"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 12,
+   "access": "open",
+   "url": "https://example.org/materials/f116",
+   "short_benefit": null,
+   "popularity": 550,
+   "recommended_next": [
+    "F117"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F117",
+   "title": "Чек-лист: участие в акциях маркетплейса",
+   "format": "checklist",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace",
+    "ad_campaign"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom"
+   ],
+   "duration_minutes": 17,
+   "access": "open",
+   "url": "https://example.org/materials/f117",
+   "short_benefit": null,
+   "popularity": 950,
+   "recommended_next": [
+    "C023"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F118",
+   "title": "Статья: свой склад или склад маркетплейса",
+   "format": "article",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace",
+    "logistics"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom",
+    "logistics"
+   ],
+   "duration_minutes": 8,
+   "access": "open",
+   "url": "https://example.org/materials/f118",
+   "short_benefit": null,
+   "popularity": 1150,
+   "recommended_next": [
+    "F119"
+   ],
+   "next_step": null
+  },
+  {
+   "id": "F119",
+   "title": "Шаблон: план поставок",
+   "format": "template",
+   "topics": [
+    "marketplaces"
+   ],
+   "signals": [
+    "marketplace",
+    "logistics"
+   ],
+   "stage": [
+    "growth"
+   ],
+   "level": "practical",
+   "industries": [
+    "ecom",
+    "logistics"
+   ],
+   "duration_minutes": 24,
+   "access": "open",
+   "url": "https://example.org/materials/f119",
+   "short_benefit": null,
+   "popularity": 200,
+   "recommended_next": [
+    "C023"
+   ],
+   "next_step": null
+  }
+ ]
+}

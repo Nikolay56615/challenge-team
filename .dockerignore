@@ -1,0 +1,44 @@
+# Контекст сборки — корень репозитория. Сборке нужны только исходники бэкенда и интерфейса и данные комплекта.
+# Не попадают: закрытые и локальные данные, базы SQLite, .env, тесты, кеши, зависимости и результаты сборки,
+# служебные папки, результаты шагов CI и документация docs. Проверки: задание docker-lint
+# в .github/workflows/docker-check.yml и backend/tests/test_runtime.py.
+.git
+.github
+**/.env
+**/.env.*
+**/*.sqlite3
+**/*.sqlite3-*
+**/*.backup
+**/*.safetensors
+**/*.onnx
+**/*.onnx_data
+**/Personal
+**/data/local
+**/data/restricted
+**/tests
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.hypothesis
+**/.coverage
+**/htmlcov
+**/.venv
+**/.screenshots
+**/.results
+**/.vscode
+**/.idea
+evaluation
+# Документация комплекта: UI-кит и материалы передачи. Эти файлы нужны только получателю репозитория
+docs
+presentation
+# Служебные скрипты, в том числе frontend/scripts: снимок схемы API и генерация типов; сборке интерфейса не нужны
+**/scripts
+# Результаты шагов CI: мутационное тестирование, аудит и SBOM, Lighthouse, копия бэкенда mutmut
+mutation
+supply-chain
+**/.lighthouseci
+**/mutants
