@@ -18,7 +18,6 @@ DATA_DIR = BACKEND_DIR / "data"
 DEFAULT_FRONTEND_DIST = BACKEND_DIR.parent / "frontend" / "dist"
 
 CATALOG_SOURCES = ("synthetic", "sqlite", "file")
-CATALOG_RELEVANCE_MODES = ("legacy", "task", "lexical", "hybrid", "reranked")
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 FLAGS = {"true": True, "false": False, "1": True, "0": False, "yes": True, "no": False, "on": True, "off": False}
 # Порог поддержки пары совместных записей: пара с меньшим числом общих слушателей не загружается
@@ -74,14 +73,7 @@ class Settings:
     metrics_enabled: bool = False
     log_level: str = "info"
     frontend_dist: Path = DEFAULT_FRONTEND_DIST
-    catalog_relevance: str = "legacy"
-    catalog_search_dir: Path | None = None
-    catalog_model_dir: Path | None = None
-    catalog_search_policy: Path | None = None
-    catalog_rerank_dir: Path | None = None
-    catalog_rerank_model_dir: Path | None = None
-    catalog_rerank_encoder_dir: Path | None = None
-    catalog_rerank_policy: Path | None = None
+    demo_profiles_path: Path | None = None
 
     def __post_init__(self) -> None:
         if self.log_level not in LOG_LEVELS:
@@ -106,12 +98,5 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         metrics_enabled=_flag(env.get("METRICS_ENABLED"), False, "METRICS_ENABLED"),
         log_level=_choice(env.get("LOG_LEVEL"), "info", "LOG_LEVEL", LOG_LEVELS),
         frontend_dist=_path(env.get("FRONTEND_DIST")) or DEFAULT_FRONTEND_DIST,
-        catalog_relevance=_choice(env.get("CATALOG_RELEVANCE"), "legacy", "CATALOG_RELEVANCE", CATALOG_RELEVANCE_MODES),
-        catalog_search_dir=_path(env.get("CATALOG_SEARCH_DIR")),
-        catalog_model_dir=_path(env.get("CATALOG_MODEL_DIR")),
-        catalog_search_policy=_path(env.get("CATALOG_SEARCH_POLICY")),
-        catalog_rerank_dir=_path(env.get("CATALOG_RERANK_DIR")),
-        catalog_rerank_model_dir=_path(env.get("CATALOG_RERANK_MODEL_DIR")),
-        catalog_rerank_encoder_dir=_path(env.get("CATALOG_RERANK_ENCODER_DIR")),
-        catalog_rerank_policy=_path(env.get("CATALOG_RERANK_POLICY")),
+        demo_profiles_path=_path(env.get("DEMO_PROFILES_PATH")),
     )

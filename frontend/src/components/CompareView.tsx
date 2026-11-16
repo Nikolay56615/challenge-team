@@ -1,32 +1,9 @@
-import { useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react';
+import { useId, useRef, type Ref } from 'react';
 import type { CompareResponse, ExperienceCode, Item, RecommendResponse } from '../api/types';
-import { formatShownMaterials, toSentence, typo } from '../format';
+import { toSentence, typo } from '../format';
 import { Panel, TabPanel, Tabs } from '../kit';
+import { useScreenIsWide } from '../state/useScreenIsWide';
 import { MaterialCard } from './MaterialCard';
-
-/** Порог компоновки, как в @container screen (min-width: 800px) в kit.css */
-const WIDE_MIN_WIDTH = 800;
-
-/** Ширина ближайшего контейнера .screen, а не окна: так же решает контейнерный запрос */
-function useScreenIsWide(ref: RefObject<HTMLElement | null>): boolean {
-  const [wide, setWide] = useState(false);
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const screen = element.closest<HTMLElement>('.screen') ?? document.documentElement;
-    setWide(screen.clientWidth >= WIDE_MIN_WIDTH);
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) setWide(entry.contentRect.width >= WIDE_MIN_WIDTH);
-    });
-    observer.observe(screen);
-    return () => {
-      observer.disconnect();
-    };
-  }, [ref]);
-  return wide;
-}
 
 /**
  * Выдача по запросу: статус strong или weak и хотя бы одна карточка.
@@ -74,11 +51,13 @@ function Column({ title, response, onComplete, experience }: ColumnProps) {
   const starterId = useId();
   const ranked = hasResults(response);
   // Бейдж темы — как в основной выдаче: у смешанной выдачи и стартовой подборки
+  const showTopics = !ranked || response.status === 'weak';
   const cards = response.items.map((item) => (
     <MaterialCard
       key={item.material_id}
       item={item}
       compact
+      showTopics={showTopics}
       onComplete={onComplete}
       experience={experience}
     />
@@ -88,10 +67,7 @@ function Column({ title, response, onComplete, experience }: ColumnProps) {
     <div className="compare__col">
       <h3 className="h3">{title}</h3>
       {ranked ? (
-        <>
-          <p className="note">{formatShownMaterials(cards.length, response.total_candidates)}</p>
-          {cards}
-        </>
+        cards
       ) : (
         <>
           <p className="compare__message">{typo(toSentence(response.message))}</p>
@@ -117,8 +93,6 @@ export interface CompareViewProps {
   onComplete?: (item: Item) => void;
   /** Выбранная вкладка хранится снаружи: представление пересоздаётся при повторе запроса */
   tab: CompareTab;
-  topicLabel?: string | undefined;
-  filters?: ReactNode;
   onTabChange: (tab: CompareTab) => void;
   /** Заголовок принимает фокус, когда нажатый элемент исчез вместе с прежним ответом */
   headingRef?: Ref<HTMLHeadingElement>;
@@ -127,7 +101,7 @@ export interface CompareViewProps {
 }
 
 /** Один профиль, один каталог, два метода. Широкий экран — две колонки, узкий — вкладки. */
-export function CompareView({ response, onComplete, tab, onTabChange, headingRef, topicLabel, filters, experience = null }: CompareViewProps) {
+export function CompareView({ response, onComplete, tab, onTabChange, headingRef, experience = null }: CompareViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const wide = useScreenIsWide(rootRef);
   const uid = useId();
@@ -152,7 +126,7 @@ export function CompareView({ response, onComplete, tab, onTabChange, headingRef
     <div ref={rootRef} className="results">
       <Panel labelledBy={headingId}>
         <h2 id={headingId} ref={headingRef} className="h2" tabIndex={-1}>
-          {topicLabel ? `Сравнение по теме «${topicLabel}»` : 'Сравнение методов на одном профиле и\u00a0каталоге'}
+          Сравнение методов на одном профиле и&nbsp;каталоге
         </h2>
         {diff ? (
           <p className="note">
@@ -161,7 +135,6 @@ export function CompareView({ response, onComplete, tab, onTabChange, headingRef
         ) : null}
       </Panel>
 
-      {filters}
       {wide ? (
         <div className="compare">
           {baseline}

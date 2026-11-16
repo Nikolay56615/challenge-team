@@ -4,6 +4,7 @@ import './styles/fonts.css';
 import './styles/tokens.css';
 import './styles/kit.css';
 import './styles/app.css';
+import './styles/feed.css';
 import { App } from './App';
 
 const container = document.getElementById('root');

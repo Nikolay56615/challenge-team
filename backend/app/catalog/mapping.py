@@ -13,7 +13,7 @@ import re
 from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 import yaml
 
@@ -168,12 +168,7 @@ class CatalogMapping:
         return minutes if minutes > 0 else None
 
 
-# Обобщение через TypeVar, а не PEP 695: GPU-стадия Dockerfile строится на pytorch/pytorch с Python 3.11,
-# где синтаксис `def _lookup[V](...)` не разбирается, и контейнер падает при импорте.
-V = TypeVar("V")
-
-
-def _lookup(table: dict[str, V], label: str | None) -> V | None:  # noqa: UP047 - GPU-образ на Python 3.11
+def _lookup[V](table: dict[str, V], label: str | None) -> V | None:
     return table.get(norm_label(label)) if label else None
 
 

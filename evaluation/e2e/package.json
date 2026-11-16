@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "install:browser": "playwright-core install chromium --only-shell",
+    "check:feed": "node check_feed.mjs",
     "check:ui": "node check_ui.mjs",
     "check:a11y": "node check_a11y.mjs",
-    "check:task-search": "node check_task_search.mjs",
     "check:wcag": "node check_wcag.mjs",
     "check:contrast": "node check_contrast.mjs",
     "check:cvd": "node check_cvd.mjs",

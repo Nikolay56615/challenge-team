@@ -25,6 +25,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from . import ease
 from .models import CatalogError, CoursePairs, Material, valid_material_id
 
 log = logging.getLogger("app.catalog")
@@ -55,6 +56,26 @@ def empty_summary(min_support: int, source: str = "not_configured") -> dict[str,
     }
 
 
+def _weights(
+    totals: Mapping[str, int], every: Mapping[str, Mapping[str, int]], min_support: int
+) -> dict[str, dict[str, float]]:
+    """Веса модели EASE для ленты по профилю в единицах доли слушателей; пусто, если модель не построить."""
+    if not every:
+        return {}
+    if len(totals) > ease.EASE_MAX_COURSES:
+        log.warning(
+            "Курсов в файле пар %d, больше предела модели %d: лента считает долю слушателей",
+            len(totals), ease.EASE_MAX_COURSES,
+        )
+        return {}
+    try:
+        raw = ease.weights(totals, every)
+    except ValueError:
+        log.warning("Матрица счётчиков файла пар вырождена: лента считает долю слушателей")
+        return {}
+    return ease.in_share_units(raw, totals, every, min_support)
+
+
 def parse_pairs(
     payload: Any, materials: Mapping[str, Material], min_support: int
 ) -> tuple[CoursePairs, dict[str, Any]]:
@@ -63,6 +84,7 @@ def parse_pairs(
         raise CatalogError("Файл пар должен содержать список pairs")
     counts: Counter[str] = Counter()
     together: dict[str, dict[str, int]] = {}
+    every: dict[str, dict[str, int]] = {}  # все верные пары, и ниже порога: счётчики для модели EASE
     totals: dict[str, int] = {}
     seen: set[tuple[str, str]] = set()
     for row in payload["pairs"]:
@@ -97,12 +119,17 @@ def parse_pairs(
             if course in totals and totals[course] != total:
                 counts["total_conflicts"] += 1
             totals[course] = max(totals.get(course, 0), total)
+        if n > 0:
+            every.setdefault(a, {})[b] = n
+            every.setdefault(b, {})[a] = n
         if n < min_support:
             counts["below_support"] += 1
             continue
         together.setdefault(a, {})[b] = n
         together.setdefault(b, {})[a] = n
-    pairs = CoursePairs(together=together, totals=totals, min_support=min_support)
+    pairs = CoursePairs(
+        together=together, totals=totals, min_support=min_support, weights=_weights(totals, every, min_support)
+    )
     summary = empty_summary(min_support, "loaded" if together else "empty")
     summary.update(
         pairs=pairs.size,

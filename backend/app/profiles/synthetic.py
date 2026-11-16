@@ -17,9 +17,9 @@ def _optional(value: object, allowed: Collection[str]) -> str | None:
     return value if isinstance(value, str) and value in allowed else None
 
 
-def load_profiles(path: Path = PROFILES_PATH) -> dict[str, DemoProfile]:
+def load_profiles(path: Path | None = None) -> dict[str, DemoProfile]:
     try:
-        payload = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+        payload = json.loads((Path(path) if path is not None else PROFILES_PATH).read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as exc:  # ValueError включает ошибки JSON и кодировки
         raise CatalogError("Файл тестовых профилей не читается") from exc
     profiles: dict[str, DemoProfile] = {}

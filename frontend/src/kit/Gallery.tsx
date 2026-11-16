@@ -35,6 +35,7 @@ import {
   Tabs,
   Tag,
   TextAreaField,
+  TextField,
   TopBar,
 } from './index';
 import * as S from './samples';
@@ -267,6 +268,31 @@ function TextAreaDemo() {
   );
 }
 
+function TextFieldDemo() {
+  const [code, setCode] = useState('');
+  const [filled, setFilled] = useState('U0239');
+  return (
+    <>
+      <TextField
+        id="kit-code-empty"
+        label="Код клиента: с действием"
+        value={code}
+        onChange={setCode}
+        action={<Button variant="secondary">Найти</Button>}
+        hint="В списке первые 50 из 7 342 клиентов."
+      />
+      <TextField
+        id="kit-code-error"
+        label="Ошибка"
+        value={filled}
+        onChange={setFilled}
+        error="Клиента с кодом «U0239» нет в журнале"
+      />
+      <TextField id="kit-code-disabled" label="disabled" value="U0008" onChange={noop} disabled />
+    </>
+  );
+}
+
 function SelectDemo() {
   const [industry, setIndustry] = useState<IndustryCode | null>(null);
   const [chosen, setChosen] = useState<IndustryCode | null>('horeca');
@@ -434,7 +460,7 @@ function LoadingDemo() {
 function StaleDemo() {
   return (
     <FrameBody>
-      <ResultList status={LOADING_STATUS} stale response={S.STRONG} onComplete={noop} onMore={noop} />
+      <ResultList status={LOADING_STATUS} stale response={S.STRONG} showTopics={false} onComplete={noop} onMore={noop} />
     </FrameBody>
   );
 }
@@ -454,7 +480,7 @@ function WeakDemo() {
           onDismiss={noop}
         />
       ) : null}
-      <ResultList status={S.WEAK.message} response={S.WEAK} onComplete={noop} onMore={noop} />
+      <ResultList status={S.WEAK.message} response={S.WEAK} showTopics onComplete={noop} onMore={noop} />
     </FrameBody>
   );
 }
@@ -730,6 +756,10 @@ export function Gallery() {
             <TextAreaDemo />
           </Specimen>
 
+          <Specimen id="base-textfield" title="TextField">
+            <TextFieldDemo />
+          </Specimen>
+
           <Specimen id="base-select" title="SelectField">
             <SelectDemo />
           </Specimen>
@@ -901,7 +931,7 @@ export function Gallery() {
         <Frames id="screen-intro" title="IntroPanel">
           {() => (
             <FrameBody>
-              <IntroPanel />
+              <IntroPanel onExample={noop} />
             </FrameBody>
           )}
         </Frames>

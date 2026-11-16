@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import sqlite3
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -31,14 +30,9 @@ from pathlib import Path
 from typing import Any
 
 from .. import vocab
-from .article_text import article_description
-from .course_details import CourseDetails
 from .coverage import disabled_features, link_allowed, normalize_popularity, summarize
-from .global_search import Card, cards_for
 from .mapping import CatalogMapping, load_mapping, norm_label
-from .models import Catalog, CatalogError, Material
-from .task_search import TaskIndex
-from .text_search import TextIndex
+from .models import Catalog, CatalogError, HistoryEvent, Material, valid_material_id
 
 log = logging.getLogger("app.catalog")
 
@@ -86,11 +80,6 @@ COUNTED_TABLES: tuple[str, ...] = (
 
 SIGNALS_TABLE = "MaterialSignals"
 SIGNALS_COLUMNS = ("MaterialId", "MaterialFormat", "SignalCode", "MatchedTitle")
-DETAILS_TABLE = "MaterialDetails"
-SEARCH_TABLE = "ArticleSearchMetadata"
-DETAILS_COLUMNS = ("MaterialId", "MaterialFormat", "PlatformUrl", "LessonCount", "HasCertificate")
-PLATFORM_SECTIONS = {"article": "articles", "course": "courses", "document": "documents", "webinar": "webinars"}
-SLUG = re.compile(r"[a-z0-9_-]+")
 
 # Источник популярности (docs/plan.md, 2.2): записи на курсы, входящие редакционные ссылки
 BY_ENROLLMENTS = frozenset({"course"})
@@ -108,25 +97,13 @@ FIELD_CHECKS: dict[str, Callable[[Material], bool]] = {
     "level": lambda m: m.level is not None,
     "industries": lambda m: bool(m.industries),
     "duration": lambda m: m.duration_minutes is not None,
-    "lesson_count": lambda m: m.lesson_count is not None,
-    "certificate": lambda m: m.has_certificate is True,
-    "course_description": lambda m: bool(m.course_details and m.course_details.description),
-    "course_sections": lambda m: bool(m.course_details and (m.course_details.audiences or m.course_details.outcomes)),
     "popularity": lambda m: m.popularity_raw > 0,
     "recommended_next": lambda m: bool(m.recommended_next),
 }
 
 
-def platform_url(fmt: str, slug: object) -> str | None:
-    section = PLATFORM_SECTIONS.get(fmt)
-    if section and isinstance(slug, str) and SLUG.fullmatch(slug):
-        return f"https://kurs.alfabank.ru/{section}/{slug}/"
-    return None
-
-
 def load_sqlite_catalog(
-    db_path: Path, *, signals_path: Path | None = None, mapping_path: Path | None = None,
-    relevance: str = "legacy", passages: dict[str, tuple[str, ...]] | None = None,
+    db_path: Path, *, signals_path: Path | None = None, mapping_path: Path | None = None
 ) -> Catalog:
     mapping = load_mapping(mapping_path)
     path = Path(db_path)
@@ -135,7 +112,6 @@ def load_sqlite_catalog(
         reader = _Reader(db, mapping)
         reader.read()
         version = _version(path)
-        descriptions = _read_search_descriptions(db) if relevance in {"task", "metadata"} else {}
     if not reader.entries:
         raise CatalogError("Каталог пуст: в таблицах материалов нет записей")
     stats = reader.stats
@@ -159,34 +135,40 @@ def load_sqlite_catalog(
         version=version,
         disabled_features=disabled_features(materials, signals_loaded=stats["signals_source"] == "loaded"),
         coverage=summarize(materials, **stats),
-        text_index=TextIndex(materials),
-        task_index=TaskIndex(materials, descriptions, metadata=relevance != "titles", passages=passages)
-        if relevance != "legacy" else None,
     )
 
 
-def _read_search_descriptions(db: _Database) -> dict[str, str]:
-    if not all(db.has(SEARCH_TABLE, column) for column in ("ArticleId", "Description")):
-        return {}
-    flags = ("IsPublic", "IsDeleted", "IsClosed", "NoIndex")
-    if not all(db.has("Articles", flag) for flag in flags):
-        return {}
-    sql = (
-        f"SELECT s.[ArticleId], s.[Description], a.[IsPublic], a.[IsDeleted], a.[IsClosed], a.[NoIndex] "
-        f"FROM [{SEARCH_TABLE}] s JOIN [Articles] a ON a.[Id] = s.[ArticleId]"
-    )
-    return {
-        f"article:{key}": text
-        for ref, value, public, deleted, closed, no_index in db.rows(SEARCH_TABLE, sql)
-        if (key := _ref(ref)) and _flag(public) is True and _flag(deleted) is False
-        and _flag(closed) is False and _flag(no_index) is False and (text := article_description(value))
-    }
+def read_course_log(db_path: Path, mapping_path: Path | None = None) -> dict[str, list[HistoryEvent]]:
+    """Журнал записей на курсы по клиентам: код клиента → события в порядке журнала.
 
-
-def search_cards(path: Path, catalog: Catalog) -> list[Card]:
-
-    with closing(_Database(path, "каталога")) as db:
-        return cards_for(catalog, _read_search_descriptions(db))
+    Читается `CourseUserBindings` без удалённых записей. Статус переводится в событие по разделу
+    `history_events` файла соответствия, оплаченная запись добавляет событие оплаты. Если таблицы или её
+    обязательных столбцов нет, журнал пуст. Код клиента — псевдоним из выгрузки: наружу он уходит только
+    в ответах локально запущенного сервиса.
+    """
+    mapping = load_mapping(mapping_path)
+    table = "CourseUserBindings"
+    with closing(_Database(Path(db_path), "каталога")) as db:
+        if not all(db.has(table, column) for column in ("UserId", "CourseId", "Status")):
+            return {}
+        where = " WHERE COALESCE([IsDeleted], 0) <> 1" if db.has(table, "IsDeleted") else ""
+        sql = (
+            f"SELECT [UserId], [CourseId], [Status], {db.pick(table, 'IsPaid')}, {db.pick(table, 'EventOrder')} "
+            f"FROM [{table}]{where}{db.order_by(table, 'EventOrder')}"
+        )
+        rows = db.rows(table, sql)
+    journal: dict[str, list[HistoryEvent]] = {}
+    for user_id, course_id, status, paid, order in rows:
+        user, course = _ref(user_id), _ref(course_id)
+        event = mapping.history_status.get(status) if isinstance(status, int) else None
+        if user is None or course is None or event is None or not valid_material_id(user):
+            continue
+        events = journal.setdefault(user, [])
+        seq = order if isinstance(order, int) else len(events) + 1
+        events.append(HistoryEvent(f"course:{course}", event, seq))
+        if _flag(paid) and mapping.history_paid:
+            events.append(HistoryEvent(f"course:{course}", mapping.history_paid, seq))
+    return journal
 
 
 class _Database:
@@ -265,9 +247,6 @@ class _Entry:
     title: str
     duration: Any = None
     url: str | None = None
-    lesson_count: int | None = None
-    has_certificate: bool | None = None
-    course_details: CourseDetails | None = None
     statuses: list[str | None] = field(default_factory=list)
     hidden: bool = False
     settings_type: str | None = None
@@ -314,7 +293,6 @@ class _Reader:
             if self.db.has(table)
         }
         self.read_entities()
-        self.read_details()
         self.read_links()
         self.read_settings()
         self.read_topics()
@@ -366,22 +344,6 @@ class _Reader:
         self.stats["skipped_records"] = skipped
         self.stats["titles_missing"] = sum(untitled.values())
         self.stats["id_collisions"] = sum(1 for keys in self.index.values() if len(keys) > 1)
-
-    def read_details(self) -> None:
-        table = DETAILS_TABLE
-        if not all(self.db.has(table, column) for column in DETAILS_COLUMNS):
-            return
-        columns = ", ".join(f"[{column}]" for column in DETAILS_COLUMNS)
-        details_column = self.db.pick(table, "CourseDetails")
-        sql = f"SELECT {columns}, {details_column} FROM [{table}]"
-        for ref, fmt, _url, lessons, certificate, details in self.db.rows(table, sql):
-            entry = self.entries.get(f"{fmt}:{ref}")
-            if entry is None:
-                continue
-            if fmt == "course":
-                entry.lesson_count = lessons if type(lessons) is int and lessons > 0 else None
-                entry.has_certificate = _flag(certificate)
-                entry.course_details = CourseDetails.from_json(details)
 
     def read_links(self) -> None:
         """Читает готовые адреса из необязательной таблицы локального импорта."""
@@ -641,9 +603,6 @@ def _build(reader: _Reader, signals: dict[str, dict[str, int]]) -> list[Material
                 duration_minutes=minutes,
                 access=_access(entry, mapping, access_counts),
                 available=not reasons,
-                lesson_count=entry.lesson_count if not reasons else None,
-                has_certificate=entry.has_certificate if not reasons else None,
-                course_details=entry.course_details if not reasons else None,
                 url=entry.url if not reasons else None,
                 popularity_raw=raw[key],
                 # Без записей и ссылок normalize_popularity даёт 0, как без источника. Равенства решает id

@@ -267,10 +267,11 @@ def test_without_pairs_the_pilot_keeps_the_old_cold_start(catalog, profiles):
             profile = make_profile(profiles[profile_id], limit=limit)
             outcome = recommend(bare, profile, "personal")
             history = HistoryIndex.build(profile.history)
-            expected = policy._starter_outcome(
-                method="personal", status="cold", message=explain.COLD_MESSAGE, detected=(),
-                pool=eligible(bare, history), history=history, limit=limit, by_level=policy.levels_beyond_courses(bare),
+            request = policy._Request(
+                catalog=bare, profile=profile, parsed=parse_task(profile.task), history=history,
+                pool=eligible(bare, history), method="personal",
             )
+            expected = policy._starter_outcome(request, status="cold", message=explain.COLD_MESSAGE, detected=())
             assert outcome == expected
     explicit = recommend(bare, make_profile(profiles["P11"], topic="start", limit=10), "personal")
     assert pilot_contributions(explicit) == set()

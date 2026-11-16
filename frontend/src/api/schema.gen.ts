@@ -10,20 +10,28 @@ export interface ApiSchemas {
   Clarification: Clarification;
   CompareDiff: CompareDiff;
   CompareResponse: CompareResponse;
-  CourseDetailsOut: CourseDetailsOut;
   ErrorBody: ErrorBody;
   ErrorDetail: ErrorDetail;
   ErrorResponse: ErrorResponse;
-  FilterOptionsOut: FilterOptionsOut;
-  FiltersIn: FiltersIn;
+  FeedFact: FeedFact;
+  FeedHistoryOut: FeedHistoryOut;
+  FeedItemOut: FeedItemOut;
+  FeedPart: FeedPart;
+  FeedRequest: FeedRequest;
+  FeedResponse: FeedResponse;
+  FeedShare: FeedShare;
+  FeedSourceShare: FeedSourceShare;
   FlagOut: FlagOut;
   HealthCatalog: HealthCatalog;
   HealthResponse: HealthResponse;
   HistoryEventIn: HistoryEventIn;
   HistoryEventOut: HistoryEventOut;
   ItemOut: ItemOut;
-  MetaCatalog: MetaCatalog;
   MetaResponse: MetaResponse;
+  ModelCardGroup: ModelCardGroup;
+  ModelCardResponse: ModelCardResponse;
+  ModelCardRow: ModelCardRow;
+  ModelCardValue: ModelCardValue;
   Option: Option;
   ProbeResponse: ProbeResponse;
   ProfileOut: ProfileOut;
@@ -33,6 +41,8 @@ export interface ApiSchemas {
   Route: Route;
   RouteStep: RouteStep;
   SignalOut: SignalOut;
+  UserOut: UserOut;
+  UsersResponse: UsersResponse;
 }
 export interface CatalogInfo {
   disabled_features: string[];
@@ -63,7 +73,6 @@ export interface RecommendResponse {
   catalog: CatalogInfo;
   clarification: Clarification | null;
   detected_topics: string[];
-  filter_options?: FilterOptionsOut | null;
   items: ItemOut[];
   message: string;
   method: 'personal' | 'baseline';
@@ -72,25 +81,18 @@ export interface RecommendResponse {
   status: 'strong' | 'weak' | 'none' | 'cold' | 'empty';
   total_candidates: number;
 }
-export interface FilterOptionsOut {
-  access: Option[];
-  formats: Option[];
-}
 export interface ItemOut {
   access: 'open' | 'subscription' | 'paid';
   access_label: string;
   contributions: {
     [k: string]: number;
   };
-  course_details?: CourseDetailsOut | null;
   duration_minutes: number | null;
   flags: FlagOut[];
   format: string;
   format_label: string;
-  has_certificate?: boolean | null;
   industries: string[];
   is_paid: boolean;
-  lesson_count?: number | null;
   level: string | null;
   level_label: string | null;
   link_allowed: boolean;
@@ -105,11 +107,6 @@ export interface ItemOut {
   topic_labels: string[];
   topics: string[];
   url: string | null;
-}
-export interface CourseDetailsOut {
-  audiences: string[];
-  description: string | null;
-  outcomes: string[];
 }
 export interface FlagOut {
   code: 'in_progress' | 'completed' | 'viewed';
@@ -139,9 +136,124 @@ export interface ErrorDetail {
 export interface ErrorResponse {
   error: ErrorBody;
 }
-export interface FiltersIn {
-  access?: ('open' | 'subscription' | 'paid') | null;
-  format?: ('checklist' | 'article' | 'template' | 'document' | 'video' | 'course' | 'webinar' | 'podcast') | null;
+/**
+ * Поле профиля клиента с подписью происхождения: анкета, вывод из истории или «не указано».
+ */
+export interface FeedFact {
+  name: string;
+  origin: string;
+  value: string | null;
+}
+export interface FeedHistoryOut {
+  event: 'view' | 'start' | 'complete' | 'purchase';
+  event_label: string;
+  format_label: string | null;
+  material_id: string;
+  title: string | null;
+}
+export interface FeedItemOut {
+  access: 'open' | 'subscription' | 'paid';
+  access_label: string;
+  duration_minutes: number | null;
+  flags: FlagOut[];
+  format: string;
+  format_label: string;
+  is_paid: boolean;
+  level_label: string | null;
+  link_allowed: boolean;
+  material_id: string;
+  next_step: string;
+  parts: FeedPart[];
+  rank: number;
+  reason: string;
+  score: number;
+  short_benefit: string | null;
+  title: string;
+  topic_labels: string[];
+  url: string | null;
+}
+export interface FeedPart {
+  evidence: string | null;
+  label: string;
+  note: string | null;
+  source: 'progress' | 'history' | 'content' | 'links' | 'task' | 'profile' | 'access' | 'popularity' | 'seen';
+  value: number;
+}
+/**
+ * Запрос ленты по профилю (docs/plan.md, раздел 13).
+ *
+ * История берётся из `history`, а без неё — у клиента с кодом `user_id` (`GET /api/users`). Затем «что если»:
+ * события материалов из `exclude_history` убираются, события `add_history` добавляются после последнего
+ * события истории, их `seq` задаёт порядок между собой.
+ */
+export interface FeedRequest {
+  /**
+   * @maxItems 200
+   */
+  add_history?: HistoryEventIn[];
+  /**
+   * @maxItems 200
+   */
+  exclude_history?: string[];
+  experience?: ('none' | 'some' | 'experienced') | null;
+  format_pref?: ('quick' | 'template' | 'course') | null;
+  history?: HistoryEventIn[] | null;
+  industry?:
+    | (
+        | 'horeca'
+        | 'retail'
+        | 'ecom'
+        | 'services'
+        | 'construction'
+        | 'logistics'
+        | 'b2b'
+        | 'manufacturing'
+        | 'wholesale'
+        | 'b2g'
+      )
+    | null;
+  limit?: number;
+  price_weight?: number | null;
+  stage?: ('idea' | 'start' | 'growth') | null;
+  task?: string;
+  user_id?: string | null;
+}
+export interface HistoryEventIn {
+  event: 'view' | 'start' | 'complete' | 'purchase';
+  material_id: string;
+  seq: number;
+}
+export interface FeedResponse {
+  catalog: CatalogInfo;
+  facts: FeedFact[];
+  history: FeedHistoryOut[];
+  interests: FeedShare[];
+  items: FeedItemOut[];
+  message: string;
+  request_id: string;
+  sources: FeedSourceShare[];
+  status: 'history' | 'cold';
+  total_candidates: number;
+  user: UserOut | null;
+}
+export interface FeedShare {
+  label: string;
+  share: number;
+}
+export interface FeedSourceShare {
+  label: string;
+  share: number;
+  source: 'progress' | 'history' | 'content' | 'links' | 'task' | 'profile' | 'access' | 'popularity' | 'seen';
+}
+/**
+ * Клиент из подключённого журнала: код, подпись, сегмент и размер истории.
+ */
+export interface UserOut {
+  id: string;
+  label: string;
+  materials: number;
+  paid: boolean;
+  segment: string | null;
 }
 export interface HealthCatalog {
   coverage: {
@@ -156,22 +268,12 @@ export interface HealthResponse {
   catalog: HealthCatalog;
   status: 'ok';
 }
-export interface HistoryEventIn {
-  event: 'view' | 'start' | 'complete' | 'purchase';
-  material_id: string;
-  seq: number;
-}
 export interface HistoryEventOut {
   event: 'view' | 'start' | 'complete' | 'purchase';
   material_id: string;
   seq: number;
 }
-export interface MetaCatalog {
-  available: number;
-  source: string;
-}
 export interface MetaResponse {
-  catalog: MetaCatalog;
   demo_mode: boolean;
   experience: Option[];
   formats: Option[];
@@ -179,6 +281,36 @@ export interface MetaResponse {
   max_task_length: number;
   stages: Option[];
   topics: Option[];
+}
+export interface ModelCardGroup {
+  code: string;
+  label: string;
+  rows: ModelCardRow[];
+  users: number;
+}
+/**
+ * Метод на журнале записей: доля пользователей, у которых скрытый курс стоит первым и в первых пяти.
+ */
+export interface ModelCardRow {
+  hit1: number;
+  hit5: number;
+  label: string;
+  method: string;
+  ndcg5: number;
+}
+/**
+ * Паспорт модели ленты: тип данных проверки, качество по группам, веса источников и свойства ленты.
+ */
+export interface ModelCardResponse {
+  data: string;
+  feed: ModelCardValue[];
+  groups: ModelCardGroup[];
+  weights: ModelCardValue[];
+}
+export interface ModelCardValue {
+  label: string;
+  share: boolean;
+  value: number;
 }
 /**
  * Ответ /api/live и /api/ready: только статус, без сведений о каталоге.
@@ -215,7 +347,6 @@ export interface ProfilesResponse {
 }
 export interface RecommendRequest {
   experience?: ('none' | 'some' | 'experienced') | null;
-  filters?: FiltersIn | null;
   format_pref?: ('quick' | 'template' | 'course') | null;
   history?: HistoryEventIn[] | null;
   industry?:
@@ -254,4 +385,13 @@ export interface RecommendRequest {
         | 'marketplaces'
       )
     | null;
+}
+/**
+ * Клиенты, код которых начинается с запроса: первые `limit` из `matched`; `total` — всего в журнале.
+ */
+export interface UsersResponse {
+  matched: number;
+  source: string;
+  total: number;
+  users: UserOut[];
 }

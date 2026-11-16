@@ -8,6 +8,8 @@
 // у пометок «Совпало» и бейджей видна граница, кольцо фокуса видно на основной кнопке.
 // Увеличение 400 %: окно 1280×1024 при масштабе 400 % равно 320×256 CSS px; все состояния без горизонтальной
 // прокрутки, кнопка «Подобрать материалы» достижима.
+// Экран ленты по профилю проходит те же проверки на семи состояниях walkFeedStates; у него дополнительно
+// сверяется, что сегменты полосы оценки сохраняют цвет источника, а не сливаются с фоном страницы.
 // Эмуляция Chromium не равна настоящему режиму Windows: системную палитру выбирает браузер, а не тема пользователя.
 //
 // Запуск из корня проекта при работающем сервисе с собранным интерфейсом:
@@ -15,7 +17,7 @@
 
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { base, outDir, runBrowserChecks, walkStates } from './browser.mjs';
+import { base, FEED_VIEW, outDir, runBrowserChecks, TASK_VIEW, walkFeedStates, walkStates } from './browser.mjs';
 
 const results = [];
 const check = (id, name, ok, note = '') => {
@@ -93,13 +95,24 @@ function inspect() {
   };
 }
 
+/** Сегменты полосы оценки в режиме принудительных цветов: цвет источника сохранён, а не заменён фоном страницы */
+function seriesKept() {
+  const canvas = getComputedStyle(document.body).backgroundColor;
+  const segments = Array.from(document.querySelectorAll('.score-bar__seg')).filter((el) => el.checkVisibility());
+  const lost = segments.filter((el) => {
+    const s = getComputedStyle(el);
+    return s.backgroundImage === 'none' && (s.backgroundColor === canvas || s.backgroundColor === 'rgba(0, 0, 0, 0)');
+  });
+  return { segments: segments.length, lost: lost.length };
+}
+
 await runBrowserChecks('display-results.json', results, async (browser) => {
   // ---------- принудительные цвета ----------
   for (const scheme of ['dark', 'light']) {
     for (const width of [390, 1120]) {
       const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU', forcedColors: 'active', colorScheme: scheme });
       const page = await context.newPage();
-      await page.goto(base + '/');
+      await page.goto(base + TASK_VIEW);
       let index = 0;
       let failed = 0;
       const notes = [];
@@ -139,6 +152,21 @@ await runBrowserChecks('display-results.json', results, async (browser) => {
       });
       check('W19', `Принудительные цвета, ${scheme === 'dark' ? 'тёмная' : 'светлая'} палитра: кольцо фокуса видно (${width})`,
         ring.visible && ring.style !== 'none' && parseFloat(ring.width) >= 2 && ring.color !== ring.background, JSON.stringify(ring));
+
+      // Экран ленты: те же признаки, и сегменты полосы оценки сохраняют цвет источника
+      await page.goto(base + FEED_VIEW);
+      await walkFeedStates(page, width, async (state) => {
+        index += 1;
+        await emulate();
+        const info = await page.evaluate(inspect);
+        const bar = await page.evaluate(seriesKept);
+        await shoot(join(shotsDir, `${scheme}-${width}-${String(index).padStart(2, '0')}-${slug(state)}.png`));
+        const ok = info.forced && info.background !== 'rgb(255, 250, 250)' && info.textDiffers && info.problems.length === 0 && bar.lost === 0;
+        if (!ok) failed += 1;
+        check('W19', `Принудительные цвета, ${scheme === 'dark' ? 'тёмная' : 'светлая'} палитра: ${state} (${width})`, ok,
+          `текст ${info.text} на ${info.background}; пар выбора ${info.pairs}, баннеров ${info.banners}, сегментов полосы ${bar.segments}, без цвета ${bar.lost}` +
+            (info.problems.length ? '; ' + info.problems.join('; ') : ''));
+      });
       notes.push(`${index} состояний, с замечаниями ${failed}`);
       console.log(`  ${scheme} ${width}: ${notes.join('; ')}; снимки в ${shotsDir}`);
       await context.close();
@@ -150,7 +178,7 @@ await runBrowserChecks('display-results.json', results, async (browser) => {
   {
     const context = await browser.newContext({ viewport: { width: 320, height: 256 }, locale: 'ru-RU' });
     const page = await context.newPage();
-    await page.goto(base + '/');
+    await page.goto(base + TASK_VIEW);
     let states = 0;
     const wide = [];
     await walkStates(page, 320, async (state) => {
@@ -166,6 +194,17 @@ await runBrowserChecks('display-results.json', results, async (browser) => {
     const box = await button.boundingBox();
     check('W19', 'Увеличение 400 %: кнопка «Подобрать материалы» достижима прокруткой и целиком в окне', box && box.y >= 0 && box.y + box.height <= 256,
       box ? `кнопка ${Math.round(box.y)}–${Math.round(box.y + box.height)} px в окне высотой 256` : 'нет кнопки');
+
+    await page.goto(base + FEED_VIEW);
+    let feedStates = 0;
+    const feedWide = [];
+    await walkFeedStates(page, 320, async (state) => {
+      feedStates += 1;
+      const doc = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: innerWidth }));
+      if (doc.scroll > doc.inner + 1) feedWide.push(`${state}: ${doc.scroll} px`);
+    });
+    check('W19', 'Увеличение 400 % (окно 320×256): состояния ленты не прокручиваются по горизонтали', feedStates === 7 && feedWide.length === 0,
+      `состояний ${feedStates}` + (feedWide.length ? `; шире окна: ${feedWide.slice(0, 3).join('; ')}` : ''));
     await context.close();
   }
 });

@@ -5,7 +5,7 @@
 //   npm --prefix evaluation/e2e run check:a11y -- [адрес] [папка результатов]
 
 import { readFileSync } from 'node:fs';
-import { base, chooseProfile, runBrowserChecks, submit } from './browser.mjs';
+import { base, chooseProfile, runBrowserChecks, submit, TASK_VIEW } from './browser.mjs';
 
 const axeSource = readFileSync(new URL(import.meta.resolve('axe-core/axe.min.js')), 'utf8');
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -13,6 +13,9 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const rows = [];
 
 async function audit(page, state, width) {
+  // Цвета замеряются после переходов: кнопка отправки возвращается из неактивного вида плавно, и замер
+  // посреди перехода давал ложное нарушение контраста с промежуточными цветами
+  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => null))));
   // CSP приложения запрещает встроенные скрипты; контекст проверки открыт с bypassCSP
   await page.addScriptTag({ content: axeSource });
   const result = await page.evaluate((tags) => window.axe.run(document, { runOnly: { type: 'tag', values: tags } }), TAGS);
@@ -27,7 +30,7 @@ async function audit(page, state, width) {
   console.log(`${violations.length ? 'FAIL' : 'PASS'} ${state} ${width}: нарушений ${violations.length}, правил пройдено ${result.passes.length}${violations.length ? ' — ' + violations.join('; ') : ''}`);
 }
 
-async function open(browser, width, path = '/') {
+async function open(browser, width, path = TASK_VIEW) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU', bypassCSP: true });
   const page = await context.newPage();
   await page.goto(base + path);
@@ -59,7 +62,7 @@ await runBrowserChecks('a11y-results.json', rows, async (browser) => {
     await audit(page, 'сравнение P02', width);
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
-    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
     await submit(page);
     await audit(page, 'пустая форма, стартовая подборка', width);
 

@@ -29,5 +29,7 @@ frontend/.screenshots/
 *.sqlite3-*
 *.backup
 
+# Local project data and private folders
+/Personal/
 /data/local/
 /data/restricted/

@@ -1,6 +1,6 @@
 import { useEffect, useId, type Ref } from 'react';
 import type { MetaResponse } from '../api/types';
-import { charsGenitive, formatAvailableMaterials, typo } from '../format';
+import { charsGenitive, typo } from '../format';
 import { Button, Panel, TextAreaField } from '../kit';
 import type { FormValues, RefinementValues } from '../state/useRecommend';
 import { RefinementFields } from './RefinementFields';
@@ -14,7 +14,7 @@ export interface TaskFormProps {
   error: string | null;
   loading: boolean;
   busy?: boolean;
-  headingRef?: Ref<HTMLHeadingElement>;
+  examplesId?: string;
   submitRef?: Ref<HTMLButtonElement>;
   onTaskChange: (value: string) => void;
   onRefinementsChange: (patch: Partial<RefinementValues>) => void;
@@ -31,7 +31,7 @@ export function TaskForm({
   error,
   loading,
   busy = loading,
-  headingRef,
+  examplesId,
   submitRef,
   onTaskChange,
   onRefinementsChange,
@@ -49,14 +49,16 @@ export function TaskForm({
 
   return (
     <Panel labelledBy={headingId}>
-      <h1 id={headingId} ref={headingRef} tabIndex={-1} className="h1">
-        Подберём материалы под вашу задачу
+      <h1 id={headingId} className="h1">
+        Найдите материалы для бизнеса
       </h1>
-      <p className="note catalog-source">
-        {meta?.catalog.source === 'synthetic'
-          ? 'Тестовый каталог'
-          : meta ? `Локальный каталог · ${formatAvailableMaterials(meta.catalog.available)}` : null}
-      </p>
+      {examplesId ? (
+        <Button variant="primary" aria-disabled={loading || undefined} onClick={() => {
+          if (!loading) document.getElementById(examplesId)?.focus();
+        }}>
+          Выбрать готовую задачу
+        </Button>
+      ) : null}
       <TextAreaField
         id={taskId}
         label="Что вы хотите сделать?"
@@ -79,7 +81,8 @@ export function TaskForm({
       <div className="actions">
         {/* Во время загрузки кнопка остаётся в фокусе: aria-disabled вместо disabled */}
         <Button
-          variant="primary"
+          variant={examplesId ? 'outline' : 'primary'}
+          className="task-submit"
           ref={submitRef}
           aria-disabled={loading || undefined}
           data-busy={busy}

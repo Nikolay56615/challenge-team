@@ -75,9 +75,11 @@ from starlette.routing import BaseRoute, Match, Mount
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .api.routes import ApiProblem, problem_response, router, task_too_long_message
-from .catalog.loader import load_catalog
+from .catalog.loader import load_catalog, load_feed_catalog
 from .catalog.models import CatalogError
 from .config import Settings, load_settings
+from .model_card import load_model_card
+from .profiles.clients import load_clients
 from .profiles.synthetic import load_profiles
 
 log = logging.getLogger("app")
@@ -93,6 +95,7 @@ STATIC_TYPES = {
     ".css": "text/css",
     ".txt": "text/plain",
     ".woff2": "font/woff2",
+    ".jpg": "image/jpeg",
 }
 for _extension, _type in STATIC_TYPES.items():
     mimetypes.add_type(_type, _extension)
@@ -124,7 +127,7 @@ DOCS_PATHS = frozenset({"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.js
 # web-share убран: Chrome Headless Shell 158, в котором браузерные проверки идут в CI, его не знает,
 # и check:wcag ловил ошибку консоли (запуск из чистой копии 12 ноября 2026 года); Edge 157 имя знает.
 DISABLED_FEATURES = (
-    "accelerometer", "autoplay", "camera", "display-capture", "encrypted-media", "fullscreen",
+    "accelerometer", "autoplay", "bluetooth", "camera", "display-capture", "encrypted-media", "fullscreen",
     "geolocation", "gyroscope", "hid", "idle-detection", "local-fonts", "magnetometer", "microphone", "midi",
     "payment", "picture-in-picture", "publickey-credentials-get", "screen-wake-lock", "serial", "usb",
     "xr-spatial-tracking",
@@ -634,12 +637,32 @@ def _validation_details(exc: RequestValidationError, settings: Settings) -> list
     return details or [{"field": "body", "message": "Неверный запрос"}]
 
 
+# Аргументы строки доступа uvicorn: адрес клиента, метод, путь со строкой запроса, версия HTTP, статус
+_ACCESS_ARGS = 5
+_ACCESS_PATH = 2
+
+
+class _AccessWithoutQuery(logging.Filter):
+    """Строка доступа uvicorn без строки запроса: в ней был бы код клиента из `GET /api/users?q=…`."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) == _ACCESS_ARGS:
+            target = args[_ACCESS_PATH]
+            if isinstance(target, str):
+                record.args = (*args[:_ACCESS_PATH], target.partition("?")[0], *args[_ACCESS_PATH + 1 :])
+        return True
+
+
 def _configure_logging(level_name: str) -> None:
     level = logging.getLevelNamesMapping()[level_name.upper()]
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     # Уровень задаётся и журналам uvicorn: при warning строки доступа и проверки здоровья не пишутся
     for name in ("app", "uvicorn", "uvicorn.error", "uvicorn.access"):
         logging.getLogger(name).setLevel(level)
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(item, _AccessWithoutQuery) for item in access.filters):
+        access.addFilter(_AccessWithoutQuery())
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -652,11 +675,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.catalog = None
+    app.state.feed_catalog = None
     try:
         app.state.catalog = load_catalog(settings)
+        app.state.feed_catalog = load_feed_catalog(settings, app.state.catalog)
     except CatalogError as exc:
         log.error("catalog not loaded: %s", exc)
-    app.state.profiles = load_profiles() if settings.demo_mode else {}
+    app.state.profiles = load_profiles(settings.demo_profiles_path) if settings.demo_mode else {}
+    app.state.clients = load_clients(settings, app.state.feed_catalog, app.state.profiles)
+    app.state.model_card = load_model_card()
 
     @app.exception_handler(ApiProblem)
     async def _api_problem(_: Request, exc: ApiProblem) -> JSONResponse:

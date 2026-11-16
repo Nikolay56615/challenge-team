@@ -13,6 +13,8 @@ import re
 
 import pytest
 
+from app.catalog import ease
+from app.catalog import pairs as pairs_module
 from app.catalog.loader import SYNTHETIC_PAIRS, load_catalog, pairs_path
 from app.catalog.models import CatalogError
 from app.catalog.pairs import DROP_REASONS, PAIRS_STATES, load_course_pairs, parse_pairs
@@ -205,6 +207,35 @@ def test_similarity_is_the_share_of_anchor_listeners():
     assert pairs.similarity("C1", "C2", 1.0) == pytest.approx(12 / 40)
     assert pairs.similarity("C2", "C1", 1.0) == pytest.approx(12 / 30)
     assert pairs.similarity("C1", "C3", 1.0) == 0.0
+
+
+def test_ease_weights_come_from_all_pairs_in_share_units(caplog):
+    """Модель EASE для ленты: веса по всем парам файла, в единицах доли слушателей; сбой модели её отключает."""
+    # Два курса по 10 слушателей, 5 общих, без регуляризации: вес равен 0,5 в обе стороны
+    raw = ease.weights({"a": 10, "b": 10}, {"a": {"b": 5}, "b": {"a": 5}}, lam=0.0)
+    assert raw["a"]["b"] == pytest.approx(0.5) and raw["b"]["a"] == pytest.approx(0.5) and "a" not in raw["a"]
+    inverse = ease.invert([[2.0, 1.0], [1.0, 3.0]])
+    assert [[round(v, 6) for v in row] for row in inverse] == [[0.6, -0.2], [-0.2, 0.4]]
+    with pytest.raises(ValueError, match="вырождена"):
+        ease.invert([[1.0, 2.0], [2.0, 4.0]])
+
+    catalog = courses_catalog()
+    rows = [pair("C1", "C2", 12, 40, 30), pair("C1", "C3", 9, 40, 20)]  # вторая пара ниже порога поддержки
+    pairs, _ = parse_pairs({"pairs": rows}, catalog.materials, 10)
+    # Пара ниже порога в счётчики для фразы не входит, а в модель входит
+    assert "C3" not in pairs.neighbours("C1") and pairs.weight("C1", "C3") > 0
+    # Масштаб: средний наибольший вес курсов с журналом равен их средней наибольшей доле слушателей
+    logged = [course for course, users in pairs.totals.items() if users >= 10]
+    best_weight = sum(max(pairs.weights[course].values()) for course in logged) / len(logged)
+    best_share = (12 / 40 + 12 / 30 + 9 / 20) / 3
+    assert best_weight == pytest.approx(best_share)
+    assert pairs.weight("C1", "ZZ") == 0.0 and pairs.weight("ZZ", "C1") == 0.0
+
+    assert ease.in_share_units({"a": {"b": -0.1}, "b": {"a": -0.1}}, {"a": 10, "b": 10}, {"a": {"b": 5}}, 10) == {}
+    with caplog.at_level(logging.WARNING, logger="app.catalog"):
+        many = {f"C{i}": 10 for i in range(ease.EASE_MAX_COURSES + 1)}
+        assert pairs_module._weights(many, {"C0": {"C1": 5}, "C1": {"C0": 5}}, 10) == {}
+    assert "больше предела модели" in caplog.text
 
 
 def test_load_without_path_is_not_configured():

@@ -22,10 +22,7 @@ def test_defaults_without_environment():
     settings = load_settings({})
     assert settings == Settings()
     assert (settings.catalog_source, settings.demo_mode, settings.log_level, settings.max_task_length) == (
-        "synthetic",
-        True,
-        "info",
-        300,
+        "synthetic", True, "info", 300
     )
     # Пилот «похожие курсы»: без пути — синтетические пары для synthetic, порог поддержки 10
     assert (settings.catalog_pairs_path, settings.pairs_min_support) == (None, 10)
@@ -70,19 +67,8 @@ def test_catalog_pairs_path_values(value, expected):
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [
-        ("true", True),
-        ("TRUE", True),
-        (" yes ", True),
-        ("1", True),
-        ("on", True),
-        ("false", False),
-        ("0", False),
-        ("no", False),
-        ("Off", False),
-        ("", True),
-        ("  ", True),
-    ],
+    [("true", True), ("TRUE", True), (" yes ", True), ("1", True), ("on", True),
+     ("false", False), ("0", False), ("no", False), ("Off", False), ("", True), ("  ", True)],
 )
 def test_demo_mode_values(value, expected):
     assert load_settings({"DEMO_MODE": value}).demo_mode is expected
@@ -97,19 +83,8 @@ def test_demo_mode_typo_stops_startup(value):
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [
-        ("true", True),
-        ("TRUE", True),
-        (" yes ", True),
-        ("1", True),
-        ("On", True),
-        ("false", False),
-        ("0", False),
-        ("no", False),
-        ("OFF", False),
-        ("", False),
-        ("  ", False),
-    ],
+    [("true", True), ("TRUE", True), (" yes ", True), ("1", True), ("On", True),
+     ("false", False), ("0", False), ("no", False), ("OFF", False), ("", False), ("  ", False)],
 )
 def test_metrics_enabled_values(value, expected):
     # Те же значения, что у DEMO_MODE; пусто — выключено
@@ -140,14 +115,8 @@ def test_metrics_enabled_typo_stops_launcher_before_uvicorn(monkeypatch, capsys)
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [
-        ("debug", "debug"),
-        ("INFO", "info"),
-        (" Warning ", "warning"),
-        ("error", "error"),
-        ("CRITICAL", "critical"),
-        ("", "info"),
-    ],
+    [("debug", "debug"), ("INFO", "info"), (" Warning ", "warning"), ("error", "error"), ("CRITICAL", "critical"),
+     ("", "info")],
 )
 def test_log_level_values(value, expected):
     assert load_settings({"LOG_LEVEL": value}).log_level == expected
@@ -167,10 +136,6 @@ def test_log_level_typo_stops_startup(value):
         ({"MAX_TASK_LENGTH": "abc"}, "MAX_TASK_LENGTH должен быть целым числом"),
         ({"MAX_TASK_LENGTH": "2001"}, "MAX_TASK_LENGTH должен быть в диапазоне 1–2000"),
         ({"CATALOG_SOURCE": "sqllite"}, "CATALOG_SOURCE должен быть одним из: synthetic, sqlite, file"),
-        (
-            {"CATALOG_RELEVANCE": "other"},
-            "CATALOG_RELEVANCE должен быть одним из: legacy, task, lexical, hybrid, reranked",
-        ),
     ],
 )
 def test_other_invalid_values_name_the_variable(env, message):
@@ -182,11 +147,6 @@ def test_app_port_is_not_read_by_the_app():
     # В контейнере сервис всегда слушает 8000; APP_PORT — только порт на машине пользователя в compose
     assert "app_port" not in {f.name for f in dataclasses.fields(Settings)}
     assert load_settings({"APP_PORT": "not-a-port"}) == Settings()
-
-
-def test_task_relevance_is_opt_in():
-    assert load_settings({}).catalog_relevance == "legacy"
-    assert load_settings({"CATALOG_RELEVANCE": " Task "}).catalog_relevance == "task"
 
 
 @pytest.mark.parametrize(

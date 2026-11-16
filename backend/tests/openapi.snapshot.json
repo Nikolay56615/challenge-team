@@ -102,42 +102,6 @@
         "title": "CompareResponse",
         "type": "object"
       },
-      "CourseDetailsOut": {
-        "properties": {
-          "audiences": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Audiences",
-            "type": "array"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "outcomes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Outcomes",
-            "type": "array"
-          }
-        },
-        "required": [
-          "description",
-          "audiences",
-          "outcomes"
-        ],
-        "title": "CourseDetailsOut",
-        "type": "object"
-      },
       "ErrorBody": {
         "properties": {
           "code": {
@@ -194,72 +158,583 @@
         "title": "ErrorResponse",
         "type": "object"
       },
-      "FilterOptionsOut": {
+      "FeedFact": {
+        "description": "Поле профиля клиента с подписью происхождения: анкета, вывод из истории или «не указано».",
         "properties": {
-          "access": {
-            "items": {
-              "$ref": "#/components/schemas/Option"
-            },
-            "title": "Access",
-            "type": "array"
+          "name": {
+            "title": "Name",
+            "type": "string"
           },
-          "formats": {
-            "items": {
-              "$ref": "#/components/schemas/Option"
-            },
-            "title": "Formats",
-            "type": "array"
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
           }
         },
         "required": [
-          "formats",
-          "access"
+          "name",
+          "value",
+          "origin"
         ],
-        "title": "FilterOptionsOut",
+        "title": "FeedFact",
         "type": "object"
       },
-      "FiltersIn": {
-        "additionalProperties": false,
+      "FeedHistoryOut": {
         "properties": {
-          "access": {
-            "anyOf": [
-              {
-                "enum": [
-                  "open",
-                  "subscription",
-                  "paid"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+          "event": {
+            "enum": [
+              "view",
+              "start",
+              "complete",
+              "purchase"
             ],
-            "title": "Access"
+            "title": "Event",
+            "type": "string"
           },
-          "format": {
+          "event_label": {
+            "title": "Event Label",
+            "type": "string"
+          },
+          "format_label": {
             "anyOf": [
               {
-                "enum": [
-                  "checklist",
-                  "article",
-                  "template",
-                  "document",
-                  "video",
-                  "course",
-                  "webinar",
-                  "podcast"
-                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Format"
+            "title": "Format Label"
+          },
+          "material_id": {
+            "title": "Material Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           }
         },
-        "title": "FiltersIn",
+        "required": [
+          "material_id",
+          "title",
+          "format_label",
+          "event",
+          "event_label"
+        ],
+        "title": "FeedHistoryOut",
+        "type": "object"
+      },
+      "FeedItemOut": {
+        "properties": {
+          "access": {
+            "enum": [
+              "open",
+              "subscription",
+              "paid"
+            ],
+            "title": "Access",
+            "type": "string"
+          },
+          "access_label": {
+            "title": "Access Label",
+            "type": "string"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagOut"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "format_label": {
+            "title": "Format Label",
+            "type": "string"
+          },
+          "is_paid": {
+            "title": "Is Paid",
+            "type": "boolean"
+          },
+          "level_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level Label"
+          },
+          "link_allowed": {
+            "title": "Link Allowed",
+            "type": "boolean"
+          },
+          "material_id": {
+            "title": "Material Id",
+            "type": "string"
+          },
+          "next_step": {
+            "title": "Next Step",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/FeedPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "short_benefit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Benefit"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "topic_labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Topic Labels",
+            "type": "array"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "rank",
+          "material_id",
+          "title",
+          "format",
+          "format_label",
+          "topic_labels",
+          "level_label",
+          "duration_minutes",
+          "access",
+          "access_label",
+          "is_paid",
+          "short_benefit",
+          "url",
+          "link_allowed",
+          "next_step",
+          "flags",
+          "score",
+          "parts",
+          "reason"
+        ],
+        "title": "FeedItemOut",
+        "type": "object"
+      },
+      "FeedPart": {
+        "properties": {
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "source": {
+            "enum": [
+              "progress",
+              "history",
+              "content",
+              "links",
+              "task",
+              "profile",
+              "access",
+              "popularity",
+              "seen"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "source",
+          "label",
+          "value",
+          "evidence",
+          "note"
+        ],
+        "title": "FeedPart",
+        "type": "object"
+      },
+      "FeedRequest": {
+        "additionalProperties": false,
+        "description": "Запрос ленты по профилю (docs/plan.md, раздел 13).\n\nИстория берётся из `history`, а без неё — у клиента с кодом `user_id` (`GET /api/users`). Затем «что если»:\nсобытия материалов из `exclude_history` убираются, события `add_history` добавляются после последнего\nсобытия истории, их `seq` задаёт порядок между собой.",
+        "properties": {
+          "add_history": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryEventIn"
+            },
+            "maxItems": 200,
+            "title": "Add History",
+            "type": "array"
+          },
+          "exclude_history": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9:_\\-]+$",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Exclude History",
+            "type": "array"
+          },
+          "experience": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "some",
+                  "experienced"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experience"
+          },
+          "format_pref": {
+            "anyOf": [
+              {
+                "enum": [
+                  "quick",
+                  "template",
+                  "course"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format Pref"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HistoryEventIn"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "enum": [
+                  "horeca",
+                  "retail",
+                  "ecom",
+                  "services",
+                  "construction",
+                  "logistics",
+                  "b2b",
+                  "manufacturing",
+                  "wholesale",
+                  "b2g"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "limit": {
+            "default": 20,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "price_weight": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Weight"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "idea",
+                  "start",
+                  "growth"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "task": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Task",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9:_\\-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "title": "FeedRequest",
+        "type": "object"
+      },
+      "FeedResponse": {
+        "properties": {
+          "catalog": {
+            "$ref": "#/components/schemas/CatalogInfo"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/FeedFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/FeedHistoryOut"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "interests": {
+            "items": {
+              "$ref": "#/components/schemas/FeedShare"
+            },
+            "title": "Interests",
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FeedItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/FeedSourceShare"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "history",
+              "cold"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_candidates": {
+            "title": "Total Candidates",
+            "type": "integer"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "request_id",
+          "catalog",
+          "user",
+          "status",
+          "message",
+          "items",
+          "total_candidates",
+          "history",
+          "interests",
+          "facts",
+          "sources"
+        ],
+        "title": "FeedResponse",
+        "type": "object"
+      },
+      "FeedShare": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "share"
+        ],
+        "title": "FeedShare",
+        "type": "object"
+      },
+      "FeedSourceShare": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "number"
+          },
+          "source": {
+            "enum": [
+              "progress",
+              "history",
+              "content",
+              "links",
+              "task",
+              "profile",
+              "access",
+              "popularity",
+              "seen"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "share",
+          "source"
+        ],
+        "title": "FeedSourceShare",
         "type": "object"
       },
       "FlagOut": {
@@ -426,16 +901,6 @@
             "title": "Contributions",
             "type": "object"
           },
-          "course_details": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CourseDetailsOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "duration_minutes": {
             "anyOf": [
               {
@@ -462,17 +927,6 @@
             "title": "Format Label",
             "type": "string"
           },
-          "has_certificate": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Has Certificate"
-          },
           "industries": {
             "items": {
               "type": "string"
@@ -483,17 +937,6 @@
           "is_paid": {
             "title": "Is Paid",
             "type": "boolean"
-          },
-          "lesson_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lesson Count"
           },
           "level": {
             "anyOf": [
@@ -620,29 +1063,8 @@
         "title": "ItemOut",
         "type": "object"
       },
-      "MetaCatalog": {
-        "properties": {
-          "available": {
-            "title": "Available",
-            "type": "integer"
-          },
-          "source": {
-            "title": "Source",
-            "type": "string"
-          }
-        },
-        "required": [
-          "source",
-          "available"
-        ],
-        "title": "MetaCatalog",
-        "type": "object"
-      },
       "MetaResponse": {
         "properties": {
-          "catalog": {
-            "$ref": "#/components/schemas/MetaCatalog"
-          },
           "demo_mode": {
             "title": "Demo Mode",
             "type": "boolean"
@@ -688,7 +1110,6 @@
           }
         },
         "required": [
-          "catalog",
           "topics",
           "stages",
           "experience",
@@ -698,6 +1119,132 @@
           "demo_mode"
         ],
         "title": "MetaResponse",
+        "type": "object"
+      },
+      "ModelCardGroup": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCardRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "users": {
+            "title": "Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "users",
+          "rows"
+        ],
+        "title": "ModelCardGroup",
+        "type": "object"
+      },
+      "ModelCardResponse": {
+        "description": "Паспорт модели ленты: тип данных проверки, качество по группам, веса источников и свойства ленты.",
+        "properties": {
+          "data": {
+            "title": "Data",
+            "type": "string"
+          },
+          "feed": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCardValue"
+            },
+            "title": "Feed",
+            "type": "array"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCardGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "weights": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCardValue"
+            },
+            "title": "Weights",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data",
+          "groups",
+          "weights",
+          "feed"
+        ],
+        "title": "ModelCardResponse",
+        "type": "object"
+      },
+      "ModelCardRow": {
+        "description": "Метод на журнале записей: доля пользователей, у которых скрытый курс стоит первым и в первых пяти.",
+        "properties": {
+          "hit1": {
+            "title": "Hit1",
+            "type": "number"
+          },
+          "hit5": {
+            "title": "Hit5",
+            "type": "number"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "ndcg5": {
+            "title": "Ndcg5",
+            "type": "number"
+          }
+        },
+        "required": [
+          "method",
+          "label",
+          "hit1",
+          "hit5",
+          "ndcg5"
+        ],
+        "title": "ModelCardRow",
+        "type": "object"
+      },
+      "ModelCardValue": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "share": {
+            "title": "Share",
+            "type": "boolean"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "value",
+          "share"
+        ],
+        "title": "ModelCardValue",
         "type": "object"
       },
       "Option": {
@@ -879,16 +1426,6 @@
             ],
             "title": "Experience"
           },
-          "filters": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FiltersIn"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "format_pref": {
             "anyOf": [
               {
@@ -1046,16 +1583,6 @@
             "title": "Detected Topics",
             "type": "array"
           },
-          "filter_options": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FilterOptionsOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ItemOut"
@@ -1176,6 +1703,79 @@
         ],
         "title": "SignalOut",
         "type": "object"
+      },
+      "UserOut": {
+        "description": "Клиент из подключённого журнала: код, подпись, сегмент и размер истории.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "materials": {
+            "title": "Materials",
+            "type": "integer"
+          },
+          "paid": {
+            "title": "Paid",
+            "type": "boolean"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "segment",
+          "materials",
+          "paid"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "UsersResponse": {
+        "description": "Клиенты, код которых начинается с запроса: первые `limit` из `matched`; `total` — всего в журнале.",
+        "properties": {
+          "matched": {
+            "title": "Matched",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/UserOut"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "source",
+          "total",
+          "matched",
+          "users"
+        ],
+        "title": "UsersResponse",
+        "type": "object"
       }
     }
   },
@@ -1242,6 +1842,75 @@
           }
         },
         "summary": "Compare Endpoint"
+      }
+    },
+    "/api/feed": {
+      "post": {
+        "description": "Лента по профилю: до 50 материалов по убыванию оценки с составом оценки по источникам.",
+        "operationId": "feed_endpoint_api_feed_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Не найдено: тестовые профили и клиенты выключены вне демо-режима, клиента с таким кодом нет, паспорт модели не записан (not_found)"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Тело запроса больше предела (payload_too_large)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Неверный запрос: тело не JSON-объект, неизвестное поле, значение вне схемы или задача длиннее предела (validation_error)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Каталог не загружен (catalog_unavailable)"
+          }
+        },
+        "summary": "Feed Endpoint"
       }
     },
     "/api/health": {
@@ -1319,6 +1988,35 @@
         "summary": "Meta"
       }
     },
+    "/api/model-card": {
+      "get": {
+        "description": "Паспорт модели ленты: качество на журнале записей, веса источников и свойства ленты.",
+        "operationId": "model_card_api_model_card_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelCardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Не найдено: тестовые профили и клиенты выключены вне демо-режима, клиента с таким кодом нет, паспорт модели не записан (not_found)"
+          }
+        },
+        "summary": "Model Card"
+      }
+    },
     "/api/profiles": {
       "get": {
         "operationId": "profiles_api_profiles_get",
@@ -1341,7 +2039,7 @@
                 }
               }
             },
-            "description": "Не найдено: тестовые профили выключены вне демо-режима (not_found)"
+            "description": "Не найдено: тестовые профили и клиенты выключены вне демо-режима, клиента с таким кодом нет, паспорт модели не записан (not_found)"
           }
         },
         "summary": "Profiles"
@@ -1432,6 +2130,71 @@
           }
         },
         "summary": "Recommend Endpoint"
+      }
+    },
+    "/api/users": {
+      "get": {
+        "description": "Клиенты подключённого журнала для ленты по профилю: список и поиск по началу кода.",
+        "operationId": "users_api_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9:_\\-]*$",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Не найдено: тестовые профили и клиенты выключены вне демо-режима, клиента с таким кодом нет, паспорт модели не записан (not_found)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Неверный запрос: тело не JSON-объект, неизвестное поле, значение вне схемы или задача длиннее предела (validation_error)"
+          }
+        },
+        "summary": "Users"
       }
     }
   }

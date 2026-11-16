@@ -20,4 +20,5 @@ export { StatusLine, type StatusLineProps } from './StatusLine';
 export { TabPanel, Tabs, type TabItem, type TabPanelProps, type TabsProps } from './Tabs';
 export { Tag, type TagProps } from './Tag';
 export { TextAreaField, type TextAreaFieldProps } from './TextAreaField';
+export { TextField, type TextFieldProps } from './TextField';
 export { TopBar, type TopBarProps } from './TopBar';

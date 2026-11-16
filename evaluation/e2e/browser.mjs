@@ -4,6 +4,9 @@ import { chromium } from 'playwright-core';
 
 export const [base = 'http://127.0.0.1:8000', outDir = join(import.meta.dirname, '.results')] = process.argv.slice(2);
 
+// Вход приложения — лента по профилю (PLAN.md, раздел 13). Проверки подбора по задаче открывают его путь.
+export const TASK_VIEW = '/?view=task';
+
 // Проверки идут в Chromium из Playwright (npm run install:browser), как в CI.
 export async function runBrowserChecks(reportName, results, run) {
   mkdirSync(outDir, { recursive: true });
@@ -31,7 +34,7 @@ export async function afterPost(page, action, endpoint = '/api/recommend') {
   ]);
   if (!response.ok()) throw new Error(`${endpoint} вернул HTTP ${response.status()}`);
   // На быстром ответе подпись не меняется. Ждём снятия aria-disabled после применения результата.
-  await page.locator('.actions .btn--primary:not([aria-disabled="true"])').waitFor();
+  await page.locator('.task-submit:not([aria-disabled="true"])').waitFor();
   return response;
 }
 
@@ -69,7 +72,7 @@ export async function walkStates(page, width, visit) {
     await methodTab('Подбор по теме').click();
     await visit('сравнение P02: подбор по теме');
   }
-  await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+  await page.getByRole('button', { name: 'Сбросить' }).click();
   await page.getByLabel(TASK_LABEL).fill('Какую CRM выбрать');
   await compareBox.check();
   await submit(page, '/api/compare');
@@ -80,7 +83,7 @@ export async function walkStates(page, width, visit) {
   }
   await compareBox.uncheck();
 
-  await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+  await page.getByRole('button', { name: 'Сбросить' }).click();
   await submit(page);
   await visit('пустая форма: стартовая подборка');
   const showAll = page.getByRole('button', { name: /^Показать все/ });
@@ -120,6 +123,56 @@ export async function walkStates(page, width, visit) {
   await page.locator('.field__error').waitFor();
   await page.unroute('**/api/recommend');
   await visit('ошибка поля задачи');
+}
+
+// Экран ленты по профилю открыт первым: его состояния проходит walkFeedStates
+export const FEED_VIEW = '/';
+
+/** Лента загружена: карточки есть, список не помечен занятым */
+export async function feedSettled(page) {
+  await page.locator('.feed-list article.card').first().waitFor();
+  await page.waitForFunction(() => document.querySelector('.feed-list')?.getAttribute('aria-busy') === 'false');
+}
+
+/**
+ * Проход по семи состояниям экрана ленты для check_wcag.mjs и check_display.mjs; visit(state) вызывается в каждом.
+ * Клиенты берутся из каталога комплекта, сценарий повторяет check_feed.mjs.
+ */
+export async function walkFeedStates(page, width, visit) {
+  const clientView = page.getByRole('checkbox', { name: /Вид клиента/ });
+  await feedSettled(page);
+  await visit('лента: клиент с историей');
+
+  await page.locator('.feed-list article.card').nth(1).getByRole('button', { name: 'Как посчитано' }).click();
+  await page.locator('summary', { hasText: 'Паспорт модели' }).click();
+  await visit('лента: расчёт карточки и паспорт модели');
+
+  await page.getByLabel('Код клиента').fill('U9999');
+  await page.getByRole('button', { name: 'Найти' }).click();
+  await page.locator('#feed-code-error').waitFor();
+  await visit('лента: ошибка кода клиента');
+
+  await page.locator('#feed-compare').selectOption('U0008');
+  await page.locator('.client-compare').waitFor();
+  await visit('лента: два клиента рядом');
+  await page.locator('#feed-compare').selectOption('');
+  await page.locator('.client-compare').waitFor({ state: 'detached' });
+
+  await page.locator('.feed-history input[type=checkbox]').first().uncheck();
+  await feedSettled(page);
+  await visit('лента: пересчёт после правки истории');
+
+  await clientView.check();
+  await feedSettled(page);
+  await visit('лента: вид клиента');
+  await clientView.uncheck();
+  await feedSettled(page);
+
+  await page.getByRole('tab', { name: 'Новый клиент' }).click();
+  await feedSettled(page);
+  await page.getByLabel('Стадия бизнеса').selectOption({ index: 1 });
+  await feedSettled(page);
+  await visit('лента: новый клиент с ответом о стадии');
 }
 
 /**

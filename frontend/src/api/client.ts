@@ -2,11 +2,15 @@
 import type {
   ApiErrorBody,
   CompareResponse,
+  FeedRequest,
+  FeedResponse,
   MetaResponse,
+  ModelCard,
   Profile,
   ProfilesResponse,
   RecommendRequest,
   RecommendResponse,
+  UsersResponse,
 } from './types';
 
 /** Сообщение, когда сервис не дал пригодного ответа. */
@@ -147,10 +151,43 @@ export async function getProfiles(signal?: AbortSignal): Promise<Profile[] | nul
   }
 }
 
+/** Клиенты подключённого журнала, код которых начинается с query; null — демо-режим выключен (404). */
+export async function getUsers(query = '', signal?: AbortSignal): Promise<UsersResponse | null> {
+  try {
+    const data = await request('GET', `/api/users?q=${encodeURIComponent(query)}`, undefined, signal);
+    if (!isRecord(data) || !Array.isArray(data.users) || typeof data.total !== 'number') throw networkError(200);
+    return data as unknown as UsersResponse;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Паспорт модели ленты; null — паспорт не записан (404). */
+export async function getModelCard(signal?: AbortSignal): Promise<ModelCard | null> {
+  try {
+    const data = await request('GET', '/api/model-card', undefined, signal);
+    if (!isRecord(data) || !Array.isArray(data.groups) || !Array.isArray(data.weights)) throw networkError(200);
+    return data as unknown as ModelCard;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
 export async function recommend(body: RecommendRequest, signal?: AbortSignal): Promise<RecommendResponse> {
   const data = await request('POST', '/api/recommend', body, signal);
   if (!isRecommendResponse(data)) throw networkError(200);
   return data;
+}
+
+/** Лента по профилю: до 50 материалов с составом оценки по источникам */
+export async function feed(body: FeedRequest, signal?: AbortSignal): Promise<FeedResponse> {
+  const data = await request('POST', '/api/feed', body, signal);
+  if (!isRecord(data) || typeof data.status !== 'string' || !Array.isArray(data.items) || !Array.isArray(data.history)) {
+    throw networkError(200);
+  }
+  return data as unknown as FeedResponse;
 }
 
 export async function compare(body: RecommendRequest, signal?: AbortSignal): Promise<CompareResponse> {

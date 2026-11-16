@@ -45,7 +45,8 @@ MARKER = "секретный-маркер-исключения"
 # Переменные приложения: живой сервер получает только те, что задаёт тест
 APP_VARIABLES = (
     "CATALOG_SOURCE", "CATALOG_PATH", "CATALOG_SIGNALS_PATH", "CATALOG_MAPPING", "CATALOG_PAIRS_PATH",
-    "PAIRS_MIN_SUPPORT", "DEMO_MODE", "MAX_TASK_LENGTH", "METRICS_ENABLED", "LOG_LEVEL", "FRONTEND_DIST",
+    "PAIRS_MIN_SUPPORT", "DEMO_MODE", "DEMO_PROFILES_PATH", "MAX_TASK_LENGTH",
+    "METRICS_ENABLED", "LOG_LEVEL", "FRONTEND_DIST",
 )
 CONTAINER_OPTIONS = {
     "host": "0.0.0.0",
@@ -596,6 +597,32 @@ def test_kit_docs_stay_in_repository_outside_build_context():
 
 
 # Живой сервер: последняя проверка останавливает его
+
+
+def test_access_log_line_has_no_query_string(uvicorn_loggers):
+    """Код клиента из `GET /api/users?q=…` не попадает в строку доступа uvicorn: приложение убирает строку запроса."""
+    lines: list[str] = []
+
+    class Collect(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            lines.append(record.getMessage())
+
+    with client_for():
+        pass
+    access = logging.getLogger("uvicorn.access")
+    handler = Collect()
+    access.addHandler(handler)
+    access.setLevel(logging.INFO)
+    try:
+        # Формат и аргументы строки доступа uvicorn
+        access.info('%s - "%s %s HTTP/%s" %d', "127.0.0.1:50000", "GET", "/api/users?q=U0039&limit=5", "1.1", 200)
+        access.info('%s - "%s %s HTTP/%s" %d', "127.0.0.1:50000", "POST", "/api/feed", "1.1", 200)
+    finally:
+        access.removeHandler(handler)
+    assert lines == [
+        '127.0.0.1:50000 - "GET /api/users HTTP/1.1" 200',
+        '127.0.0.1:50000 - "POST /api/feed HTTP/1.1" 200',
+    ]
 
 
 def _read_all(connection: socket.socket) -> bytes:

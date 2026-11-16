@@ -23,9 +23,16 @@
 
 Открытая модель с постоянной частотой прибытий — evaluation/load_open.py (W08).
 
+Режим `--feed` меряет той же формой нагрузки ленту по профилю, `POST /api/feed`. Смесь по кругу: восемь
+клиентов из начала списка `GET /api/users` с лентой из 20 карточек, первый из них с лентой из 50 и новый
+клиент без истории. Порог записан до первого прогона как допущение и повторяет L1: при пяти клиентах p95
+не выше 250 мс на синтетическом каталоге и 500 мс на копии, ошибок сервиса 0. Критерии `--slo` заданы для
+подбора по задаче, с `--feed` они не применяются. В вывод идут только агрегаты, коды клиентов не печатаются.
+
 Запуск из корня проекта при работающем сервисе:
   python -X utf8 evaluation/load_local.py http://127.0.0.1:8000 [клиентов=5] [секунд=30]
   python -X utf8 evaluation/load_local.py http://127.0.0.1:8000 --slo [5] [секунд=30]
+  python -X utf8 evaluation/load_local.py http://127.0.0.1:8000 --feed [клиентов=5] [секунд=30]
 """
 
 from __future__ import annotations
@@ -60,11 +67,24 @@ BODIES = [
 ]
 
 
-def call(base: str, body: dict) -> tuple[float, int, dict | None]:
+FEED_CLIENTS = 8
+
+
+def feed_bodies(base: str) -> list[dict]:
+    """Смесь запросов ленты: клиенты из начала списка, лента из 50 карточек и новый клиент без истории."""
+    with urllib.request.urlopen(f"{base}/api/users?limit={FEED_CLIENTS}", timeout=TIMEOUT_S) as response:
+        users = json.loads(response.read().decode("utf-8"))["users"]
+    bodies: list[dict] = [{"user_id": user["id"]} for user in users]
+    if users:
+        bodies.append({"user_id": users[0]["id"], "limit": 50})
+    return [*bodies, {"history": []}]
+
+
+def call(base: str, body: dict, endpoint: str = "/api/recommend") -> tuple[float, int, dict | None]:
     """Задержка в миллисекундах, статус (0 — таймаут или сбой сети) и тело ответа."""
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
-        base + "/api/recommend", data=data, headers={"Content-Type": "application/json"}, method="POST"
+        base + endpoint, data=data, headers={"Content-Type": "application/json"}, method="POST"
     )
     started = time.perf_counter()
     try:
@@ -78,7 +98,7 @@ def call(base: str, body: dict) -> tuple[float, int, dict | None]:
         return (time.perf_counter() - started) * 1000, 0, None
 
 
-def phase(base: str, clients: int, seconds: float) -> dict:
+def phase(base: str, clients: int, seconds: float, bodies: list[dict], endpoint: str) -> dict:
     latencies: list[float] = []
     statuses: list[int] = []
     lock = threading.Lock()
@@ -87,7 +107,7 @@ def phase(base: str, clients: int, seconds: float) -> dict:
     def worker(offset: int) -> None:
         i = offset
         while time.perf_counter() < deadline:
-            latency, status, _ = call(base, BODIES[i % len(BODIES)])
+            latency, status, _ = call(base, bodies[i % len(bodies)], endpoint)
             with lock:
                 latencies.append(latency)
                 statuses.append(status)
@@ -161,10 +181,11 @@ def slo_verdict(results: list[dict[str, Any]]) -> int:
 def main(argv: list[str]) -> int:
     positional = [a for a in argv[1:] if not a.startswith("--")]
     flags = [a for a in argv[1:] if a.startswith("--")]
-    if not positional or any(f != "--slo" for f in flags):
+    if not positional or any(f not in ("--slo", "--feed") for f in flags) or len(flags) > 1:
         print(__doc__)
         return 2
     slo = "--slo" in flags
+    feed = "--feed" in flags
     base = positional[0].rstrip("/")
     try:
         clients = int(positional[1]) if len(positional) > 1 else 5
@@ -179,23 +200,30 @@ def main(argv: list[str]) -> int:
         print(f"Критерии --slo заданы для {SLO_CLIENTS} клиентов, получено {clients}")
         return 2
 
+    endpoint = "/api/feed" if feed else "/api/recommend"
+    try:
+        bodies = feed_bodies(base) if feed else BODIES
+    except (urllib.error.URLError, TimeoutError, OSError, KeyError, ValueError):
+        print("Список клиентов недоступен: для --feed нужен сервис с демо-режимом")
+        return 2
+
     # Прогрев и проверка, что ожидаемая выдача на месте
-    latency, status, payload = call(base, BODIES[0])
+    latency, status, payload = call(base, bodies[0], endpoint)
     if status != 200 or payload is None:
         print(f"Сервис не отвечает: статус {status}")
         return 2
     print(
-        f"Проверка: статус {payload['status']}, карточек {len(payload['items'])}, каталог {payload['catalog']['source']} "
-        f"{payload['catalog']['version']}, первая задержка {latency:.1f} мс"
+        f"Проверка {endpoint}: статус {payload['status']}, карточек {len(payload['items'])}, "
+        f"каталог {payload['catalog']['source']} {payload['catalog']['version']}, первая задержка {latency:.1f} мс"
     )
     for i in range(WARMUP - 1):
-        call(base, BODIES[(i + 1) % len(BODIES)])
+        call(base, bodies[(i + 1) % len(bodies)], endpoint)
 
     print("| Клиентов | Секунд | Запросов | Запросов/с | p50, мс | p95, мс | max, мс | Ошибок | Таймаутов |")
     print("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
     results: list[dict[str, Any]] = []
     for c in (1, clients):
-        r = phase(base, c, seconds)
+        r = phase(base, c, seconds, bodies, endpoint)
         results.append(r)
         print(
             f"| {r['clients']} | {r['seconds']} | {r['requests']} | {r['rps']} | {r['p50']} | {r['p95']} | {r['max']} | "

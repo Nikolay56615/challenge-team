@@ -55,14 +55,6 @@ CO_ENROLLMENT_ALPHA = 1.0
 # PAIRS_MIN_SUPPORT от 10 условие выполняется само: M не меньше N
 CO_ENROLLMENT_MIN_ANCHOR_USERS = 10
 
-# Сочетание правил и «похожих курсов» в подборе по истории (R06, этап 3, docs/plan.md, раздел 9).
-# "weighted" — сумма вкладов, как в пилоте. "cascade" — правила без вклада co_enrollment отбирают CASCADE_POOL
-# лучших кандидатов (None — всех), внутри отбора порядок задаёт доля «похожих курсов», равенства — оценка
-# правил, затем популярность и код; остальные кандидаты идут следом в порядке правил. Без пар в контексте
-# порядок в обоих режимах один и тот же. Включение по умолчанию — решение пользователя по итогам сравнения.
-COMBINE = "weighted"
-CASCADE_POOL: int | None = 12
-
 
 def _level_index(code: str | None) -> int | None:
     return vocab.LEVEL_ORDER.index(code) if code in vocab.LEVEL_ORDER else None
@@ -283,24 +275,7 @@ def _diversify(ranked: list[Scored]) -> list[Scored]:
     return selected + remaining
 
 
-def rule_score(item: Scored) -> float:
-    """Оценка правил: сумма вкладов без «похожих курсов»."""
-    return round(item.score - item.contributions.get("co_enrollment", 0.0), 4)
-
-
-def cascade(scored: list[Scored], pool: int | None) -> list[Scored]:
-    """Каскад R06: отбор правилами, внутри отбора — доля «похожих курсов», затем правила и популярность."""
-    by_rules = sorted(scored, key=lambda s: (-rule_score(s), -s.material.popularity, s.material.id))
-    size = len(by_rules) if pool is None else pool
-    def within(s: Scored) -> tuple[float, float, float, str]:
-        return (-s.contributions.get("co_enrollment", 0.0), -rule_score(s), -s.material.popularity, s.material.id)
-
-    return sorted(by_rules[:size], key=within) + by_rules[size:]
-
-
 def rank(candidates: list[Material], ctx: Context) -> list[Scored]:
     scored = sorted((score_material(m, ctx) for m in candidates), key=sort_key)
     mark_tie_winners(scored)
-    if COMBINE == "cascade" and ctx.pairs is not None and ctx.anchors:
-        scored = cascade(scored, CASCADE_POOL)
     return _diversify(scored)

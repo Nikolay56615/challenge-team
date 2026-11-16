@@ -7,13 +7,18 @@
 // Состояния — те же, что в check_ui.mjs
 // и check_a11y.mjs, плюс раскрытые уточнения, вторая вкладка сравнения, раскрытая стартовая подборка и ошибка поля.
 // Проход по состояниям — walkStates из browser.mjs, общий с check_cvd.mjs.
+// Экран ленты по профилю: перенос, размер целей, фокус при обходе Tab и интервалы текста проверяются
+// на семи его состояниях, проход — walkFeedStates из browser.mjs.
 //
 // Запуск из корня проекта при работающем сервисе с собранным интерфейсом:
 //   npm --prefix evaluation/e2e run check:wcag -- [адрес] [папка результатов]
 
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { afterPost, base, chooseProfile, demoPanelOverflow, outDir, runBrowserChecks, submit, TASK_LABEL, walkStates } from './browser.mjs';
+import {
+  afterPost, base, chooseProfile, demoPanelOverflow, FEED_VIEW, outDir, runBrowserChecks, submit, TASK_LABEL, TASK_VIEW,
+  walkFeedStates, walkStates,
+} from './browser.mjs';
 
 const results = [];
 const check = (id, name, ok, note = '') => {
@@ -134,13 +139,18 @@ function installProbes() {
       this.seen.add(el);
       const target = el.matches('input.visually-hidden') && el.closest('label') ? el.closest('label') : el;
       const r = target.getBoundingClientRect();
+      // Точки берутся в той части элемента, что попадает в окно: у панели вкладки выше окна нижние точки лежат
+      // за его краем, хотя сама панель видна. Элемент целиком вне окна точек не получает
+      const left = Math.max(r.left, 0);
+      const top = Math.max(r.top, 0);
+      const width = Math.min(r.right, innerWidth) - left;
+      const height = Math.min(r.bottom, innerHeight) - top;
       let points = 0;
-      for (const [fx, fy] of [[0.5, 0.5], [0.15, 0.15], [0.85, 0.15], [0.15, 0.85], [0.85, 0.85]]) {
-        const x = r.left + r.width * fx;
-        const y = r.top + r.height * fy;
-        if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
-        const hit = document.elementFromPoint(x, y);
-        if (hit && target.contains(hit)) points++;
+      if (width > 0 && height > 0) {
+        for (const [fx, fy] of [[0.5, 0.5], [0.15, 0.15], [0.85, 0.15], [0.15, 0.85], [0.85, 0.85]]) {
+          const hit = document.elementFromPoint(left + width * fx, top + height * fy);
+          if (hit && target.contains(hit)) points++;
+        }
       }
       return { repeat, points, name: describe(target) };
     },
@@ -212,7 +222,7 @@ function installProbes() {
   };
 }
 
-async function open(browser, width, { path = '/', bypassCSP = false } = {}) {
+async function open(browser, width, { path = TASK_VIEW, bypassCSP = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU', bypassCSP });
   await context.addInitScript(installProbes);
   const page = await context.newPage();
@@ -227,6 +237,63 @@ async function open(browser, width, { path = '/', bypassCSP = false } = {}) {
 
 const probe = (page, name, arg) => page.evaluate(([n, a]) => window.__wcag[n](a), [name, arg]);
 const settle = (page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+
+/** 1.4.10: страница в текущем состоянии не прокручивается по горизонтали */
+async function reflowCheck(page, state, width) {
+  const reflow = await probe(page, 'reflow');
+  check('W05', `Без горизонтальной прокрутки: ${state} (${width})`, reflow.ok,
+    reflow.ok ? '' : `ширина документа ${reflow.scrollWidth}; ${reflow.wide.join('; ')}`);
+}
+
+/** 2.5.8: цели нажатия в текущем состоянии */
+async function targetsCheck(page, state, width) {
+  const targets = await probe(page, 'targets');
+  check('W05', `Цели 24×24 px или зазор по 2.5.8: ${state} (${width})`, targets.bad.length === 0,
+    `целей ${targets.total}, наименьшие ширина и высота ${targets.minW} и ${targets.minH} px, меньше 24 px — ${targets.small}, наименьший зазор ${targets.gap} px` +
+      (targets.bad.length ? '; ' + targets.bad.slice(0, 3).join('; ') : ''));
+}
+
+/** 2.4.11: при обходе клавишей Tab ни один элемент с фокусом не перекрыт */
+async function focusNotObscured(page, state, width) {
+  await page.evaluate(() => {
+    window.__wcag.seen = new Set();
+    window.scrollTo(0, 0);
+  });
+  // Щелчок по верхней строке снимает фокус и переносит точку начала обхода Tab в начало страницы
+  await page.mouse.click(2, 2);
+  const hidden = [];
+  let count = 0;
+  let outside = 0;
+  for (let i = 0; i < 250; i++) {
+    await page.keyboard.press('Tab');
+    const info = await probe(page, 'focused');
+    // Фокус ушёл из документа: следующий Tab вернёт его в начало, второй выход подряд — конец обхода
+    if (!info) {
+      if (++outside > 1) break;
+      continue;
+    }
+    outside = 0;
+    if (info.repeat) break;
+    count++;
+    if (info.points === 0) hidden.push(info.name);
+  }
+  const stuck = await probe(page, 'stuck');
+  check('W05', `Фокус не перекрыт при обходе Tab: ${state} (${width})`, count > 0 && hidden.length === 0 && stuck.length === 0,
+    `элементов ${count}, скрытых ${hidden.length}, липких и фиксированных ${stuck.length}` +
+      (hidden.length || stuck.length ? '; ' + [...hidden, ...stuck].slice(0, 3).join('; ') : ''));
+}
+
+/** 1.4.12: при увеличенных интервалах текст не обрезан, не наложен и страница не шире окна */
+async function textSpacingCheck(page, state, width, extra = '') {
+  await settle(page);
+  const spacing = await probe(page, 'textSpacing');
+  const reflow = await probe(page, 'reflow');
+  check('W05', `Интервалы текста 1.4.12: нет обрезки и наложений: ${state} (${width})`,
+    spacing.problems.length === 0 && reflow.ok,
+    [`текстов ${spacing.texts}${extra}`, ...spacing.problems.slice(0, 3), reflow.ok ? '' : `ширина документа ${reflow.scrollWidth}`].filter(Boolean).join('; '));
+}
+
+const consoleNoise = (text) => text.includes('net::ERR_FAILED') || text.includes('Failed to load resource') || text.includes('Failed to fetch');
 
 /** Состояние ошибки поля: связи для вспомогательных технологий и фокус */
 async function fieldErrorChecks(page, width) {
@@ -264,23 +331,28 @@ await runBrowserChecks('wcag-results.json', results, async (browser) => {
   for (const width of WIDTHS) {
     const { page, context, errors } = await open(browser, width);
     await walkStates(page, width, async (state) => {
-      const reflow = await probe(page, 'reflow');
-      check('W05', `Без горизонтальной прокрутки: ${state} (${width})`, reflow.ok,
-        reflow.ok ? '' : `ширина документа ${reflow.scrollWidth}; ${reflow.wide.join('; ')}`);
+      await reflowCheck(page, state, width);
       const demo = await demoPanelOverflow(page);
       const label = await probe(page, 'profileLabel');
       const clipped = label?.hidden ? `подпись «${label.text}» в списке обрезана многоточием, не поместилось ${label.hidden} px` : '';
       check('W05', `Демо-панель не выходит за край панели и окна: ${state} (${width})`, demo !== null && demo.length === 0,
         [demo === null ? 'панель не найдена' : demo.slice(0, 3).join('; '), clipped].filter(Boolean).join('; '));
-      const targets = await probe(page, 'targets');
-      check('W05', `Цели 24×24 px или зазор по 2.5.8: ${state} (${width})`, targets.bad.length === 0,
-        `целей ${targets.total}, наименьшие ширина и высота ${targets.minW} и ${targets.minH} px, меньше 24 px — ${targets.small}, наименьший зазор ${targets.gap} px` +
-          (targets.bad.length ? '; ' + targets.bad.slice(0, 3).join('; ') : ''));
+      await targetsCheck(page, state, width);
       if (state === 'ошибка поля задачи') await fieldErrorChecks(page, width);
     });
-    const pageErrors = errors.filter((e) => !e.includes('net::ERR_FAILED') && !e.includes('Failed to load resource') && !e.includes('Failed to fetch'));
+    const pageErrors = errors.filter((e) => !consoleNoise(e));
     check('W05', `Нет ошибок и предупреждений консоли в проходе (${width})`, pageErrors.length === 0, pageErrors.join(' | ').slice(0, 300));
     await context.close();
+
+    // Экран ленты по профилю: те же критерии по его состояниям
+    const feed = await open(browser, width, { path: FEED_VIEW });
+    await walkFeedStates(feed.page, width, async (state) => {
+      await reflowCheck(feed.page, state, width);
+      await targetsCheck(feed.page, state, width);
+    });
+    const feedErrors = feed.errors.filter((e) => !consoleNoise(e));
+    check('W05', `Нет ошибок и предупреждений консоли в проходе ленты (${width})`, feedErrors.length === 0, feedErrors.join(' | ').slice(0, 300));
+    await feed.context.close();
 
     const kit = await open(browser, width, { path: '/kit.html' });
     await kit.page.getByRole('heading', { name: 'UI-кит трека 1 · витрина' }).waitFor();
@@ -296,35 +368,12 @@ await runBrowserChecks('wcag-results.json', results, async (browser) => {
   // ---------- W05: фокус не перекрыт, 2.4.11 ----------
   for (const width of [320, 1120]) {
     const { page, context } = await open(browser, width);
-    await walkStates(page, width, async (state) => {
-      await page.evaluate(() => {
-        window.__wcag.seen = new Set();
-        window.scrollTo(0, 0);
-      });
-      // Щелчок по верхней строке снимает фокус и переносит точку начала обхода Tab в начало страницы
-      await page.mouse.click(2, 2);
-      const hidden = [];
-      let count = 0;
-      let outside = 0;
-      for (let i = 0; i < 250; i++) {
-        await page.keyboard.press('Tab');
-        const info = await probe(page, 'focused');
-        // Фокус ушёл из документа: следующий Tab вернёт его в начало, второй выход подряд — конец обхода
-        if (!info) {
-          if (++outside > 1) break;
-          continue;
-        }
-        outside = 0;
-        if (info.repeat) break;
-        count++;
-        if (info.points === 0) hidden.push(info.name);
-      }
-      const stuck = await probe(page, 'stuck');
-      check('W05', `Фокус не перекрыт при обходе Tab: ${state} (${width})`, count > 0 && hidden.length === 0 && stuck.length === 0,
-        `элементов ${count}, скрытых ${hidden.length}, липких и фиксированных ${stuck.length}` +
-          (hidden.length || stuck.length ? '; ' + [...hidden, ...stuck].slice(0, 3).join('; ') : ''));
-    });
+    await walkStates(page, width, (state) => focusNotObscured(page, state, width));
     await context.close();
+
+    const feed = await open(browser, width, { path: FEED_VIEW });
+    await walkFeedStates(feed.page, width, (state) => focusNotObscured(feed.page, state, width));
+    await feed.context.close();
   }
 
   // ---------- ИИ-10, 2.4.7: после ответа фокус на видимом элементе с кольцом ----------
@@ -410,21 +459,21 @@ await runBrowserChecks('wcag-results.json', results, async (browser) => {
     const { page, context } = await open(browser, width, { bypassCSP: true });
     await page.addStyleTag({ content: TEXT_SPACING_CSS });
     await walkStates(page, width, async (state) => {
-      await settle(page);
-      const spacing = await probe(page, 'textSpacing');
-      const reflow = await probe(page, 'reflow');
       const label = await probe(page, 'profileLabel');
-      const note = `текстов ${spacing.texts}` + (label?.hidden ? `; подпись в нативном списке обрезана многоточием, не поместилось ${label.hidden} px` : '');
-      check('W05', `Интервалы текста 1.4.12: нет обрезки и наложений: ${state} (${width})`,
-        spacing.problems.length === 0 && reflow.ok,
-        [note, ...spacing.problems.slice(0, 3), reflow.ok ? '' : `ширина документа ${reflow.scrollWidth}`].filter(Boolean).join('; '));
+      await textSpacingCheck(page, state, width,
+        label?.hidden ? `; подпись в нативном списке обрезана многоточием, не поместилось ${label.hidden} px` : '');
       if (state === 'P01: выдача и маршрут') await page.screenshot({ path: join(outDir, `text-spacing-p01-${width}.png`), fullPage: true });
     });
     await context.close();
+
+    const feed = await open(browser, width, { path: FEED_VIEW, bypassCSP: true });
+    await feed.page.addStyleTag({ content: TEXT_SPACING_CSS });
+    await walkFeedStates(feed.page, width, (state) => textSpacingCheck(feed.page, state, width));
+    await feed.context.close();
   }
 
   // ---------- W14: шрифт ----------
-  for (const path of ['/', '/kit.html']) {
+  for (const path of [TASK_VIEW, '/kit.html']) {
     const { page, context, errors } = await open(browser, 390, { path });
     await page.locator('h1').first().waitFor();
     const fonts = await page.evaluate(async (files) => {
@@ -504,11 +553,14 @@ await runBrowserChecks('wcag-results.json', results, async (browser) => {
     check('W14', 'Переносы: lang="ru" и hyphens: auto у всех заголовков', headings.lang === 'ru' && headings.values.length > 0 && headings.values.every((v) => v === 'auto'),
       `lang="${headings.lang}", заголовков ${headings.values.length}, значения ${[...new Set(headings.values)].join(', ')}`);
 
-    // Дождаться кадра после смены схемы. Уменьшенное движение оставляем включённым,
-    // чтобы сравнивать цвета полей и кнопок после переходов.
+    // Дождаться смены схемы и завершения CSS-переходов. После подбора кнопка формы меняет вариант.
     const colors = () => page.evaluate(async () => {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      return Array.from(document.querySelectorAll('html, body, textarea, select, input[type=checkbox], .btn, .card, .panel')).map((el) => {
+      const elements = Array.from(document.querySelectorAll('html, body, textarea, select, input[type=checkbox], .btn, .card, .panel'));
+      await Promise.allSettled(elements.flatMap((el) => el.getAnimations()
+        .filter((animation) => animation instanceof CSSTransition)
+        .map((transition) => transition.finished)));
+      return elements.map((el) => {
         const cs = getComputedStyle(el);
         return `${cs.colorScheme}|${cs.backgroundColor}|${cs.color}|${cs.borderTopColor}`;
       });

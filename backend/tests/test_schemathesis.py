@@ -45,7 +45,7 @@ from .conftest import NO_FRONTEND
 MAX_EXAMPLES = 50
 OPERATIONS = {
     "GET /api/health", "GET /api/live", "GET /api/ready", "GET /api/meta", "GET /api/profiles",
-    "POST /api/recommend", "POST /api/compare",
+    "POST /api/recommend", "POST /api/compare", "POST /api/feed", "GET /api/users", "GET /api/model-card",
 }
 
 APP = create_app(Settings(frontend_dist=NO_FRONTEND, max_task_length=TASK_HARD_LIMIT))

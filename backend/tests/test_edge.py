@@ -35,7 +35,7 @@ REFERENCE_HEADERS = {
     "cross-origin-opener-policy": "same-origin",
     "cross-origin-resource-policy": "same-origin",
     "permissions-policy": (
-        "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), "
+        "accelerometer=(), autoplay=(), bluetooth=(), camera=(), display-capture=(), encrypted-media=(), "
         "fullscreen=(), geolocation=(), gyroscope=(), hid=(), idle-detection=(), local-fonts=(), magnetometer=(), "
         "microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), "
         "screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()"
@@ -221,6 +221,7 @@ def test_static_types_do_not_depend_on_system_database():
         ".css": "text/plain",
         ".txt": "application/octet-stream",
         ".woff2": "application/font-woff2",
+        ".jpg": "application/octet-stream",
     }
     assert set(foreign) == set(STATIC_TYPES)
     code = (
@@ -241,6 +242,7 @@ def test_static_types_do_not_depend_on_system_database():
         ".css": "text/css",
         ".txt": "text/plain",
         ".woff2": "font/woff2",
+        ".jpg": "image/jpeg",
     }
 
 

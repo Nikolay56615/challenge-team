@@ -1,0 +1,488 @@
+/* Лента по профилю (docs/plan.md, раздел 13). Компоновка и цвета сегментов полосы оценки.
+   Цвета источников заданы здесь, а не в tokens.css: это цвета данных, а не интерфейса.
+   Четыре оттенка проверены на различимость для всех пар при протанопии, дейтеранопии и тританопии,
+   популярность показана нейтральным цветом текста, доступ и цена — штриховкой. Смысл сегмента продублирован
+   текстом: таблица вкладов в карточке, легенда и подпись полосы для вспомогательных технологий. */
+.feed,
+.mode-switch {
+  --series-history: #2a78d6;
+  --series-content: #008300;
+  --series-links: #eda100;
+  --series-own: #e87ba4;
+  --series-neutral: var(--color-muted);
+}
+
+.mode-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+/* Три вкладки входа: в ряд, пока хватает ширины; на узком экране — столбиком, чтобы подписи не обрезались
+   и при увеличенных интервалах текста (WCAG 1.4.12) */
+/* Вкладки не сжимаются уже своих подписей: флажок вида клиента переносится на следующую строку */
+.mode-switch .tabs {
+  flex: 1 1 22rem;
+  max-width: 34rem;
+}
+
+.mode-switch .tabs[hidden] {
+  display: none;
+}
+
+@container screen (max-width: 480px) {
+  .mode-switch .tabs {
+    flex-direction: column;
+  }
+}
+
+.feed-title {
+  font-size: var(--font-size-h2);
+}
+
+.feed-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.feed-aside__subtitle {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-muted);
+}
+
+.feed-history,
+.feed-legend,
+.share-list,
+.feed-parts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feed-history__added {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.feed-facts {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.feed-facts__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--space-2);
+}
+
+.feed-facts dt {
+  color: var(--color-muted);
+}
+
+.feed-facts dd {
+  margin: 0;
+}
+
+.share-list__row,
+.feed-legend__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.share-list__row {
+  justify-content: space-between;
+}
+
+.share-list__value,
+.feed-parts__value,
+.score__value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- образцы цвета и полоса оценки ---------- */
+.swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  align-self: center;
+}
+
+.swatch--history,
+.score-bar__seg--history {
+  background: var(--series-history);
+}
+
+.swatch--content,
+.score-bar__seg--content {
+  background: var(--series-content);
+}
+
+.swatch--links,
+.score-bar__seg--links {
+  background: var(--series-links);
+}
+
+.swatch--own,
+.score-bar__seg--own {
+  background: var(--series-own);
+}
+
+.swatch--popularity,
+.score-bar__seg--popularity {
+  background: var(--series-neutral);
+}
+
+.swatch--access,
+.score-bar__seg--access {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--series-neutral) 0 2px,
+    var(--color-surface) 2px 4px
+  );
+}
+
+/* Отрицательный вклад в полосу не входит: пустой образец с рамкой */
+.swatch--none {
+  border: 1px solid var(--color-line-strong);
+}
+
+.score {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.score__value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.score-bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  min-width: 0;
+}
+
+.score-bar__seg {
+  min-width: 2px;
+  height: 100%;
+}
+
+.score-bar__seg:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.score-bar__seg:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.score-bar__seg:only-child {
+  border-radius: 4px;
+}
+
+/* ---------- лента ---------- */
+/* Две карточки рядом: вклады источников и разница */
+.compare-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-table caption {
+  padding-bottom: var(--space-2);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+}
+
+.compare-table th,
+.compare-table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-line);
+  text-align: right;
+  font-weight: var(--font-weight-regular);
+  /* Подпись и число переносятся внутри своей ячейки и не заходят в соседнюю: узкий экран и интервалы текста 1.4.12 */
+  overflow-wrap: anywhere;
+}
+
+.compare-table th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+/* Числовые колонки равные, подпись источника занимает остаток и переносится по словам. Ширина колонки вмещает
+   заголовок «Место 20» целиком: перенос внутри слова остаётся запасным случаем для увеличенных интервалов текста */
+.compare-table thead th:not(:first-child) {
+  width: 5.5rem;
+}
+
+/* Узкий экран: поля ячеек меньше, заголовок «Место 20» переносится по пробелу, последней колонке хватает
+   ширины на слово «Разница». Подписи источника остаётся остаток */
+@container screen (max-width: 480px) {
+  .compare-table thead th:not(:first-child) {
+    width: 3.5rem;
+  }
+
+  .compare-table thead th:last-child {
+    width: 4.25rem;
+  }
+
+  .compare-table th,
+  .compare-table td {
+    padding-inline: var(--space-1);
+  }
+}
+
+/* Самый узкий экран, 320 px: шрифт таблицы на размер меньше, и в карточке «Источник» и «Оценка» помещаются целиком */
+@container screen (max-width: 360px) {
+  .compare-table {
+    font-size: var(--font-size-xs);
+  }
+
+  .compare-table thead th:not(:first-child) {
+    width: 3.125rem;
+  }
+
+  .compare-table thead th:last-child {
+    width: 3.875rem;
+  }
+}
+
+.compare-table .swatch {
+  display: inline-block;
+  margin-right: var(--space-2);
+}
+
+.compare-table thead th {
+  color: var(--color-muted);
+}
+
+.compare-table tfoot th,
+.compare-table tfoot td {
+  border-bottom: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Вид клиента: одна колонка карточек без боковой панели */
+.feed--client {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.feed--client > .layout__aside {
+  display: none;
+}
+
+/* Узкий экран: панели истории и состава оценки стоят после ленты */
+.feed-secondary {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+/* Два клиента рядом: полосы долей источников и первые десять карточек обеих лент */
+.client-compare {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.client-compare__title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.client-compare__count {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.client-compare__bar {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.client-compare__name {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-compare__table th:first-child {
+  width: 3.5rem;
+}
+
+/* Обе колонки с названиями равной ширины; название переносится, числа не рвутся */
+.client-compare__table thead th:not(:first-child) {
+  width: auto;
+  text-align: left;
+}
+
+.client-compare__table td {
+  text-align: left;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.client-compare__score {
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.client-compare__shared {
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* Паспорт модели: две таблицы качества, доли в процентах */
+.passport-table {
+  margin-top: var(--space-3);
+}
+
+.passport-table thead th:not(:first-child) {
+  width: 5.25rem;
+}
+
+/* Колонка ленты не шире окна: карточка не расширяет её своим содержимым */
+.feed > .layout__content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.feed-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.feed-list--stale {
+  opacity: 0.6;
+}
+
+.feed-card {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.feed-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.feed-card__title {
+  flex: 1;
+  /* Длинное слово названия переносится: рядом с пометкой «новая» оно расширяло колонку за край экрана 320 px */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semibold);
+}
+
+.feed-card__meta,
+.feed-card__reason {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.feed-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-muted);
+}
+
+.feed-card__actions {
+  display: flex;
+}
+
+.feed-details {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-line);
+}
+
+.feed-details[hidden] {
+  display: none;
+}
+
+.feed-details__title {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.feed-details__step {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.feed-parts__row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 11rem) 3.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+/* Образец стоит у первой строки, даже если свидетельство занимает несколько строк */
+.feed-parts__row > .swatch {
+  align-self: start;
+  margin-top: 0.3em;
+}
+
+.feed-parts__value {
+  text-align: right;
+  font-weight: var(--font-weight-semibold);
+}
+
+.feed-parts__evidence {
+  color: var(--color-muted);
+}
+
+/* Пояснение к вкладу, который считает модель: отдельной строкой под свидетельством */
+.feed-parts__note {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+/* На узком экране свидетельство уходит на отдельную строку под подписью и числом */
+@container (max-width: 520px) {
+  .feed-parts__row {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+  }
+
+  .feed-parts__evidence {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (forced-colors: active) {
+  .score-bar__seg,
+  .swatch {
+    forced-color-adjust: none;
+  }
+}
+
+@media print {
+  .mode-switch {
+    display: none;
+  }
+}

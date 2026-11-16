@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from app.config import DATA_DIR
+from app.config import DATA_DIR, load_settings
 
 from .conftest import client_for, error_of
 
@@ -53,6 +53,26 @@ def test_profiles_in_demo_mode(client):
     assert body["profiles"][1]["history"][1] == {"material_id": "M03", "event": "complete", "seq": 2}
 
 
+def test_configured_profile_file(tmp_path):
+    profile_path = tmp_path / "demo-profiles.json"
+    profile = {
+        "id": "D01",
+        "label": "Демо · после курса",
+        "history": [{"material_id": "M08", "event": "complete", "seq": 1}],
+    }
+    profile_path.write_text(json.dumps({"profiles": [profile]}, ensure_ascii=False), encoding="utf-8")
+    settings = load_settings({"DEMO_PROFILES_PATH": str(profile_path)})
+    with client_for(demo_profiles_path=settings.demo_profiles_path) as demo:
+        entries = demo.get("/api/profiles").json()["profiles"]
+        assert [entry["id"] for entry in entries] == [profile["id"]]
+        assert entries[0]["history"] == profile["history"]
+        with_history = demo.post("/api/recommend", json={"profile_id": "D01"}).json()
+        assert with_history["status"] != "cold"
+        assert "M08" not in {item["material_id"] for item in with_history["items"]}
+    with client_for(demo_mode=False, demo_profiles_path=tmp_path / "missing.json") as production:
+        assert production.get("/api/profiles").status_code == 404
+
+
 def test_recommend_p01_contract(client):
     response = client.post("/api/recommend", json=P01)
     assert response.status_code == 200
@@ -69,7 +89,7 @@ def test_recommend_p01_contract(client):
     assert body["message"].startswith("Нашли 8 материалов по теме «Продвижение».")
     assert set(body) == {
         "request_id", "method", "catalog", "status", "detected_topics", "message", "clarification", "items", "route",
-        "total_candidates", "filter_options",
+        "total_candidates",
     }
 
 

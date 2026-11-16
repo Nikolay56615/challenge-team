@@ -649,7 +649,6 @@ export const LIMIT_TASK = (
 
 // ---------- справочники и профили ----------
 export const META: MetaResponse = {
-  catalog: { source: 'synthetic', available: 16 },
   topics: [option('start'), option('taxes_law'), option('finance'), option('marketing'), option('sales'), option('operations')],
   stages: [
     { value: 'idea', label: 'Только планирую' },

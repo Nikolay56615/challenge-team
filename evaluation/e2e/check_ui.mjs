@@ -10,7 +10,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterPost, base, chooseProfile, demoPanelOverflow, outDir, runBrowserChecks, submit, TASK_LABEL } from './browser.mjs';
+import { afterPost, base, chooseProfile, demoPanelOverflow, outDir, runBrowserChecks, submit, TASK_LABEL, TASK_VIEW } from './browser.mjs';
 
 const results = [];
 const check = (id, name, ok, note = '') => {
@@ -26,7 +26,7 @@ async function open(browser, width) {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text());
   });
-  await page.goto(base + '/');
+  await page.goto(base + TASK_VIEW);
   await page.getByRole('button', { name: 'Подобрать материалы' }).waitFor();
   return { page, context, errors };
 }
@@ -213,7 +213,8 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await submit(page, '/api/compare');
     if (width >= 800) {
       const both = (await page.getByRole('heading', { name: /Подбор по теме/ }).count()) > 0 && (await page.getByRole('heading', { name: /Персональный подбор/ }).count()) > 0;
-      check('E4', 'Сравнение: две колонки на широком экране', both && (await page.getByRole('tablist').count()) === 0);
+      // Вкладки сравнения есть только на узком экране; вкладки входа стоят вне main и сюда не входят
+      check('E4', 'Сравнение: две колонки на широком экране', both && (await page.locator('main').getByRole('tablist').count()) === 0);
     } else {
       const tablist = page.getByRole('tablist', { name: 'Метод подбора' });
       const hasTabs = (await tablist.count()) === 1;
@@ -248,7 +249,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
       JSON.stringify(personalP01) === JSON.stringify(singleP01) && JSON.stringify(personalP02) === JSON.stringify(singleP02));
 
     // E4: задача без темы. Подбор по теме показывает своё сообщение и стартовую подборку, позиции не сравниваются
-    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
     await page.getByLabel('Что вы хотите сделать?').fill('Какую CRM выбрать');
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).check();
     await submit(page, '/api/compare');
@@ -283,7 +284,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await page.getByRole('checkbox', { name: 'Сравнить с подбором по теме' }).uncheck();
 
     // E5: пустая форма
-    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
     check('E5', `«Сбросить» очищает задачу (${width})`, (await page.getByLabel('Что вы хотите сделать?').inputValue()) === '');
     await submit(page);
     const coldHeading = await page.getByRole('heading', { name: 'С чего хотите начать?' }).count();
@@ -375,7 +376,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
   {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'ru-RU' });
     const page = await context.newPage();
-    await page.goto(base + '/');
+    await page.goto(base + TASK_VIEW);
     const button = page.getByRole('button', { name: 'Подобрать материалы', exact: true });
     await button.waitFor();
     const box = await button.boundingBox();
@@ -411,7 +412,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
         log.push({
           height: Math.round(document.querySelector('.layout__content').getBoundingClientRect().height),
           cards: document.querySelectorAll('article.card').length,
-          intro: Array.from(document.querySelectorAll('h2')).some((h) => h.textContent === 'Что вы получите'),
+          intro: Boolean(document.querySelector('.intro__examples')),
           skeletons: document.querySelectorAll('.skeleton').length,
           stale: stale.length,
           inert: stale.every((el) => el.inert),
@@ -472,7 +473,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const task = page.getByLabel(TASK_LABEL);
     const response = afterPost(page, async () => {
       await button.click();
-      const early = await page.locator('.actions .btn--primary').evaluate((el) => ({
+      const early = await page.locator('.task-submit').evaluate((el) => ({
         busy: el.dataset.busy,
         blocked: el.getAttribute('aria-disabled'),
         text: el.textContent,
@@ -501,7 +502,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     const context = await browser.newContext({ viewport: { width: 390, height: 900 }, locale: 'ru-RU' });
     await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(base).origin });
     const page = await context.newPage();
-    await page.goto(base + '/');
+    await page.goto(base + TASK_VIEW);
     const field = page.getByLabel('Что вы хотите сделать?');
     await field.waitFor();
     const state = () => field.evaluate((el) => {
@@ -537,7 +538,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await field.press('End');
     await field.press('Control+V');
     const again = await state();
-    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await page.getByRole('button', { name: 'Сбросить' }).click();
     const reset = await state();
     check('ИИ-5', '«Сбросить» после обрезанной вставки: подсказка по умолчанию, живая область пуста',
       again.hint === cutText && reset.length === 0 && reset.hint === defaultHint && reset.live === '', JSON.stringify({ again: again.hint, reset }));
@@ -613,6 +614,60 @@ await runBrowserChecks('results.json', results, async (browser) => {
     await submit(page);
     check('E9', 'Нет горизонтальной прокрутки на 320 px', !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
     await shot(page, 'p01-320');
+    await context.close();
+  }
+
+  // Первый визит: готовые задачи и возврат к выбору, опциональная стадия и стартовая подборка.
+  {
+    const { page, context } = await open(browser, 390);
+    const button = (name) => page.getByRole('button', { name });
+    const heading = (name) => page.getByRole('heading', { name, exact: true });
+    const focused = (target) => target.evaluate((element) => element === document.activeElement);
+    const readRequest = (action) => Promise.all([
+      page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith('/api/recommend')),
+      afterPost(page, action),
+    ]).then(([request]) => request.postDataJSON());
+
+    await button('Выбрать готовую задачу').press('Enter');
+    const choice = heading('Что хотите сделать?');
+    const focusedFirst = await focused(choice);
+    const images = await page.locator('.intro__example img').evaluateAll(async (items) => {
+      await Promise.all(items.map((image) => image.decode()));
+      return items.length === 3 && items.every((image) => image.naturalWidth > 0);
+    });
+    await button(/Запустить первую рекламу/).press('Enter');
+    const stage = heading('На каком этапе ваш бизнес?');
+    const focusedSecond = await focused(stage);
+    await button('Назад').press('Enter');
+    check('Первый визит', 'Фото открываются, фокус переходит между шагами и возвращается', images &&
+      focusedFirst && focusedSecond && await focused(choice));
+
+    await button(/Как делегировать задачи/).click();
+    await button('Сбросить').click();
+    check('Первый визит', 'Сброс возвращает список задач', await choice.isVisible());
+
+    await button(/Какой налоговый режим выбрать/).click();
+    const selected = await readRequest(() => button('Недавно начал бизнес').click());
+    check('Первый визит', 'Готовая задача и выбранная стадия попали в запрос', selected.stage === 'start' &&
+      selected.task === 'Какой налоговый режим выбрать' && (await cards(page)).length > 0);
+
+    await button('Сбросить').click();
+    await button(/Запустить первую рекламу/).click();
+    const skipped = await readRequest(() => button('Пропустить уточнение').click());
+    check('Первый визит', 'Уточнение можно пропустить', skipped.stage === null &&
+      skipped.task === 'Запустить первую рекламу' && (await cards(page)).length > 0);
+
+    await button('Сбросить').click();
+    const starter = await readRequest(() => button('Показать материалы для начала').click());
+    check('Первый визит', 'Подборку можно открыть без задачи', starter.task === '' &&
+      starter.stage === null && (await cards(page)).length > 0);
+    await chooseProfile(page, 'P02');
+    await submit(page);
+    const cover = page.locator('.card__cover').first();
+    await cover.scrollIntoViewIfNeeded();
+    await cover.evaluate((image) => image.decode());
+    const hasBenefit = await cover.locator('xpath=ancestor::article').locator('.card__benefit').isVisible();
+    check('Первый визит', 'Карточка курса показывает тематическое фото и краткое описание', hasBenefit);
     await context.close();
   }
 });

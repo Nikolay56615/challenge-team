@@ -4,15 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeGuard
-
-from .course_details import CourseDetails
-
-if TYPE_CHECKING:
-    from .global_search import SearchIndex
-    from .reranked_search import RerankedIndex
-    from .task_search import TaskIndex
-    from .text_search import TextIndex
+from typing import Any, TypeGuard
 
 # Код материала: одно правило для загрузчика JSON и для истории в запросе (schemas.HistoryEventIn).
 # Материал с другим кодом нельзя было бы отметить изученным: запрос с такой историей получил бы 422.
@@ -51,9 +43,6 @@ class Material:
     url: str | None = None
     short_benefit: str | None = None
     next_step: str | None = None
-    lesson_count: int | None = None
-    has_certificate: bool | None = None
-    course_details: CourseDetails | None = None
 
     @property
     def is_paid(self) -> bool:
@@ -88,15 +77,25 @@ class CoursePairs:
 
     `together[a][b]` — число пользователей с записями на оба курса, симметрично; `totals[a]` — число
     пользователей курса a. Хранятся только пары с поддержкой не ниже `min_support`: пара ниже порога
-    не даёт ни вклада, ни фразы. Сходство по R03: sim(a, b) = together / (totals[a]^α · totals[b]^(1−α)).
+    не даёт ни вклада подбору по задаче, ни фразы с числами. Сходство по R03:
+    sim(a, b) = together / (totals[a]^α · totals[b]^(1−α)).
+
+    `weights[a][b]` — вес курса истории a для кандидата b по модели EASE в единицах доли слушателей
+    (`catalog/ease.py`): его использует лента по профилю. Веса строятся по всем парам файла; словарь пуст,
+    если пары заданы без файла или курсов больше предела модели.
     """
 
     together: dict[str, dict[str, int]]
     totals: dict[str, int]
     min_support: int
+    weights: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def neighbours(self, course: str) -> dict[str, int]:
         return self.together.get(course, {})
+
+    def weight(self, anchor: str, course: str) -> float:
+        """Вес курса истории для кандидата по модели EASE; 0 без весов и для пары вне матрицы."""
+        return self.weights.get(anchor, {}).get(course, 0.0)
 
     def similarity(self, anchor: str, course: str, alpha: float) -> float:
         """Сходство курса истории с кандидатом; 0 без пары, ниже порога или без пользователей у курса."""
@@ -131,10 +130,6 @@ class Catalog:
     version: str
     disabled_features: tuple[str, ...] = ()
     coverage: dict[str, Any] = field(default_factory=dict)
-    text_index: TextIndex | None = None
-    task_index: TaskIndex | None = None
-    search_index: SearchIndex | RerankedIndex | None = None
-    search_fallback: SearchIndex | None = None
     course_pairs: CoursePairs | None = None
 
     @property

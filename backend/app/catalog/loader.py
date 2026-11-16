@@ -12,16 +12,18 @@ import logging
 from pathlib import Path
 
 from ..config import DATA_DIR, Settings
-from .global_search import configure
 from .models import Catalog, CatalogError
 from .pairs import load_course_pairs
-from .reranked_search import configure_reranked
 from .synthetic_source import load_json_catalog
 
 log = logging.getLogger("app.catalog")
 
 SYNTHETIC_CATALOG = DATA_DIR / "catalog.synthetic.json"
 SYNTHETIC_PAIRS = DATA_DIR / "course-pairs.synthetic.json"
+# Каталог ленты по профилю: те же материалы и пары и вымышленные материалы по всем темам
+# (evaluation/build_feed_synthetic.py). Размеченный каталог подбора по задаче от него не зависит
+FEED_CATALOG = DATA_DIR / "catalog.feed.synthetic.json"
+FEED_PAIRS = DATA_DIR / "course-pairs.feed.synthetic.json"
 
 
 def pairs_path(settings: Settings) -> Path | None:
@@ -52,33 +54,43 @@ def load_catalog(settings: Settings) -> Catalog:
         if settings.catalog_path is None:
             raise CatalogError("Для CATALOG_SOURCE=sqlite нужен CATALOG_PATH")
         # Импорт по требованию: модуль нужен только локально
-        from .sqlite_source import load_sqlite_catalog, search_cards  # noqa: PLC0415
+        from .sqlite_source import load_sqlite_catalog  # noqa: PLC0415
 
         catalog = load_sqlite_catalog(
             settings.catalog_path,
             signals_path=settings.catalog_signals_path,
             mapping_path=settings.catalog_mapping,
-            relevance="task" if settings.catalog_relevance == "task" else "legacy",
         )
-        if settings.catalog_relevance in {"lexical", "hybrid", "reranked"}:
-            cards = search_cards(settings.catalog_path, catalog)
-            if settings.catalog_relevance == "reranked":
-                configure_reranked(catalog, settings, cards)
-            else:
-                configure(catalog, settings, cards)
     else:  # pragma: no cover - значение проверено в config
         raise CatalogError(f"Неизвестный источник каталога: {settings.catalog_source}")
-    catalog.coverage.setdefault(
-        "relevance",
-        {
-            "requested": settings.catalog_relevance,
-            "effective": "task" if catalog.task_index else "legacy",
-        },
-    )
     attach_pairs(catalog, pairs_path(settings), settings.pairs_min_support)
+    _log_loaded("catalog", catalog)
+    return catalog
+
+
+def load_feed_catalog(settings: Settings, catalog: Catalog) -> Catalog:
+    """Каталог ленты по профилю.
+
+    У синтетического источника это расширенный набор из комплекта. У `sqlite` и `file` лента строится по тому же
+    каталогу, что и подбор по задаче. Ошибка расширенного набора оставляет ленте основной каталог.
+    """
+    if settings.catalog_source != "synthetic":
+        return catalog
+    try:
+        extended = load_json_catalog(FEED_CATALOG, source="synthetic")
+    except CatalogError as exc:
+        log.error("feed catalog not loaded: %s", exc)
+        return catalog
+    attach_pairs(extended, settings.catalog_pairs_path or FEED_PAIRS, settings.pairs_min_support)
+    _log_loaded("feed catalog", extended)
+    return extended
+
+
+def _log_loaded(name: str, catalog: Catalog) -> None:
     pairs = catalog.coverage["course_pairs"]
     log.info(
-        "catalog loaded source=%s version=%s size=%d disabled=%s pairs=%s:%d",
+        "%s loaded source=%s version=%s size=%d disabled=%s pairs=%s:%d",
+        name,
         catalog.source,
         catalog.version,
         catalog.size,
@@ -86,4 +98,3 @@ def load_catalog(settings: Settings) -> Catalog:
         pairs["source"],
         pairs["pairs"],
     )
-    return catalog

@@ -1,9 +1,9 @@
-// Типы контракта API (PLAN.md, 4.4). Источник истины — app/backend/app/schemas.py.
+// Типы контракта API (docs/plan.md, 4.4). Источник истины — app/backend/app/schemas.py.
+// Совпадение со схемой OpenAPI проверяет при сборке src/api/contract.ts (кандидат W10).
 
 export type StageCode = 'idea' | 'start' | 'growth';
 export type ExperienceCode = 'none' | 'some' | 'experienced';
 export type FormatPrefCode = 'quick' | 'template' | 'course';
-export type MaterialFormatCode = 'checklist' | 'article' | 'template' | 'document' | 'video' | 'course' | 'webinar' | 'podcast';
 export type IndustryCode =
   | 'horeca'
   | 'retail'
@@ -41,11 +41,6 @@ export interface HistoryEvent {
   seq: number;
 }
 
-export interface MaterialFilters {
-  format: MaterialFormatCode | null;
-  access: AccessCode | null;
-}
-
 export interface RecommendRequest {
   task: string;
   stage: StageCode | null;
@@ -58,17 +53,11 @@ export interface RecommendRequest {
   profile_id: string | null;
   limit: number;
   method: MethodCode;
-  filters?: MaterialFilters | null;
 }
 
 export interface Option<T extends string = string> {
   label: string;
   value: T;
-}
-
-export interface FilterOptions {
-  formats: Option<MaterialFormatCode>[];
-  access: Option<AccessCode>[];
 }
 
 export interface Signal {
@@ -94,9 +83,6 @@ export interface Item {
   level_label: string | null;
   industries: string[];
   duration_minutes: number | null;
-  lesson_count?: number | null;
-  has_certificate?: boolean | null;
-  course_details?: { description: string | null; audiences: string[]; outcomes: string[] } | null;
   access: AccessCode;
   access_label: string;
   is_paid: boolean;
@@ -114,6 +100,7 @@ export interface Item {
 export interface Clarification {
   question: string;
   text: string;
+  /** В схеме OpenAPI поле со значением по умолчанию и не обязательно; интерфейс его не читает */
   field?: 'topic';
   options: Option<TopicCode>[];
 }
@@ -146,7 +133,6 @@ export interface RecommendResponse {
   items: Item[];
   route: Route | null;
   total_candidates: number;
-  filter_options?: FilterOptions | null;
 }
 
 export interface CompareResponse {
@@ -156,7 +142,6 @@ export interface CompareResponse {
 }
 
 export interface MetaResponse {
-  catalog: { source: string; available: number };
   topics: Option<TopicCode>[];
   stages: Option<StageCode>[];
   experience: Option<ExperienceCode>[];
@@ -180,6 +165,159 @@ export interface Profile {
 
 export interface ProfilesResponse {
   profiles: Profile[];
+}
+
+/** Источник вклада в оценку ленты (app/backend/app/ranking/feed.py, SOURCES) */
+export type FeedSourceCode =
+  | 'progress'
+  | 'history'
+  | 'content'
+  | 'links'
+  | 'task'
+  | 'profile'
+  | 'access'
+  | 'popularity'
+  | 'seen';
+export type FeedStatus = 'history' | 'cold';
+
+export interface FeedRequest {
+  task: string;
+  stage: StageCode | null;
+  experience: ExperienceCode | null;
+  format_pref: FormatPrefCode | null;
+  industry: IndustryCode | null;
+  /** null — история берётся у клиента с кодом user_id */
+  history: HistoryEvent[] | null;
+  user_id: string | null;
+  /** «Что если»: события этих материалов убираются из истории */
+  exclude_history: string[];
+  /** «Что если»: события добавляются после последнего события истории; seq задаёт порядок между ними */
+  add_history: HistoryEvent[];
+  limit: number;
+  /** Вес источника «доступ и цена» от 0 до 1; null — вес сервера по умолчанию, 0 — без учёта цены */
+  price_weight: number | null;
+}
+
+export interface FeedPart {
+  source: FeedSourceCode;
+  label: string;
+  value: number;
+  evidence: string | null;
+  /** Как считается вклад, если его считает модель, а свидетельство называет только запись с наибольшим весом */
+  note: string | null;
+}
+
+export interface FeedItem {
+  rank: number;
+  material_id: string;
+  title: string;
+  format: string;
+  format_label: string;
+  topic_labels: string[];
+  level_label: string | null;
+  duration_minutes: number | null;
+  access: AccessCode;
+  access_label: string;
+  is_paid: boolean;
+  short_benefit: string | null;
+  url: string | null;
+  link_allowed: boolean;
+  next_step: string;
+  flags: Flag[];
+  /** Равна сумме parts[].value */
+  score: number;
+  parts: FeedPart[];
+  reason: string;
+}
+
+export interface FeedHistoryEntry {
+  material_id: string;
+  /** null — материала нет в каталоге */
+  title: string | null;
+  format_label: string | null;
+  event: EventCode;
+  event_label: string;
+}
+
+export interface FeedShare {
+  label: string;
+  share: number;
+}
+
+export interface FeedSourceShare extends FeedShare {
+  source: FeedSourceCode;
+}
+
+/** Поле профиля клиента и откуда оно известно: «указано в анкете», «выведено из истории», «не указано» */
+export interface FeedFact {
+  name: string;
+  value: string | null;
+  origin: string;
+}
+
+/** Клиент из подключённого журнала */
+export interface User {
+  id: string;
+  label: string;
+  /** null — у журнала нет сегментов */
+  segment: string | null;
+  /** Число материалов в истории */
+  materials: number;
+  paid: boolean;
+}
+
+/** Клиенты, код которых начинается с запроса: первые из matched; total — всего в журнале */
+export interface UsersResponse {
+  source: string;
+  total: number;
+  matched: number;
+  users: User[];
+}
+
+/** Метод на журнале записей: доля пользователей, у которых скрытый курс стоит первым и в первых пяти */
+export interface ModelCardRow {
+  method: string;
+  label: string;
+  hit1: number;
+  hit5: number;
+  ndcg5: number;
+}
+
+export interface ModelCardGroup {
+  code: string;
+  label: string;
+  users: number;
+  rows: ModelCardRow[];
+}
+
+export interface ModelCardValue {
+  label: string;
+  value: number;
+  /** true — значение есть доля от 0 до 1 */
+  share: boolean;
+}
+
+/** Паспорт модели ленты: тип данных проверки, качество по группам, веса источников и свойства ленты */
+export interface ModelCard {
+  data: string;
+  groups: ModelCardGroup[];
+  weights: ModelCardValue[];
+  feed: ModelCardValue[];
+}
+
+export interface FeedResponse {
+  request_id: string;
+  catalog: CatalogInfo;
+  /** Клиент, по истории которого построена лента; null — история пришла в запросе */
+  user: User | null;
+  status: FeedStatus;
+  message: string;
+  items: FeedItem[];
+  total_candidates: number;
+  history: FeedHistoryEntry[];
+  interests: FeedShare[];
+  facts: FeedFact[];
+  sources: FeedSourceShare[];
 }
 
 export interface ApiErrorBody {

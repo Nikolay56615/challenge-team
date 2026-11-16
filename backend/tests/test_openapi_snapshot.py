@@ -83,6 +83,8 @@ def test_errors_are_documented_with_the_error_envelope():
         ("get", "/api/health"): {"503"}, ("get", "/api/live"): set(), ("get", "/api/ready"): {"503"},
         ("get", "/api/meta"): {"503"}, ("get", "/api/profiles"): {"404"},
         ("post", "/api/recommend"): {"413", "422", "503"}, ("post", "/api/compare"): {"413", "422", "503"},
+        ("post", "/api/feed"): {"404", "413", "422", "503"}, ("get", "/api/users"): {"404", "422"},
+        ("get", "/api/model-card"): {"404"},
     }
     found = {}
     for path, operations in spec["paths"].items():

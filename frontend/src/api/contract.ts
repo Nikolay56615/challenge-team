@@ -34,6 +34,8 @@ export type RequestChecks = [
   Assert<Assignable<Api.RecommendRequest, Gen.RecommendRequest>>,
   Assert<Equal<ExtraKeys<Api.RecommendRequest, Gen.RecommendRequest>, never>>,
   Assert<Assignable<Api.HistoryEvent, Gen.HistoryEventIn>>,
+  Assert<Assignable<Api.FeedRequest, Gen.FeedRequest>>,
+  Assert<Equal<ExtraKeys<Api.FeedRequest, Gen.FeedRequest>, never>>,
 ];
 
 /** Ответы: то, что возвращает API, подходит под типы фронтенда */
@@ -45,6 +47,10 @@ export type ResponseChecks = [
   Assert<Assignable<Gen.ProfilesResponse, Widen<Api.ProfilesResponse>>>,
   Assert<Assignable<Gen.Clarification, Widen<Api.Clarification>>>,
   Assert<Assignable<Gen.Route, Widen<Api.Route>>>,
+  Assert<Assignable<Gen.FeedResponse, Widen<Api.FeedResponse>>>,
+  Assert<Assignable<Gen.FeedItemOut, Widen<Api.FeedItem>>>,
+  Assert<Assignable<Gen.UsersResponse, Widen<Api.UsersResponse>>>,
+  Assert<Assignable<Gen.ModelCardResponse, Widen<Api.ModelCard>>>,
 ];
 
 /**
@@ -77,6 +83,10 @@ export type CodeLists = [
   Assert<Equal<NonNullable<Gen.RecommendRequest['industry']>, Api.IndustryCode>>,
   Assert<Equal<NonNullable<Gen.RecommendRequest['topic']>, Api.TopicCode>>,
   Assert<Equal<NonNullable<Gen.ProfileOut['stage']>, Api.StageCode>>,
+  Assert<Equal<Gen.FeedPart['source'], Api.FeedSourceCode>>,
+  Assert<Equal<Gen.FeedSourceShare['source'], Api.FeedSourceCode>>,
+  Assert<Equal<Gen.FeedResponse['status'], Api.FeedStatus>>,
+  Assert<Equal<Gen.FeedHistoryOut['event'], Api.EventCode>>,
 ];
 
 /**

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
@@ -12,7 +12,6 @@ from .catalog.models import MATERIAL_ID_MAX_LENGTH, MATERIAL_ID_PATTERN
 StageCode = Literal["idea", "start", "growth"]
 ExperienceCode = Literal["none", "some", "experienced"]
 FormatPrefCode = Literal["quick", "template", "course"]
-MaterialFormatCode = Literal["checklist", "article", "template", "document", "video", "course", "webinar", "podcast"]
 IndustryCode = Literal[
     "horeca", "retail", "ecom", "services", "construction", "logistics", "b2b", "manufacturing", "wholesale", "b2g"
 ]
@@ -43,6 +42,13 @@ def json_integer(value: object) -> object:
     return value
 
 
+def json_number(value: object) -> object:
+    """Число по правилам JSON Schema: строка и логическое значение числом не считаются, null допустим."""
+    if isinstance(value, (bool, str)):
+        raise PydanticCustomError("float_type", "Input should be a valid number")
+    return value
+
+
 class HistoryEventIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -51,13 +57,6 @@ class HistoryEventIn(BaseModel):
     seq: int = Field(ge=0, le=1_000_000_000)
 
     _integers = field_validator("seq", mode="before")(json_integer)
-
-
-class FiltersIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    format: MaterialFormatCode | None = None
-    access: AccessCode | None = None
 
 
 class RecommendRequest(BaseModel):
@@ -73,7 +72,6 @@ class RecommendRequest(BaseModel):
     profile_id: str | None = Field(default=None, max_length=16, pattern=r"^[A-Za-z0-9_\-]+$")
     limit: int = Field(default=5, ge=1, le=10)
     method: MethodCode = "personal"
-    filters: FiltersIn | None = None
 
     _integers = field_validator("limit", mode="before")(json_integer)
 
@@ -81,11 +79,6 @@ class RecommendRequest(BaseModel):
 class Option(BaseModel):
     label: str
     value: str
-
-
-class FilterOptionsOut(BaseModel):
-    formats: list[Option]
-    access: list[Option]
 
 
 class SignalOut(BaseModel):
@@ -96,14 +89,6 @@ class SignalOut(BaseModel):
 class FlagOut(BaseModel):
     code: FlagCode
     label: str
-
-
-class CourseDetailsOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    description: str | None
-    audiences: list[str]
-    outcomes: list[str]
 
 
 class ItemOut(BaseModel):
@@ -119,9 +104,6 @@ class ItemOut(BaseModel):
     level_label: str | None
     industries: list[str]
     duration_minutes: int | None
-    lesson_count: int | None = None
-    has_certificate: bool | None = None
-    course_details: CourseDetailsOut | None = None
     access: AccessCode
     access_label: str
     is_paid: bool
@@ -170,7 +152,6 @@ class RecommendResponse(BaseModel):
     items: list[ItemOut]
     route: Route | None
     total_candidates: int
-    filter_options: FilterOptionsOut | None = None
 
 
 class CompareDiff(BaseModel):
@@ -184,13 +165,162 @@ class CompareResponse(BaseModel):
     diff: CompareDiff
 
 
-class MetaCatalog(BaseModel):
+FeedSourceCode = Literal[
+    "progress", "history", "content", "links", "task", "profile", "access", "popularity", "seen"
+]
+FEED_LIMIT = 50
+_MATERIAL_ID = Field(min_length=1, max_length=MATERIAL_ID_MAX_LENGTH, pattern=MATERIAL_ID_PATTERN)
+
+
+class FeedRequest(BaseModel):
+    """Запрос ленты по профилю (docs/plan.md, раздел 13).
+
+    История берётся из `history`, а без неё — у клиента с кодом `user_id` (`GET /api/users`). Затем «что если»:
+    события материалов из `exclude_history` убираются, события `add_history` добавляются после последнего
+    события истории, их `seq` задаёт порядок между собой.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    task: str = Field(default="", max_length=TASK_HARD_LIMIT)
+    stage: StageCode | None = None
+    experience: ExperienceCode | None = None
+    format_pref: FormatPrefCode | None = None
+    industry: IndustryCode | None = None
+    history: list[HistoryEventIn] | None = Field(default=None, max_length=HISTORY_LIMIT)
+    user_id: Annotated[str, _MATERIAL_ID] | None = None
+    exclude_history: list[Annotated[str, _MATERIAL_ID]] = Field(default_factory=list, max_length=HISTORY_LIMIT)
+    add_history: list[HistoryEventIn] = Field(default_factory=list, max_length=HISTORY_LIMIT)
+    limit: int = Field(default=20, ge=1, le=FEED_LIMIT)
+    # Вес источника «доступ и цена»; без поля — вес по умолчанию из ranking/feed.py, ноль выключает учёт цены
+    price_weight: float | None = Field(default=None, ge=0, le=1)
+
+    _integers = field_validator("limit", mode="before")(json_integer)
+    _numbers = field_validator("price_weight", mode="before")(json_number)
+
+
+class FeedPart(BaseModel):
+    source: FeedSourceCode
+    label: str
+    value: float
+    evidence: str | None
+    # Как считается вклад, если его считает модель, а свидетельство называет только запись с наибольшим весом
+    note: str | None
+
+
+class FeedItemOut(BaseModel):
+    rank: int
+    material_id: str
+    title: str
+    format: str
+    format_label: str
+    topic_labels: list[str]
+    level_label: str | None
+    duration_minutes: int | None
+    access: AccessCode
+    access_label: str
+    is_paid: bool
+    short_benefit: str | None
+    url: str | None
+    link_allowed: bool
+    next_step: str
+    flags: list[FlagOut]
+    score: float
+    parts: list[FeedPart]
+    reason: str
+
+
+class FeedHistoryOut(BaseModel):
+    material_id: str
+    title: str | None
+    format_label: str | None
+    event: EventCode
+    event_label: str
+
+
+class FeedShare(BaseModel):
+    label: str
+    share: float
+
+
+class FeedSourceShare(FeedShare):
+    source: FeedSourceCode
+
+
+class FeedFact(BaseModel):
+    """Поле профиля клиента с подписью происхождения: анкета, вывод из истории или «не указано»."""
+
+    name: str
+    value: str | None
+    origin: str
+
+
+class UserOut(BaseModel):
+    """Клиент из подключённого журнала: код, подпись, сегмент и размер истории."""
+
+    id: str
+    label: str
+    segment: str | None
+    materials: int
+    paid: bool
+
+
+class UsersResponse(BaseModel):
+    """Клиенты, код которых начинается с запроса: первые `limit` из `matched`; `total` — всего в журнале."""
+
     source: str
-    available: int
+    total: int
+    matched: int
+    users: list[UserOut]
+
+
+class FeedResponse(BaseModel):
+    request_id: str
+    catalog: CatalogInfo
+    user: UserOut | None
+    status: Literal["history", "cold"]
+    message: str
+    items: list[FeedItemOut]
+    total_candidates: int
+    history: list[FeedHistoryOut]
+    interests: list[FeedShare]
+    facts: list[FeedFact]
+    sources: list[FeedSourceShare]
+
+
+class ModelCardRow(BaseModel):
+    """Метод на журнале записей: доля пользователей, у которых скрытый курс стоит первым и в первых пяти."""
+
+    method: str
+    label: str
+    hit1: float
+    hit5: float
+    ndcg5: float
+
+
+class ModelCardGroup(BaseModel):
+    code: str
+    label: str
+    users: int
+    rows: list[ModelCardRow]
+
+
+class ModelCardValue(BaseModel):
+    label: str
+    value: float
+    share: bool  # значение — доля от 0 до 1; иначе число или вес
+
+
+class ModelCardResponse(BaseModel):
+    """Паспорт модели ленты: тип данных проверки, качество по группам, веса источников и свойства ленты."""
+
+    data: str
+    groups: list[ModelCardGroup]
+    weights: list[ModelCardValue]
+    feed: list[ModelCardValue]
 
 
 class MetaResponse(BaseModel):
-    catalog: MetaCatalog
     topics: list[Option]
     stages: list[Option]
     experience: list[Option]

@@ -27,7 +27,10 @@ HISTOGRAM = "http_server_request_duration_seconds"
 LABELS = {"http_route", "http_request_method", "http_response_status_code"}
 LE = ["0.005", "0.01", "0.025", "0.05", "0.075", "0.1", "0.25", "0.5", "0.75", "1.0", "2.5", "5.0", "7.5", "10.0",
       "+Inf"]
-API_ROUTES = {"/api/health", "/api/live", "/api/ready", "/api/meta", "/api/profiles", "/api/recommend", "/api/compare"}
+API_ROUTES = {
+    "/api/health", "/api/live", "/api/ready", "/api/meta", "/api/profiles", "/api/recommend", "/api/compare",
+    "/api/feed", "/api/users", "/api/model-card",
+}
 STATIC_ROUTE = "/{path:path}"
 JSON = {"content-type": "application/json"}
 HEX32 = re.compile(r"[0-9a-f]{32}")

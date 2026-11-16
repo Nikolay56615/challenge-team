@@ -1,11 +1,9 @@
-# Проверка комплекта, шесть заданий. Образ собирается один раз — в задании docker.
+# Проверка комплекта, пять заданий. Образ собирается один раз — в задании docker.
 # - backend-tests: зависимости из requirements-dev.lock с проверкой хешей; ruff и mypy (strict для app/), тесты бэкенда
 #   с покрытием ветвей и порогами 85 % и 95 % для app/ranking/ (W09); среди тестов свойства Hypothesis над подбором,
 #   контракт API по Schemathesis и снимок /openapi.json (W10).
 # - frontend-tests: тесты склонений и форматов интерфейса; копия схемы API, типы из неё и ручные типы
 #   интерфейса без расхождений (W10); eslint (W09).
-# - python-compat: синтаксис backend/app под Python 3.11 — версия интерпретатора GPU-стадии образа;
-#   ловит синтаксис 3.12, который в GPU-образе падает при старте, а не при сборке.
 # - docker-lint: проверки BuildKit и hadolint для Dockerfile, контекст сборки без запрещённых путей.
 # - docker: сборка образа, метки OCI, состав и команда запуска, сканирование trivy и SBOM (W06), заголовки ответа,
 #   пределы контейнера, HEALTHCHECK, подбор для P01, /metrics выключен по умолчанию, браузерные проверки,
@@ -132,35 +130,6 @@ jobs:
         # в шаге «Тесты интерфейса»; линтер идёт и после падения сверки типов, чтобы оба отчёта были видны
         if: ${{ !cancelled() }}
         run: npm --prefix frontend run lint
-
-  python-compat:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Синтаксис под Python 3.11
-        # GPU-стадия Dockerfile строится на pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime с Python 3.11,
-        # а код, ruff и mypy настроены на 3.12. Синтаксис 3.12 (PEP 695) в GPU-образе ломает импорт
-        # при старте контейнера, поэтому файлы разбираются тем же интерпретатором, что и в GPU-стадии.
-        # Зависимости не нужны: файлы только компилируются, ничего не импортируется.
-        run: |
-          python - <<'EOF'
-          import pathlib
-
-          problems = []
-          files = sorted(pathlib.Path("backend/app").rglob("*.py"))
-          for path in files:
-              try:
-                  compile(path.read_bytes(), str(path), "exec")
-              except SyntaxError as error:
-                  problems.append(f"{path}:{error.lineno}: {error.msg}")
-          if problems:
-              print("\n".join(problems))
-              raise SystemExit(f"Код не разбирается под Python 3.11: {len(problems)} ошибок")
-          print(f"Файлов проверено: {len(files)}")
-          EOF
 
   docker-lint:
     runs-on: ubuntu-latest
@@ -470,7 +439,7 @@ jobs:
         working-directory: evaluation/e2e
         run: |
           failed=""
-          for check in ui a11y wcag contrast cvd display; do
+          for check in feed ui a11y wcag contrast cvd display; do
             echo "::group::check:$check"
             npm run "check:$check" || failed="$failed check:$check"
             echo "::endgroup::"

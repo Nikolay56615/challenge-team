@@ -39,7 +39,7 @@
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { base, outDir, runBrowserChecks, walkStates } from './browser.mjs';
+import { base, outDir, runBrowserChecks, walkStates, TASK_VIEW } from './browser.mjs';
 import { chroma, contrast, deltaE, fmt, parseColor, readTokens, simulate, toHex, VISION, VISION_LABEL } from './color.mjs';
 import { LITERALS, PAIRS } from './pairs.mjs';
 
@@ -339,7 +339,7 @@ if (variantCss) console.log(`Вариант стилей поверх прило
 async function openApp(browser, width) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU', bypassCSP: Boolean(variantCss) });
   const page = await context.newPage();
-  await page.goto(base + '/');
+  await page.goto(base + TASK_VIEW);
   if (variantCss) await page.addStyleTag({ content: variantCss });
   return { context, page };
 }
@@ -502,7 +502,7 @@ await runBrowserChecks('cvd-results.json', results, async (browser) => {
   // Наведение и фокус ссылки-кнопки: состояние меняет не только цвет
   {
     const { context, page } = await openApp(browser, 1120);
-    const reset = page.getByRole('button', { name: 'Сбросить', exact: true });
+    const reset = page.getByRole('button', { name: 'Сбросить' });
     await reset.waitFor();
     const style = () => reset.evaluate((el) => {
       const cs = getComputedStyle(el);
