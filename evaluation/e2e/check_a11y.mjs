@@ -13,14 +13,13 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const rows = [];
 
 async function audit(page, state, width) {
-  // Цвета замеряются после переходов: кнопка отправки возвращается из неактивного вида плавно, и замер
-  // посреди перехода давал ложное нарушение контраста с промежуточными цветами
-  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => null))));
-  // CSP приложения запрещает встроенные скрипты; контекст проверки открыт с bypassCSP
-  await page.addScriptTag({ content: axeSource });
+  // Даём браузеру отрисовать новый вариант кнопки перед замером цвета.
+  await page.evaluate(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  }));
   const result = await page.evaluate((tags) => window.axe.run(document, { runOnly: { type: 'tag', values: tags } }), TAGS);
   const violations = result.violations.map((v) => `${v.id} (${v.impact}, ${v.nodes.length})`);
-  // incomplete — правила, которые axe не смог решить сам: разбор и решения — evaluation/track1-a11y-manual.md
+  // incomplete — правила, для которых требуется ручная проверка.
   const incomplete = result.incomplete.map((v) => {
     const first = v.nodes[0] || {};
     const reason = [...(first.any || []), ...(first.all || []), ...(first.none || [])].map((c) => c.message).find(Boolean) || '';
@@ -31,9 +30,12 @@ async function audit(page, state, width) {
 }
 
 async function open(browser, width, path = TASK_VIEW) {
-  const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU', bypassCSP: true });
+  // Отключаем переходы: промежуточные цвета и анимации искажают замеры контраста.
+  const context = await browser.newContext({ viewport: { width, height: 900 }, locale: 'ru-RU', bypassCSP: true, reducedMotion: 'reduce' });
   const page = await context.newPage();
   await page.goto(base + path);
+  // Устанавливаем axe один раз на страницу. Контекст с bypassCSP разрешает тестовый скрипт.
+  await page.addScriptTag({ content: axeSource });
   return { page, context };
 }
 
