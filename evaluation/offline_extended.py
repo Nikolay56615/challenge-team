@@ -392,8 +392,8 @@ def print_mde(state, comparisons, series, n_users: int) -> None:
     completed = sum(1 for b in bindings if b.event == "complete") / len(bindings)
     paid = sum(1 for b in bindings if b.paid) / len(bindings)
     rows = (
-        ("Клик по карточке", 0.30, "допущение, research/literature-recsys.md, 6.6"),
-        ("Старт за 7 дней после показа (OEC)", 0.05, "допущение, research/literature-recsys.md, 6.6"),
+        ("Клик по карточке", 0.30, "допущение для расчёта выборки"),
+        ("Старт за 7 дней после показа (OEC)", 0.05, "допущение для расчёта выборки"),
         ("Запись на второй курс", multi / users, f"копия: {thousands(multi)} из {thousands(users)} пользователей"),
         ("Старт записанного курса", started, "копия: статус 1 или 2 у доли записей"),
         ("Завершение записанного курса", completed, "копия: статус 2 у доли записей"),
