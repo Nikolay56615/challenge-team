@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import type { FeedItem } from '../api/types';
-import { FAMILY_LABEL, FAMILY_OF, clientReason, formatScore, scoreLabel, segments } from '../feed';
+import { FAMILY_LABEL, FAMILY_OF, formatScore, scoreLabel, segments } from '../feed';
 import { formatDuration, typo } from '../format';
 import { Badge, Button, ButtonLink, Card, RankMarker, cx } from '../kit';
 import { CompareTable } from './CompareTable';
@@ -73,7 +73,7 @@ export function FeedCard({ item, topScore, reference, shift, onComplete, disable
         ))}
       </p>
       {item.reason ? (
-        <p className="feed-card__reason">{typo(plain ? clientReason(item.reason) : item.reason)}.</p>
+        <p className="feed-card__reason">{typo(item.reason)}.</p>
       ) : null}
       {plain ? null : (
         <>
@@ -96,7 +96,6 @@ export function FeedCard({ item, topScore, reference, shift, onComplete, disable
           <div id={detailsId} className="feed-details" hidden={!open}>
             {open ? (
               <>
-                <p className="feed-details__title">Оценка {formatScore(item.score)} складывается из вкладов</p>
                 <ul className="feed-parts">
                   {item.parts.map((part) => {
                     // Вычет в полосу не входит, поэтому у него пустой образец, как в легенде
@@ -111,7 +110,6 @@ export function FeedCard({ item, topScore, reference, shift, onComplete, disable
                         <span className="feed-parts__value">{formatScore(part.value)}</span>
                         <span className="feed-parts__evidence">
                           {part.evidence ? `${typo(part.evidence)}.` : ''}
-                          {part.note ? <span className="feed-parts__note">{typo(part.note)}.</span> : null}
                         </span>
                       </li>
                     );
@@ -140,7 +138,7 @@ export function FeedCard({ item, topScore, reference, shift, onComplete, disable
                       if (!disabled) onComplete(item);
                     }}
                   >
-                    Отметить пройденным и&nbsp;пересчитать ленту
+                    Отметить пройденным
                   </Button>
                 </div>
               </>

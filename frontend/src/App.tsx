@@ -58,7 +58,7 @@ export function App() {
               <Checkbox
                 checked={clientView}
                 onChange={setClientView}
-                label={'Вид клиента: без оценок и\u00A0расчёта'}
+                label="Вид клиента"
               />
             )}
           </div>
@@ -88,7 +88,6 @@ export function App() {
                   key={view}
                   mode={view}
                   clients={clients?.users ?? []}
-                  clientsTotal={clients?.total ?? 0}
                   meta={metaState.meta}
                   audience={clientView ? 'client' : 'product'}
                   onOpenTask={() => {

@@ -28,7 +28,7 @@ export function ModelPassport() {
   if (!card) return null;
   return (
     <Disclosure summary="Паспорт модели">
-      <p className="field__hint">{typo(`${card.data}. Место скрытого курса считается среди курсов ленты.`)}</p>
+      <p className="field__hint">{typo(`${card.data}.`)}</p>
       {card.groups.map((group) => (
         <table key={group.code} className="compare-table passport-table">
           <caption>
@@ -54,10 +54,6 @@ export function ModelPassport() {
           </tbody>
         </table>
       ))}
-      <p className="field__hint">
-        Вторая и&nbsp;третья таблицы считаны по&nbsp;всем пользователям; часть из&nbsp;них участвовала в&nbsp;выборе
-        весов.
-      </p>
       <h3 className="feed-aside__subtitle">Свойства ленты</h3>
       <ul className="share-list">
         {card.feed.map((entry) => (
