@@ -11,7 +11,7 @@
 ## Презентация и оценка
 
 - [Презентация в PDF](presentation/slides.pdf).
-- [Текст слайдов и сборка PDF](presentation/slides.md).
+- [Текст слайдов и заметки для выступления](presentation/slides.md).
 - [Отчёт о модели EASE и проверке смешанной ленты](evaluation/track1-feed.md).
 
 ## История разработки
