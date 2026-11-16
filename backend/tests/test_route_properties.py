@@ -1,4 +1,4 @@
-"""Свойства маршрута на первую неделю на синтетическом каталоге (docs/plan.md, 3.6; кандидат R13).
+"""Свойства маршрута на первую неделю на синтетическом каталоге.
 
 Проверяются свойства, а не коды: в маршруте нет пройденного и купленного, ни один формат не
 встречается трижды, шаги — доступные материалы первой страницы, связанные редакционным «далее».
@@ -41,7 +41,7 @@ START_TASKS = (
 def route_expected(profile: Profile, status: str) -> bool:
     """Маршрут положен при статусе strong и стадии idea или start, в том числе по подсказке из текста.
 
-    Повторяет условие `policy._start_like` и статус из docs/plan.md, 3.6.
+    Проверяет выдачу strong и условие `policy._start_like`.
     """
     hint = parse_task(profile.task).stage_hint
     start_like = profile.stage in {"idea", "start"} or (profile.stage is None and hint == "start")

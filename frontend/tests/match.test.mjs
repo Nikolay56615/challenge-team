@@ -1,4 +1,4 @@
-// Пометки «Совпало» из contributions (кандидаты D09 и R19). Вклады взяты из ответов синтетического
+// Пометки «Совпало» из contributions. Вклады взяты из ответов синтетического
 // каталога для P01, P02, P05 и P11: ответ /api/compare снимка бэкенда после волны A.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

@@ -4,7 +4,7 @@ import { chromium } from 'playwright-core';
 
 export const [base = 'http://127.0.0.1:8000', outDir = join(import.meta.dirname, '.results')] = process.argv.slice(2);
 
-// Вход приложения — лента по профилю (PLAN.md, раздел 13). Проверки подбора по задаче открывают его путь.
+// Вход приложения — лента по профилю. Проверки подбора по задаче открывают его путь.
 export const TASK_VIEW = '/?view=task';
 
 // Проверки идут в Chromium из Playwright (npm run install:browser), как в CI.

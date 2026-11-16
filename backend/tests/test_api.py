@@ -1,4 +1,4 @@
-"""Контракт API, ошибки, ссылки и демо-режим (docs/plan.md, 4.4–4.6; проверки S2–S6).
+"""Контракт API, ошибки, ссылки и демо-режим.
 
 Фикстура `client` запускает каждый тест дважды: без собранного интерфейса и со статикой на `/`.
 """
@@ -48,7 +48,7 @@ def test_health_and_meta(client):
 def test_profiles_in_demo_mode(client):
     body = client.get("/api/profiles").json()
     assert [p["id"] for p in body["profiles"]][:2] == ["P01", "P02"]
-    # P11 и P12 — пилот «похожие курсы»: пустая задача и курс в истории (docs/plan.md, 2.6)
+    # P11 и P12 — пилот «похожие курсы»: пустая задача и курс в истории
     assert [p["id"] for p in body["profiles"]] == [f"P{n:02d}" for n in range(1, 13)]
     assert body["profiles"][1]["history"][1] == {"material_id": "M03", "event": "complete", "seq": 2}
 

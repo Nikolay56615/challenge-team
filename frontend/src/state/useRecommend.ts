@@ -1,4 +1,4 @@
-// Состояние экрана: форма, история сеанса, жизненный цикл запроса (docs/plan.md, 5.2–5.6).
+// Состояние экрана: форма, история сеанса, жизненный цикл запроса.
 import { useEffect, useReducer, useRef } from 'react';
 import { ApiError, NETWORK_MESSAGE, compare, isAbortError, isTaskFieldError, recommend } from '../api/client';
 import type {
@@ -65,7 +65,7 @@ export interface RecommendState {
   lastCall: Call | null;
   /**
    * Ошибка последнего ответа. Во время загрузки остаётся до нового ответа: экран по ней понимает, что до запроса
-   * показывал ошибку, а не начальный экран (D10), но баннер ошибки при загрузке не выводит
+   * показывал ошибку, а не начальный экран, но баннер ошибки при загрузке не выводит
    */
   failure: RequestFailure | null;
   fieldError: string | null;
@@ -150,7 +150,7 @@ function reducer(state: RecommendState, action: Action): RecommendState {
       return { ...state, history: action.history };
     case 'start':
       // Прежний ответ, его ошибка и скрытое уточнение остаются до нового ответа: пока не появились скелетоны,
-      // экран держит прежнее содержимое (кандидат D10)
+      // экран держит прежнее содержимое
       return { ...state, loading: true, lastCall: action.call, fieldError: null, newQuery: action.newQuery };
     case 'success':
       return {

@@ -1,4 +1,4 @@
-"""Настройки из переменных окружения (docs/plan.md, 4.5).
+"""Настройки из переменных окружения.
 
 Приложение читает только окружение процесса; файл `.env` читает docker compose. Порт задаёт
 команда запуска uvicorn: в контейнере сервис всегда слушает 8000, а `APP_PORT` в compose —
@@ -21,7 +21,6 @@ CATALOG_SOURCES = ("synthetic", "sqlite", "file")
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 FLAGS = {"true": True, "false": False, "1": True, "0": False, "yes": True, "no": False, "on": True, "off": False}
 # Порог поддержки пары совместных записей: пара с меньшим числом общих слушателей не загружается
-# (пилот «похожие курсы», docs/plan.md, раздел 9, решение 2026-11-11)
 PAIRS_MIN_SUPPORT_DEFAULT = 10
 PAIRS_MIN_SUPPORT_MAX = 1_000_000
 
@@ -69,7 +68,7 @@ class Settings:
     pairs_min_support: int = PAIRS_MIN_SUPPORT_DEFAULT
     demo_mode: bool = True
     max_task_length: int = 300
-    # GET /metrics в формате Prometheus; выключено — адреса нет и счётчики не ведутся (кандидат W12)
+    # GET /metrics в формате Prometheus; выключено — адреса нет и счётчики не ведутся
     metrics_enabled: bool = False
     log_level: str = "info"
     frontend_dist: Path = DEFAULT_FRONTEND_DIST

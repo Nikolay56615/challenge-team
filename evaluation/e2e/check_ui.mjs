@@ -1,9 +1,9 @@
-// Сквозная проверка интерфейса по docs/plan.md, 7.1 (E1–E9, E11). Проверки WCAG 2.2 по всем состояниям — в check_wcag.mjs.
+// Сквозная проверка интерфейса подбора по задаче. Проверки WCAG 2.2 по всем состояниям — в check_wcag.mjs.
 // Кандидаты D09 — пометки «Совпало», «уровень» только при точном совпадении, длина строки 65ch, кнопка
 // на первом экране 390×844; D10 — задержка скелетонов при замедленном ответе, прежнее содержимое до неё на месте.
 // evaluation/track1-heuristic-review.md, ИИ-5 — сообщение у предела поля задачи и его снятие при смене значения.
 // Тексты сравниваются без неразрывных пробелов типографа.
-// Элементы ищутся по ролям и видимым подписям из docs/ui-kit.md и docs/plan.md, 5.7.
+// Элементы ищутся по ролям и видимым подписям из интерфейса.
 //
 // Запуск из корня проекта при работающем сервисе с собранным интерфейсом:
 //   npm --prefix evaluation/e2e run check:ui -- [адрес] [папка результатов]
@@ -33,7 +33,7 @@ async function open(browser, width) {
 
 const shot = (page, name) => page.screenshot({ path: join(outDir, `${name}.png`), fullPage: true });
 
-/** Текст карточек без неразрывных пробелов типографа (D09): сравнение идёт с обычными строками */
+/** Текст карточек без неразрывных пробелов типографа: сравнение идёт с обычными строками */
 async function cards(page, scope) {
   const root = scope || page;
   return root.locator('article.card').evaluateAll((els) => {
@@ -104,7 +104,7 @@ function lineLength(page) {
 /** Строка состояния без неразрывных пробелов типографа */
 const statusText = async (page) => ((await page.locator('p.status-line').textContent()) || '').replace(/\u00a0/g, ' ');
 
-/** Опыт из формы и уровень материала при точном совпадении (docs/plan.md, 3.2) */
+/** Опыт из формы и уровень материала при точном совпадении */
 const LEVEL_OF = { none: 'intro', some: 'practical', experienced: 'advanced' };
 
 const T = {
@@ -154,7 +154,7 @@ await runBrowserChecks('results.json', results, async (browser) => {
       JSON.stringify(list[0].matched) === JSON.stringify(['тема', 'стадия', 'уровень', 'сфера']) &&
         list.every((c) => c.matched.length >= 1 && c.matched.length <= 4 && c.matched.every((m) => !/\d/.test(m))),
       list.map((c) => c.matched.join(' · ')).join(' / '));
-    // D09: вклад уровня дают и точное совпадение, и смежный уровень (docs/plan.md, 3.2). «уровень» в «Совпало» — только
+    // D09: вклад уровня дают и точное совпадение, и смежный уровень. «уровень» в «Совпало» — только
     // при точном: у смежного причина говорит «на шаг глубже» или «проще». В тройке P01 смежный — шаблон M03
     const p01Items = (await p01.json()).items;
     const target = LEVEL_OF[p01.request().postDataJSON().experience];

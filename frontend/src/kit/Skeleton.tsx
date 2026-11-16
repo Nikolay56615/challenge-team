@@ -2,9 +2,8 @@ import { useEffect, useState, type HTMLAttributes } from 'react';
 import { cx } from './cx';
 
 /**
- * Задержка появления скелетонов, мс (кандидат D10). Ответ быстрее неё приходит без мелькания
- * заглушек; о загрузке сразу сообщает StatusLine. Значение из диапазона 300–500 мс
- * (research/literature-design.md, 4.15).
+ * Задержка появления скелетонов, мс. Ответ быстрее неё приходит без мелькания
+ * заглушек; о загрузке сразу сообщает StatusLine.
  */
 export const SKELETON_DELAY_MS = 400;
 

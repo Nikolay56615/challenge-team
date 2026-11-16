@@ -1,4 +1,4 @@
-// Автоматическая проверка доступности axe-core по состояниям экрана (docs/plan.md, 5.5; docs/ui-kit.md, раздел 1).
+// Автоматическая проверка доступности axe-core по состояниям экрана.
 // Ловит только часть нарушений WCAG: ручной проход клавиатурой из check_ui.mjs (E9) она не заменяет.
 //
 // Запуск из корня проекта при работающем сервисе с собранным интерфейсом:
@@ -20,7 +20,7 @@ async function audit(page, state, width) {
   await page.addScriptTag({ content: axeSource });
   const result = await page.evaluate((tags) => window.axe.run(document, { runOnly: { type: 'tag', values: tags } }), TAGS);
   const violations = result.violations.map((v) => `${v.id} (${v.impact}, ${v.nodes.length})`);
-  // incomplete — правила, которые axe не смог решить сам (W19): разбор и решения — evaluation/track1-a11y-manual.md
+  // incomplete — правила, которые axe не смог решить сам: разбор и решения — evaluation/track1-a11y-manual.md
   const incomplete = result.incomplete.map((v) => {
     const first = v.nodes[0] || {};
     const reason = [...(first.any || []), ...(first.all || []), ...(first.none || [])].map((c) => c.message).find(Boolean) || '';

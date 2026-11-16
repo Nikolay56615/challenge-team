@@ -1,5 +1,5 @@
 """Настройки из окружения: строгие значения, флаг метрик, порт контейнера, уровни журналов
-(docs/plan.md, 4.5; кандидат W12)."""
+."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def test_defaults_without_environment():
     )
     # Пилот «похожие курсы»: без пути — синтетические пары для synthetic, порог поддержки 10
     assert (settings.catalog_pairs_path, settings.pairs_min_support) == (None, 10)
-    # /metrics выключен, пока его не включили явно (кандидат W12)
+    # /metrics выключен, пока его не включили явно
     assert settings.metrics_enabled is False
 
 

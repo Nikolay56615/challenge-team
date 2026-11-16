@@ -1,4 +1,4 @@
-// Вызовы API (docs/plan.md, 4.4). Ответы и ошибки приводятся к типам контракта из ./types.
+// Вызовы API. Ответы и ошибки приводятся к типам контракта из ./types.
 import type {
   ApiErrorBody,
   CompareResponse,

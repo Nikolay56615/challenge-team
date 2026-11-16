@@ -1,5 +1,5 @@
 // Цветовая математика для check_contrast.mjs и check_cvd.mjs (docs/ui-kit.md, 2.1 и 6; кандидаты D03 и D18).
-// Токены читаются из tokens.css. Контраст — формула WCAG 2.2. Различие цветов — CIEDE2000 в CIELAB (D65).
+// Токены читаются из tokens.css. Контраст — формула WCAG 2.2. Различие цветов — CIEDE2000 в CIELAB.
 // Симуляция нарушений цветового зрения — матрицы Machado, Oliveira и Fernandes (2009) для степени 1,0,
 // применяются к линейному sRGB, как в эмуляции Chromium (CDP Emulation.setEmulatedVisionDeficiency).
 

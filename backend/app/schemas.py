@@ -1,4 +1,4 @@
-"""Модели запроса и ответа API (docs/plan.md, 4.4). Иных полей в ответе нет."""
+"""Модели запроса и ответа API. Иных полей в ответе нет."""
 
 from __future__ import annotations
 
@@ -173,7 +173,7 @@ _MATERIAL_ID = Field(min_length=1, max_length=MATERIAL_ID_MAX_LENGTH, pattern=MA
 
 
 class FeedRequest(BaseModel):
-    """Запрос ленты по профилю (docs/plan.md, раздел 13).
+    """Запрос ленты по профилю.
 
     История берётся из `history`, а без неё — у клиента с кодом `user_id` (`GET /api/users`). Затем «что если»:
     события материалов из `exclude_history` убираются, события `add_history` добавляются после последнего

@@ -1,5 +1,5 @@
 """Приложение FastAPI: API, раздача собранного фронтенда, единый формат ошибок, заголовки и кеширование
-(docs/plan.md, 4.3–4.6).
+.
 
 Слои снаружи внутрь: EdgeMiddleware → ConditionalGetMiddleware → GZipMiddleware → обработчик 500 Starlette →
 BodyLimitMiddleware → обработчики ошибок → маршруты API и статика интерфейса.
@@ -21,7 +21,7 @@ BodyLimitMiddleware → обработчики ошибок → маршруты
 Текст задачи, значения полей профиля, коды материалов из истории, тела запросов и ответов, текст исключения
 и трассировка на уровне INFO не пишутся; трассировка — только на DEBUG.
 
-Метрики (кандидат W12). Только при METRICS_ENABLED: `GET /metrics` отдаёт текстовый формат Prometheus 0.0.4
+Метрики. Только при METRICS_ENABLED: `GET /metrics` отдаёт текстовый формат Prometheus 0.0.4
 со счётчиком `http_server_requests_total` и гистограммой `http_server_request_duration_seconds`. Имена, единица
 и границы корзин 0,005–10 с взяты из семантических конвенций OpenTelemetry для HTTP-сервера, суффиксы `_total`
 и `_seconds` — из правил именования Prometheus. Меток три, имена — атрибуты OpenTelemetry после перевода в формат
@@ -175,7 +175,7 @@ BODY_NOT_OBJECT = "Тело запроса должно быть JSON-объек
 # вложенность, число длиннее 4300 цифр. Для клиента это та же ошибка, что и синтаксис JSON.
 FASTAPI_BODY_ERROR = "There was an error parsing the body"
 
-# Метрики HTTP (кандидат W12; схема — в начале модуля)
+# Метрики HTTP
 METRICS_PATH = "/metrics"
 METRICS_CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 REQUESTS_TOTAL = "http_server_requests_total"

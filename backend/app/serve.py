@@ -1,4 +1,4 @@
-"""Запуск сервиса: проверка окружения и uvicorn с пределами (docs/plan.md, 4.5; кандидаты W07 и W13).
+"""Запуск сервиса: проверка окружения и uvicorn с пределами.
 
 Dockerfile вызывает модуль в exec-форме: `python -m app.serve --host 0.0.0.0 --port 8000`. Оболочки между
 Docker и Python нет, процесс Python — PID 1, и SIGTERM от `docker stop` получает сам uvicorn.

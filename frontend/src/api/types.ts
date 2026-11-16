@@ -1,5 +1,5 @@
-// Типы контракта API (docs/plan.md, 4.4). Источник истины — app/backend/app/schemas.py.
-// Совпадение со схемой OpenAPI проверяет при сборке src/api/contract.ts (кандидат W10).
+// Типы контракта API. Источник истины — backend/app/schemas.py.
+// Совпадение со схемой OpenAPI проверяет при сборке src/api/contract.ts.
 
 export type StageCode = 'idea' | 'start' | 'growth';
 export type ExperienceCode = 'none' | 'some' | 'experienced';

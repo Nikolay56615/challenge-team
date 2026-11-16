@@ -24,7 +24,7 @@ export function compareStatus(response: CompareResponse): string {
     return typo(`${ready} Изменились позиции: ${String(diff.changed_positions)} из ${String(diff.compared_positions)}.`);
   }
   // Пустая задача и история профиля: подбор по теме отвечает cold со стартовой подборкой, персональный
-  // подбирает по истории (docs/plan.md, раздел 9, решение 2026-11-11). Запроса нет, поэтому о «не нашёл» речи нет
+  // подбирает по истории. Запроса нет, поэтому о «не нашёл» речи нет
   if (baseline.status === 'cold' && hasResults(personal)) {
     return `${ready} Без задачи подбор по теме показывает стартовую подборку, персональный\u00A0— подбор по истории.`;
   }

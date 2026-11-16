@@ -447,7 +447,7 @@
       },
       "FeedRequest": {
         "additionalProperties": false,
-        "description": "Запрос ленты по профилю (docs/plan.md, раздел 13).\n\nИстория берётся из `history`, а без неё — у клиента с кодом `user_id` (`GET /api/users`). Затем «что если»:\nсобытия материалов из `exclude_history` убираются, события `add_history` добавляются после последнего\nсобытия истории, их `seq` задаёт порядок между собой.",
+        "description": "Запрос ленты по профилю.\n\nИстория берётся из `history`, а без неё — у клиента с кодом `user_id` (`GET /api/users`). Затем «что если»:\nсобытия материалов из `exclude_history` убираются, события `add_history` добавляются после последнего\nсобытия истории, их `seq` задаёт порядок между собой.",
         "properties": {
           "add_history": {
             "items": {

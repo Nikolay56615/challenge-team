@@ -1,4 +1,4 @@
-"""Порядок выдачи на синтетическом каталоге (docs/plan.md, 2.7) и свойства выдачи (docs/plan.md, 2.8)."""
+"""Порядок выдачи на синтетическом каталоге и свойства выдачи."""
 
 from __future__ import annotations
 
@@ -418,7 +418,7 @@ def test_purchase_of_an_unavailable_copy_hides_the_available_one():
 
 
 def starter_catalog(*extra: dict) -> Catalog:
-    """Каталог, где уровень размечен только у курсов, как в копии (docs/plan.md, 3.4)."""
+    """Каталог, где уровень размечен только у курсов, как в копии."""
     rows = [
         {"id": "C1", "title": "Курс для начинающих", "format": "course", "topics": ["marketing"], "level": "intro",
          "popularity": 5},

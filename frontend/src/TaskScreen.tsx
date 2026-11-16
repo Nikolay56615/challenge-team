@@ -237,7 +237,6 @@ export function TaskScreen({ metaState }: { metaState: ReturnType<typeof useMeta
   // Ответ на действие из области выдачи пришёл: фокус с ждущей строки состояния переходит к видимому
   // элементу — «Повторить», нужной карточке, первой карточке выдачи или заголовку представления.
   // Скрытая строка состояния и скрытый заголовок «Подборка» целью не бывают: кольцо фокуса на них не видно
-  // (docs/ui-kit.md, 1 и 4.1; evaluation/track1-heuristic-review.md, ИИ-10).
   useEffect(() => {
     const goal = focusGoal.current;
     if (!goal || state.loading) return;
