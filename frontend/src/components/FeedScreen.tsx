@@ -499,6 +499,7 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
       ) : null}
       {other && response && !loading ? <ClientCompare own={response} other={other} /> : null}
       {first && last ? <CompareTable caption="Первая и&nbsp;последняя карточки ленты" a={first} b={last} /> : null}
+      {items.length > 0 ? <h2 className="visually-hidden">Материалы ленты</h2> : null}
       <div className={cx('feed-list', loading && 'feed-list--stale')} aria-busy={loading}>
         {items.map((item) => (
           <FeedCard
@@ -543,6 +544,7 @@ export function FeedScreen({ mode, clients, clientsTotal, meta, onOpenTask, audi
               </Banner>
             ) : null}
             <StatusLine>{loading ? LOADING_TEXT : ''}</StatusLine>
+            {items.length > 0 ? <h2 className="visually-hidden">Материалы ленты</h2> : null}
             <div className={cx('feed-list', loading && 'feed-list--stale')} aria-busy={loading}>
               {items.map((item) => (
                 <FeedCard
